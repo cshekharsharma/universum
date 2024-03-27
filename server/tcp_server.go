@@ -87,14 +87,14 @@ func concurrentWorker(jobs <-chan net.Conn, connectionLimiter <-chan struct{}) {
 func handleConnection(conn net.Conn) {
 	buffer := bufio.NewReader(conn)
 
-	parsedCommand, err := engine.ExecuteCommand(buffer)
+	output, err := engine.ExecuteCommand(buffer)
 
 	if err != nil {
 		fmt.Printf("Error reading from the socket: %v\n", err)
 		return
 	}
 
-	_, err = conn.Write([]byte(fmt.Sprintf("Received: %+v\n", parsedCommand)))
+	_, err = conn.Write([]byte(fmt.Sprintf("Received: %#v\n", output)))
 	if err != nil {
 		fmt.Printf("Error writing to the socket: %v\n", err)
 	}
