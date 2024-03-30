@@ -2,6 +2,6 @@ package entity
 
 type Record struct {
 	TypeEncoding   uint8
-	LastAccessedAt int32
+	LastAccessedAt uint32
 	Value          interface{}
 }
