@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"universum/utils"
 )
@@ -79,6 +80,11 @@ func GetBool(key string, section string) (bool, error) {
 }
 
 func GetDefaultConfigPath() string {
+	configpath := os.Getenv("config")
+
+	if len(configpath) > 1 {
+		return configpath
+	}
 
 	if utils.IsDarwin() {
 		return fmt.Sprintf("/Library/Application Support/%s/%s", APP_CODE_NAME, DEFAULT_CONFIG_NAME)

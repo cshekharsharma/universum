@@ -24,7 +24,6 @@ func StartTCPServer(wg *sync.WaitGroup) {
 	atomic.StoreInt32(&serverState, STATE_STARTING)
 
 	port := fmt.Sprintf(":%d", config.GetServerPort())
-
 	maxConnections := config.GetMaxClientConnections()
 	concurrencyLimit := config.GetServerConcurrencyLimit(maxConnections)
 
@@ -44,6 +43,7 @@ func StartTCPServer(wg *sync.WaitGroup) {
 	defer listener.Close()
 	log.Printf("server listening on port %s\n", port)
 
+	engine.Startup()
 	atomic.StoreInt32(&serverState, STATE_READY)
 
 	for {
@@ -54,7 +54,7 @@ func StartTCPServer(wg *sync.WaitGroup) {
 		}
 
 		// Limit total accepted connections by trying to insert into the limiter channel.
-		// If it's full, we've reached the max and should handle this scenario (close the connection, log, etc.).
+		// If it's full, we've reached the max and should handle this scenario.
 		select {
 		case connectionLimiter <- struct{}{}:
 			// We successfully inserted a token, meaning we haven't reached the max.
@@ -62,8 +62,8 @@ func StartTCPServer(wg *sync.WaitGroup) {
 			conn.SetReadDeadline(time.Now().Add(5 * time.Minute))
 			jobs <- conn
 		default:
-			// Reached max connections; change the server state to busy, if not already set
-			// and refuse the current incoming request.
+			// Reached max connections; change the server state to busy, if not already
+			// set and refuse the current incoming request.
 			if atomic.LoadInt32(&serverState) == STATE_READY {
 				atomic.StoreInt32(&serverState, STATE_BUSY)
 			}
@@ -88,13 +88,13 @@ func handleConnection(conn net.Conn) {
 	buffer := bufio.NewReader(conn)
 
 	output, err := engine.ExecuteCommand(buffer)
+	fmt.Printf("THREYOUGO: %#v\n", output)
 
 	if err != nil {
-		fmt.Printf("Error reading from the socket: %v\n", err)
-		return
+		output = engine.EncodedResponse(err)
 	}
 
-	_, err = conn.Write([]byte(fmt.Sprintf("Received: %#v\n", output)))
+	_, err = conn.Write([]byte(output))
 	if err != nil {
 		fmt.Printf("Error writing to the socket: %v\n", err)
 	}
