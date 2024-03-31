@@ -27,7 +27,7 @@ func StartTCPServer(wg *sync.WaitGroup) {
 	maxConnections := config.GetMaxClientConnections()
 	concurrencyLimit := config.GetServerConcurrencyLimit(maxConnections)
 
-	jobs := make(chan net.Conn, concurrencyLimit)
+	jobs := make(chan *net.TCPConn, concurrencyLimit)
 	connectionLimiter := make(chan struct{}, maxConnections-concurrencyLimit)
 
 	for i := 0; i < concurrencyLimit; i++ {
@@ -48,10 +48,16 @@ func StartTCPServer(wg *sync.WaitGroup) {
 
 	for {
 		conn, err := listener.Accept()
+		tcpConn, _ := conn.(*net.TCPConn)
+
 		if err != nil {
 			fmt.Printf("Error accepting connection: %v\n", err)
 			continue
 		}
+
+		// set nodelay=true, so the response is immediately sent to buffer
+		// without waiting because of nagle's algorithm
+		tcpConn.SetNoDelay(true)
 
 		// Limit total accepted connections by trying to insert into the limiter channel.
 		// If it's full, we've reached the max and should handle this scenario.
@@ -59,8 +65,8 @@ func StartTCPServer(wg *sync.WaitGroup) {
 		case connectionLimiter <- struct{}{}:
 			// We successfully inserted a token, meaning we haven't reached the max.
 			// Set a read deadline and enqueue the connection.
-			conn.SetReadDeadline(time.Now().Add(5 * time.Minute))
-			jobs <- conn
+			conn.SetReadDeadline(time.Now().Add(config.GetTCPConnectionReadtime()))
+			jobs <- tcpConn
 		default:
 			// Reached max connections; change the server state to busy, if not already
 			// set and refuse the current incoming request.
@@ -75,7 +81,7 @@ func StartTCPServer(wg *sync.WaitGroup) {
 
 }
 
-func concurrentWorker(jobs <-chan net.Conn, connectionLimiter <-chan struct{}) {
+func concurrentWorker(jobs <-chan *net.TCPConn, connectionLimiter <-chan struct{}) {
 	for conn := range jobs {
 		handleConnection(conn)
 		// After handling, release a spot in the limiter.
@@ -84,22 +90,49 @@ func concurrentWorker(jobs <-chan net.Conn, connectionLimiter <-chan struct{}) {
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn *net.TCPConn) {
 	buffer := bufio.NewReader(conn)
+	writer := bufio.NewWriter(conn)
+	writer.Buffered()
+	defer conn.Close()
 
-	output, err := engine.ExecuteCommand(buffer)
-	fmt.Printf("THREYOUGO: %#v\n", output)
+	readtimeout := config.GetTCPConnectionReadtime()
 
-	if err != nil {
-		output = engine.EncodedResponse(err)
+	for {
+		conn.SetReadDeadline(time.Now().Add(readtimeout))
+		output, err := engine.ExecuteCommand(buffer)
+
+		if output != "" {
+			fmt.Printf("RESPONSE: %#v\n", output)
+		}
+
+		if err != nil {
+			// if connection has timed out or dropped, then terminate the flow
+			if _, ok := err.(net.Error); ok {
+				return
+			}
+
+			output = engine.EncodedResponse(err)
+		}
+
+		outputWithEOM := []byte(output)
+
+		for i1 := 0; i1 < 4; i1++ {
+			outputWithEOM = append(outputWithEOM, 0x04)
+		}
+		_, err = writer.Write([]byte(outputWithEOM))
+
+		if err != nil {
+			// of connection has timed out or dropped, then terminate the flow
+			if _, ok := err.(net.Error); ok {
+				return
+			}
+
+			fmt.Printf("Error writing to the socket: %v\n", err)
+		}
+
+		writer.Flush()
 	}
-
-	_, err = conn.Write([]byte(output))
-	if err != nil {
-		fmt.Printf("Error writing to the socket: %v\n", err)
-	}
-
-	conn.Close()
 }
 
 func WaitForSignal(wg *sync.WaitGroup, sigs chan os.Signal) {
