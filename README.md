@@ -1,2 +1,3 @@
-# universum
-A simple nosql in-memory database.
+# UniversumDB
+
+A simple in-memory key-value pair database written in Go.
