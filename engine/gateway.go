@@ -23,6 +23,7 @@ func ExecuteCommand(buff *bufio.Reader) (string, error) {
 		return "", err
 	}
 
+	fmt.Printf("REQUEST: %#v\n", command)
 	output, err := executeCommand(command)
 
 	if err != nil {

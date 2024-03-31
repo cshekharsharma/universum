@@ -1,5 +1,7 @@
 package config
 
+import "time"
+
 func GetServerPort() int {
 	port, err := GetInt64("ServerPort", APP_CODE_NAME)
 
@@ -43,4 +45,14 @@ func GetServerConcurrencyLimit(maxConnections int) int {
 	}
 
 	return int(concurrency)
+}
+
+func GetTCPConnectionReadtime() time.Duration {
+	timeout, err := GetInt64("ConnectionReadTimeout", APP_CODE_NAME)
+
+	if err != nil {
+		timeout = DEFAULT_CONN_READ_TIMEOUT
+	}
+
+	return time.Duration(timeout) * time.Minute
 }
