@@ -2,8 +2,9 @@
 package engine
 
 import (
-	"fmt"
+	"universum/consts"
 	"universum/engine/entity"
+	"universum/utils"
 )
 
 var storage Storage
@@ -21,30 +22,24 @@ func Startup() {
 func executeGET(command *entity.Command) string {
 	var output []interface{}
 
-	if len(command.Args) < 1 {
-		output = []interface{}{
-			nil,
-			RESPONSECODE_INVALID_CMD_INPUT,
-			"ERR: too few arguments provided. Want=1, Have=0",
-		}
-
-		return EncodedResponse(output)
+	if hasError, validityRes := utils.ValidateArgumentCount(command, 1); hasError {
+		return utils.EncodedResponse(validityRes)
 	}
 
 	key, ok := command.Args[0].(string)
 	if !ok {
 		output = []interface{}{
 			nil,
-			RESPONSECODE_INVALID_CMD_INPUT,
+			consts.CRC_INVALID_CMD_INPUT,
 			"ERR: key has invalid type. string expected",
 		}
 
-		return EncodedResponse(output)
+		return utils.EncodedResponse(output)
 	}
 
 	record, code := storage.Get(key)
 
-	return EncodedResponse([]interface{}{
+	return utils.EncodedResponse([]interface{}{
 		record,
 		code,
 		"",
@@ -54,43 +49,90 @@ func executeGET(command *entity.Command) string {
 func executeSET(command *entity.Command) string {
 	var output []interface{}
 
-	argLength := len(command.Args)
-	if argLength != 3 {
-		output = []interface{}{
-			false,
-			RESPONSECODE_INVALID_CMD_INPUT,
-			fmt.Sprintf("ERR: Incorrect number of args provided. Want=3, Have=%d", argLength),
-		}
-
-		return EncodedResponse(output)
+	if hasError, validityRes := utils.ValidateArgumentCount(command, 3); hasError {
+		return utils.EncodedResponse(validityRes)
 	}
 
 	key, ok := command.Args[0].(string)
 	if !ok {
 		output = []interface{}{
 			false,
-			RESPONSECODE_INVALID_CMD_INPUT,
+			consts.CRC_INVALID_CMD_INPUT,
 			"ERR: key has invalid type. string expected",
 		}
 
-		return EncodedResponse(output)
+		return utils.EncodedResponse(output)
 	}
 
 	ttl, ok := command.Args[2].(int)
 	if !ok {
 		output = []interface{}{
 			false,
-			RESPONSECODE_INVALID_CMD_INPUT,
+			consts.CRC_INVALID_CMD_INPUT,
 			"ERR: TTL has invalid type, uint64 expected",
 		}
 
-		return EncodedResponse(output)
+		return utils.EncodedResponse(output)
 	}
 
 	success, code := storage.Set(key, command.Args[1], uint64(ttl))
 
-	return EncodedResponse([]interface{}{
+	return utils.EncodedResponse([]interface{}{
 		success,
+		code,
+		"",
+	})
+}
+
+func executeEXISTS(command *entity.Command) string {
+	var output []interface{}
+
+	if hasError, validityRes := utils.ValidateArgumentCount(command, 1); hasError {
+		return utils.EncodedResponse(validityRes)
+	}
+
+	key, ok := command.Args[0].(string)
+	if !ok {
+		output = []interface{}{
+			nil,
+			consts.CRC_INVALID_CMD_INPUT,
+			"ERR: key has invalid type. string expected",
+		}
+
+		return utils.EncodedResponse(output)
+	}
+
+	exists, code := storage.Exists(key)
+
+	return utils.EncodedResponse([]interface{}{
+		exists,
+		code,
+		"",
+	})
+}
+
+func executeDELETE(command *entity.Command) string {
+	var output []interface{}
+
+	if hasError, validityRes := utils.ValidateArgumentCount(command, 1); hasError {
+		return utils.EncodedResponse(validityRes)
+	}
+
+	key, ok := command.Args[0].(string)
+	if !ok {
+		output = []interface{}{
+			nil,
+			consts.CRC_INVALID_CMD_INPUT,
+			"ERR: key has invalid type. string expected",
+		}
+
+		return utils.EncodedResponse(output)
+	}
+
+	deleted, code := storage.Delete(key)
+
+	return utils.EncodedResponse([]interface{}{
+		deleted,
 		code,
 		"",
 	})

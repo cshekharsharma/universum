@@ -56,11 +56,17 @@ func parseCommand(buff *bufio.Reader) (*entity.Command, error) {
 
 func executeCommand(command *entity.Command) (string, error) {
 	switch command.Name {
-	case COMMAND_GET:
-		return executeGET(command), nil
+	case COMMAND_EXISTS:
+		return executeEXISTS(command), nil
 
 	case COMMAND_SET:
 		return executeSET(command), nil
+
+	case COMMAND_GET:
+		return executeGET(command), nil
+
+	case COMMAND_DELETE:
+		return executeDELETE(command), nil
 
 	default:
 		return "", fmt.Errorf("invalid command `%s` provided", command)
