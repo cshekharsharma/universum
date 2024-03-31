@@ -8,6 +8,17 @@ import (
 	"universum/engine/entity"
 )
 
+func EncodedResponse(response interface{}) string {
+	encoded, err := EncodeRESP3(response)
+
+	if err != nil {
+		newErr := fmt.Errorf("unexpected error occured while processing output: %v", err)
+		encoded, _ = EncodeRESP3(newErr)
+	}
+
+	return encoded
+}
+
 func EncodeRESP3(value interface{}) (string, error) {
 	switch v := value.(type) {
 	case string:

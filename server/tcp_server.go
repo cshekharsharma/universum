@@ -11,6 +11,7 @@ import (
 	"time"
 	"universum/config"
 	"universum/engine"
+	"universum/utils"
 )
 
 var serverState int32
@@ -112,7 +113,7 @@ func handleConnection(conn *net.TCPConn) {
 				return
 			}
 
-			output = engine.EncodedResponse(err)
+			output = utils.EncodedResponse(err)
 		}
 
 		outputWithEOM := []byte(output)
