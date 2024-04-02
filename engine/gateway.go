@@ -18,8 +18,8 @@ const (
 	COMMAND_DECR   string = "DECR"
 )
 
-func ExecuteCommand(buff *bufio.Reader) (string, error) {
-	command, err := parseCommand(buff)
+func ExecuteCommand(buffer *bufio.Reader) (string, error) {
+	command, err := parseCommand(buffer)
 
 	if err != nil {
 		return "", err
@@ -35,8 +35,8 @@ func ExecuteCommand(buff *bufio.Reader) (string, error) {
 	return output, nil
 }
 
-func parseCommand(buff *bufio.Reader) (*entity.Command, error) {
-	raw, err := resp3.Decode(buff)
+func parseCommand(buffer *bufio.Reader) (*entity.Command, error) {
+	raw, err := resp3.Decode(buffer)
 
 	if err != nil {
 		return nil, err
@@ -48,9 +48,15 @@ func parseCommand(buff *bufio.Reader) (*entity.Command, error) {
 		return nil, errors.New("incompatible RESP3 input, expected a list")
 	}
 
+	rawcommand, readerr := resp3.Encode(parsedCommand)
+	if readerr != nil {
+		return nil, errors.New("failed to read the command")
+	}
+
 	command := &entity.Command{
 		Name: strings.ToUpper(fmt.Sprintf("%v", parsedCommand[0])),
 		Args: parsedCommand[1:],
+		Raw:  []byte(rawcommand),
 	}
 
 	return command, nil

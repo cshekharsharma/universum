@@ -29,7 +29,7 @@ func (s *Storage) Exists(key string) (bool, uint32) {
 
 	record, ok := memoryStore[pointer]
 	if ok {
-		expired := s.hasExpired(record)
+		expired := isExpiredRecord(record)
 
 		if !expired {
 			return true, consts.CRC_RECORD_FOUND
@@ -53,7 +53,7 @@ func (s *Storage) Get(key string) (*entity.Record, uint32) {
 		return nil, consts.CRC_RECORD_NOT_FOUND
 	}
 
-	if s.hasExpired(record) {
+	if isExpiredRecord(record) {
 		deleteByPointer(record, pointer)
 		return nil, consts.CRC_RECORD_EXPIRED
 	}
@@ -138,14 +138,6 @@ func (s *Storage) Append(key string, offset int64) (*entity.Record, uint32) {
 }
 
 // ------------------- Internal Functions -------------------
-func (s *Storage) hasExpired(record *entity.Record) bool {
-	expiry, ok := expirationMap[record]
-	if !ok {
-		return false
-	}
-
-	return expiry < utils.GetCurrentEPochTime()
-}
 
 func deleteByPointer(record *entity.Record, pointer unsafe.Pointer) bool {
 	delete(memoryStore, pointer)
