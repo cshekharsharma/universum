@@ -118,7 +118,11 @@ func DecodeRESP3(reader *bufio.Reader) (interface{}, error) {
 			return nil, err
 		}
 
-		return strconv.Atoi(string(line))
+		xint, casterr := strconv.Atoi(string(line))
+		if casterr != nil {
+			return xint, casterr
+		}
+		return int64(xint), nil
 
 	case '$': // Bulk String
 		lengthStr, _, err := reader.ReadLine()

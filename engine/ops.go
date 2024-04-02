@@ -64,18 +64,18 @@ func executeSET(command *entity.Command) string {
 		return utils.EncodedResponse(output)
 	}
 
-	ttl, ok := command.Args[2].(int)
+	ttl, ok := command.Args[2].(int64)
 	if !ok {
 		output = []interface{}{
 			false,
 			consts.CRC_INVALID_CMD_INPUT,
-			"ERR: TTL has invalid type, uint64 expected",
+			"ERR: TTL has invalid type, int64 expected",
 		}
 
 		return utils.EncodedResponse(output)
 	}
 
-	success, code := storage.Set(key, command.Args[1], uint64(ttl))
+	success, code := storage.Set(key, command.Args[1], uint32(ttl))
 
 	return utils.EncodedResponse([]interface{}{
 		success,
@@ -133,6 +133,44 @@ func executeDELETE(command *entity.Command) string {
 
 	return utils.EncodedResponse([]interface{}{
 		deleted,
+		code,
+		"",
+	})
+}
+
+func executeINCRDECR(command *entity.Command, isIncr bool) string {
+	var output []interface{}
+
+	if hasError, validityRes := utils.ValidateArgumentCount(command, 2); hasError {
+		return utils.EncodedResponse(validityRes)
+	}
+
+	key, ok := command.Args[0].(string)
+	if !ok {
+		output = []interface{}{
+			false,
+			consts.CRC_INVALID_CMD_INPUT,
+			"ERR: key has invalid type. string expected",
+		}
+
+		return utils.EncodedResponse(output)
+	}
+
+	offset, ok := command.Args[1].(int64)
+	if !ok {
+		output = []interface{}{
+			false,
+			consts.CRC_INVALID_CMD_INPUT,
+			"ERR: Offset has invalid type, int64 expected",
+		}
+
+		return utils.EncodedResponse(output)
+	}
+
+	updatedValue, code := storage.IncrDecrInteger(key, int64(offset), isIncr)
+
+	return utils.EncodedResponse([]interface{}{
+		updatedValue,
 		code,
 		"",
 	})

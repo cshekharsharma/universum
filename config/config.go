@@ -10,7 +10,7 @@ import (
 
 var CONFIG *IniFile
 
-const INVALID_NUMERIC_VALUE = -999999999
+const INVALID_NUMERIC_VALUE = -99999999
 
 func Load(filepath string) error {
 	var err error
