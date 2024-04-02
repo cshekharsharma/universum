@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -94,8 +95,21 @@ func concurrentWorker(jobs <-chan *net.TCPConn, connectionLimiter <-chan struct{
 func handleConnection(conn *net.TCPConn) {
 	buffer := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
-	writer.Buffered()
-	defer conn.Close()
+
+	// recover from the panic if any faulty client may cause
+	// any kine of trouble to the server
+	defer func() {
+		err := errors.New("connection pipe broken, closing the connection")
+		if r := recover(); r != nil {
+			log.Printf("Concurrent job recovered from the panic: %v", r)
+		}
+		atomic.StoreInt32(&serverState, STATE_READY)
+
+		outputWithEOM := utils.EncodedRESP3Response(err) + "\x04\x04\x04\x04"
+		writer.Write([]byte(outputWithEOM))
+		writer.Flush()
+		conn.Close()
+	}()
 
 	readtimeout := config.GetTCPConnectionReadtime()
 
@@ -113,14 +127,10 @@ func handleConnection(conn *net.TCPConn) {
 				return
 			}
 
-			output = utils.EncodedResponse(err)
+			output = utils.EncodedRESP3Response(err)
 		}
 
-		outputWithEOM := []byte(output)
-
-		for i1 := 0; i1 < 4; i1++ {
-			outputWithEOM = append(outputWithEOM, 0x04)
-		}
+		outputWithEOM := output + "\x04\x04\x04\x04"
 		_, err = writer.Write([]byte(outputWithEOM))
 
 		if err != nil {

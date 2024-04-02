@@ -23,7 +23,7 @@ func executeGET(command *entity.Command) string {
 	var output []interface{}
 
 	if hasError, validityRes := utils.ValidateArgumentCount(command, 1); hasError {
-		return utils.EncodedResponse(validityRes)
+		return utils.EncodedRESP3Response(validityRes)
 	}
 
 	key, ok := command.Args[0].(string)
@@ -34,12 +34,12 @@ func executeGET(command *entity.Command) string {
 			"ERR: key has invalid type. string expected",
 		}
 
-		return utils.EncodedResponse(output)
+		return utils.EncodedRESP3Response(output)
 	}
 
 	record, code := storage.Get(key)
 
-	return utils.EncodedResponse([]interface{}{
+	return utils.EncodedRESP3Response([]interface{}{
 		record,
 		code,
 		"",
@@ -50,7 +50,7 @@ func executeSET(command *entity.Command) string {
 	var output []interface{}
 
 	if hasError, validityRes := utils.ValidateArgumentCount(command, 3); hasError {
-		return utils.EncodedResponse(validityRes)
+		return utils.EncodedRESP3Response(validityRes)
 	}
 
 	key, ok := command.Args[0].(string)
@@ -61,7 +61,7 @@ func executeSET(command *entity.Command) string {
 			"ERR: key has invalid type. string expected",
 		}
 
-		return utils.EncodedResponse(output)
+		return utils.EncodedRESP3Response(output)
 	}
 
 	ttl, ok := command.Args[2].(int64)
@@ -72,12 +72,12 @@ func executeSET(command *entity.Command) string {
 			"ERR: TTL has invalid type, int64 expected",
 		}
 
-		return utils.EncodedResponse(output)
+		return utils.EncodedRESP3Response(output)
 	}
 
 	success, code := storage.Set(key, command.Args[1], uint32(ttl))
 
-	return utils.EncodedResponse([]interface{}{
+	return utils.EncodedRESP3Response([]interface{}{
 		success,
 		code,
 		"",
@@ -88,7 +88,7 @@ func executeEXISTS(command *entity.Command) string {
 	var output []interface{}
 
 	if hasError, validityRes := utils.ValidateArgumentCount(command, 1); hasError {
-		return utils.EncodedResponse(validityRes)
+		return utils.EncodedRESP3Response(validityRes)
 	}
 
 	key, ok := command.Args[0].(string)
@@ -99,12 +99,12 @@ func executeEXISTS(command *entity.Command) string {
 			"ERR: key has invalid type. string expected",
 		}
 
-		return utils.EncodedResponse(output)
+		return utils.EncodedRESP3Response(output)
 	}
 
 	exists, code := storage.Exists(key)
 
-	return utils.EncodedResponse([]interface{}{
+	return utils.EncodedRESP3Response([]interface{}{
 		exists,
 		code,
 		"",
@@ -115,7 +115,7 @@ func executeDELETE(command *entity.Command) string {
 	var output []interface{}
 
 	if hasError, validityRes := utils.ValidateArgumentCount(command, 1); hasError {
-		return utils.EncodedResponse(validityRes)
+		return utils.EncodedRESP3Response(validityRes)
 	}
 
 	key, ok := command.Args[0].(string)
@@ -126,12 +126,12 @@ func executeDELETE(command *entity.Command) string {
 			"ERR: key has invalid type. string expected",
 		}
 
-		return utils.EncodedResponse(output)
+		return utils.EncodedRESP3Response(output)
 	}
 
 	deleted, code := storage.Delete(key)
 
-	return utils.EncodedResponse([]interface{}{
+	return utils.EncodedRESP3Response([]interface{}{
 		deleted,
 		code,
 		"",
@@ -142,7 +142,7 @@ func executeINCRDECR(command *entity.Command, isIncr bool) string {
 	var output []interface{}
 
 	if hasError, validityRes := utils.ValidateArgumentCount(command, 2); hasError {
-		return utils.EncodedResponse(validityRes)
+		return utils.EncodedRESP3Response(validityRes)
 	}
 
 	key, ok := command.Args[0].(string)
@@ -153,7 +153,7 @@ func executeINCRDECR(command *entity.Command, isIncr bool) string {
 			"ERR: key has invalid type. string expected",
 		}
 
-		return utils.EncodedResponse(output)
+		return utils.EncodedRESP3Response(output)
 	}
 
 	offset, ok := command.Args[1].(int64)
@@ -164,12 +164,12 @@ func executeINCRDECR(command *entity.Command, isIncr bool) string {
 			"ERR: Offset has invalid type, int64 expected",
 		}
 
-		return utils.EncodedResponse(output)
+		return utils.EncodedRESP3Response(output)
 	}
 
 	updatedValue, code := storage.IncrDecrInteger(key, int64(offset), isIncr)
 
-	return utils.EncodedResponse([]interface{}{
+	return utils.EncodedRESP3Response([]interface{}{
 		updatedValue,
 		code,
 		"",
