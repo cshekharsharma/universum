@@ -12,6 +12,7 @@ var storage Storage
 func Shutdown() {
 	// do all the shut down operations, such as fsyncing AOF
 	// and freeing up occupied resources and memory.
+	NewTranslogBuffer().Flush()
 }
 
 func Startup() {
@@ -77,6 +78,10 @@ func executeSET(command *entity.Command) string {
 
 	success, code := storage.Set(key, command.Args[1], uint32(ttl))
 
+	if success && code == consts.CRC_RECORD_UPDATED {
+		NewTranslogBuffer().AddToBuffer(string(command.Raw))
+	}
+
 	return utils.EncodedRESP3Response([]interface{}{
 		success,
 		code,
@@ -130,6 +135,10 @@ func executeDELETE(command *entity.Command) string {
 	}
 
 	deleted, code := storage.Delete(key)
+
+	if deleted && code == consts.CRC_RECORD_DELETED {
+		NewTranslogBuffer().AddToBuffer(string(command.Raw))
+	}
 
 	return utils.EncodedRESP3Response([]interface{}{
 		deleted,

@@ -56,3 +56,13 @@ func GetTCPConnectionReadtime() time.Duration {
 
 	return time.Duration(timeout) * time.Minute
 }
+
+func GetTransactionLogFilePath() string {
+	path, err := GetString("TransactionLogFilePath", APP_CODE_NAME)
+
+	if err != nil {
+		path = DEFAULT_TRANSLOG_FILE_PATH
+	}
+
+	return path
+}
