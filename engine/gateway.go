@@ -14,6 +14,8 @@ const (
 	COMMAND_SET    string = "SET"
 	COMMAND_DELETE string = "DELETE"
 	COMMAND_EXISTS string = "EXISTS"
+	COMMAND_INCR   string = "INCR"
+	COMMAND_DECR   string = "DECR"
 )
 
 func ExecuteCommand(buff *bufio.Reader) (string, error) {
@@ -67,6 +69,12 @@ func executeCommand(command *entity.Command) (string, error) {
 
 	case COMMAND_DELETE:
 		return executeDELETE(command), nil
+
+	case COMMAND_INCR:
+		return executeINCRDECR(command, true), nil
+
+	case COMMAND_DECR:
+		return executeINCRDECR(command, false), nil
 
 	default:
 		return "", fmt.Errorf("invalid command `%s` provided", command)

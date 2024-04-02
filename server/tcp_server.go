@@ -138,7 +138,9 @@ func handleConnection(conn *net.TCPConn) {
 
 func WaitForSignal(wg *sync.WaitGroup, sigs chan os.Signal) {
 	defer wg.Done()
-	<-sigs
+	receivedSignal := <-sigs
+
+	log.Printf("Shutting down the server due to signal: %s", receivedSignal.String())
 
 	// if server is busy continue to wait with period sleep of 100ms
 	for atomic.LoadInt32(&serverState) == STATE_BUSY {
