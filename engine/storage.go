@@ -58,14 +58,14 @@ func (s *Storage) Get(key string) (*entity.Record, uint32) {
 		return nil, consts.CRC_RECORD_EXPIRED
 	}
 
-	record.LastAccessedAt = utils.GetCurrentEPochTime()
+	record.LAT = utils.GetCurrentEPochTime()
 	return record, consts.CRC_RECORD_FOUND
 }
 
 func (s *Storage) Set(key string, value interface{}, ttl uint32) (bool, uint32) {
 	// @TODO put some eviction logic here
 
-	record := entity.NewRecord(value, 0, utils.GetCurrentEPochTime())
+	record := entity.NewRecord(value, GetTypeEncoding(value), utils.GetCurrentEPochTime())
 
 	pointer, ok := keypool[key]
 	if !ok {

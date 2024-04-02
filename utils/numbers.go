@@ -32,6 +32,11 @@ var integerTypes = []reflect.Kind{
 	reflect.Uint64,
 }
 
+var floatTypes = []reflect.Kind{
+	reflect.Float32,
+	reflect.Float64,
+}
+
 // Checks if the provided variable is a number.
 // The number can be any of type, ie signed int, unsigned int or float.
 func IsNumber(value interface{}) bool {
@@ -62,4 +67,20 @@ func IsInteger(value interface{}) bool {
 	}
 
 	return isInt
+}
+
+// Checks if the provided variable is an float.
+// The float can be any of any bitsize.
+func IsFloat(value interface{}) bool {
+	datatype := reflect.TypeOf(value).Kind()
+
+	var isFloat bool = false
+	for i := range floatTypes {
+		if floatTypes[i] == datatype {
+			isFloat = true
+			break
+		}
+	}
+
+	return isFloat
 }

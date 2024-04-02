@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"universum/engine/entity"
-	"universum/utils"
+	"universum/resp3"
 )
 
 const (
@@ -36,7 +36,7 @@ func ExecuteCommand(buff *bufio.Reader) (string, error) {
 }
 
 func parseCommand(buff *bufio.Reader) (*entity.Command, error) {
-	raw, err := utils.DecodeRESP3(buff)
+	raw, err := resp3.Decode(buff)
 
 	if err != nil {
 		return nil, err
