@@ -4,5 +4,5 @@
 - LRU based eviction if memory is full
 - Add MultiGet, MultiSet, MultiDelete, and Stats command
 - Implement db stats holder
-- Implement AOF for persistent
+- Implement AOF loader for persistent
 - Implement persistent storage with B+ or LSM tree
