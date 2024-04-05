@@ -12,7 +12,7 @@ import (
 	"time"
 	"universum/config"
 	"universum/engine"
-	"universum/utils"
+	"universum/resp3"
 )
 
 var serverState int32
@@ -100,12 +100,12 @@ func handleConnection(conn *net.TCPConn) {
 	// any kine of trouble to the server
 	defer func() {
 		err := errors.New("connection pipe broken, closing the connection")
-		if r := recover(); r != nil {
-			log.Printf("Concurrent job recovered from the panic: %v", r)
-		}
+		// if r := recover(); r != nil {
+		// 	log.Printf("Concurrent job recovered from the panic: %v", r)
+		// }
 		atomic.StoreInt32(&serverState, STATE_READY)
 
-		outputWithEOM := utils.EncodedRESP3Response(err) + "\x04\x04\x04\x04"
+		outputWithEOM := resp3.EncodedRESP3Response(err) + "\x04\x04\x04\x04"
 		writer.Write([]byte(outputWithEOM))
 		writer.Flush()
 		conn.Close()
@@ -127,7 +127,7 @@ func handleConnection(conn *net.TCPConn) {
 				return
 			}
 
-			output = utils.EncodedRESP3Response(err)
+			output = resp3.EncodedRESP3Response(err)
 		}
 
 		outputWithEOM := output + "\x04\x04\x04\x04"

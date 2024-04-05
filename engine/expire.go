@@ -1,74 +1,91 @@
 package engine
 
 import (
+	"fmt"
+	"log"
+	"math/rand"
 	"time"
-	"universum/engine/entity"
-	"universum/utils"
+	"universum/storage"
 )
 
-const MAX_RECORD_DELETION_LOCAL_LIMIT int64 = 1000
-const MAX_RECORD_DELETION_FRACTION float64 = 0.2
+const maxRecordDeletionLocalLimit int64 = 1000
 
 var expiryJobLastExecutedAt time.Time
-var expiryJobExecutionFrequency time.Duration = 3 * time.Second
+var expiryJobExecutionFrequency time.Duration = 2 * time.Second
 
-func TriggerPeriodicExpiredRecordCleaup() {
-	nextScheduledTime := expiryJobLastExecutedAt.Add(expiryJobExecutionFrequency)
-
-	if nextScheduledTime.Compare(time.Now()) < 1 {
-		expireDeletedRecords()
-	}
+type periodicRecordExpiryWorker struct {
+	ExecutionErr error
 }
 
-func expireRandomSample() int64 {
+func (w *periodicRecordExpiryWorker) expireDeletedRecords(expiryChan chan<- periodicRecordExpiryWorker) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			if err, ok := r.(error); ok {
+				w.ExecutionErr = err
+			} else {
+				w.ExecutionErr = fmt.Errorf("panic happened with %v", r)
+			}
+		} else {
+			w.ExecutionErr = err
+		}
+
+		// emit message to the worker channel that worker is dying.
+		expiryChan <- *w
+	}()
+
+	memorystore := GetMemstore()
+	shards := memorystore.GetAllShards()
+
+	var totalDeleted int64 = 0
+	expiryJobLastExecutedAt = time.Now()
+
+	for {
+		nextScheduledTime := expiryJobLastExecutedAt.Add(expiryJobExecutionFrequency)
+
+		if nextScheduledTime.Compare(time.Now()) < 1 {
+			deleted := w.expireRandomSample(memorystore, shards)
+			totalDeleted = deleted + totalDeleted
+
+			if deleted > 0 {
+				continue
+			}
+		}
+
+		time.Sleep(expiryJobExecutionFrequency)
+	}
+
+}
+
+func (w *periodicRecordExpiryWorker) expireRandomSample(memorystore *storage.MemoryStore, shards [storage.ShardCount]*storage.Shard) int64 {
 	var deletedCount int64 = 0
 
-	memStoreMutex.RLock()
-	for pointer, record := range memoryStore {
-		if isExpiredRecord(record) {
-			if deleteByPointer(record, pointer) {
+	randomGenerator := rand.New(rand.NewSource(time.Now().UnixNano()))
+	randomIndex := randomGenerator.Intn(len(shards))
+	randomShard := shards[randomIndex]
+
+	randomShard.GetData().Range(func(key interface{}, value interface{}) bool {
+		record := value.(*storage.ScalarRecord)
+
+		if record.Expiry < time.Now().Unix() {
+			strkey, _ := key.(string)
+
+			if deleted, _ := memorystore.Delete(strkey); deleted {
 				deletedCount++
 			}
 		}
 
-		if deletedCount >= MAX_RECORD_DELETION_LOCAL_LIMIT {
-			break
+		if deletedCount >= maxRecordDeletionLocalLimit {
+			return false
 		}
-	}
-	memStoreMutex.RUnlock()
+
+		return true
+	})
 
 	expiryJobLastExecutedAt = time.Now()
+
+	if deletedCount > 0 {
+		log.Printf("Few keys deleted. ShardID=%d, Count=%d\n", randomIndex, deletedCount)
+	}
+
 	return deletedCount
-}
-
-func isExpiredRecord(record *entity.Record) bool {
-	expirationMutex.RLock()
-	expiry, ok := expirationMap[record]
-	expirationMutex.RUnlock()
-
-	if !ok {
-		return false
-	}
-
-	return expiry < utils.GetCurrentEPochTime()
-}
-
-func expireDeletedRecords() {
-	var totalDeleted int64 = 0
-
-	totalExpirable := int64(len(expirationMap))
-	if totalExpirable == 0 {
-		return
-	}
-
-	for {
-		deleted := expireRandomSample()
-		totalDeleted = deleted + totalDeleted
-		ratio := float64(totalDeleted / totalExpirable)
-
-		if ratio >= MAX_RECORD_DELETION_FRACTION {
-			return
-		}
-	}
-
 }

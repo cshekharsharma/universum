@@ -4,8 +4,19 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"universum/engine/entity"
+	"universum/storage"
 )
+
+func EncodedRESP3Response(response interface{}) string {
+	encoded, err := Encode(response)
+
+	if err != nil {
+		newErr := fmt.Errorf("unexpected error occured while processing output: %v", err)
+		encoded, _ = Encode(newErr)
+	}
+
+	return encoded
+}
 
 func Encode(value interface{}) (string, error) {
 	switch v := value.(type) {
@@ -54,14 +65,16 @@ func Encode(value interface{}) (string, error) {
 		}
 		return resp, nil
 
-	case *entity.Record:
+	case *storage.ScalarRecord:
 		if v == nil {
 			return "_\r\n", nil
 		}
+
 		generic := make(map[string]interface{})
 		generic["Type"] = v.Type
 		generic["LAT"] = v.LAT
 		generic["Value"] = v.Value
+		generic["Expiry"] = v.Expiry
 
 		return Encode(generic)
 
