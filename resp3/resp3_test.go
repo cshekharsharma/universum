@@ -1,11 +1,10 @@
-package utils
+package resp3
 
 import (
 	"bufio"
 	"fmt"
 	"strings"
 	"testing"
-	"universum/resp3"
 )
 
 type testCase struct {
@@ -91,7 +90,7 @@ func TestEncode(t *testing.T) {
 	for _, tc := range testCases {
 		fmt.Printf("Test Case: %s\n", tc.Description)
 
-		actualEncOutput, err := resp3.Encode(tc.Input)
+		actualEncOutput, err := Encode(tc.Input)
 
 		if err != nil {
 			t.Errorf("%s: error while encoding %v", tc.Description, tc.Input)
@@ -109,7 +108,7 @@ func TestDecode(t *testing.T) {
 	for _, tc := range testCases {
 		fmt.Printf("Test Case: %s\n", tc.Description)
 
-		actualDecOutput, err := resp3.Decode(bufio.NewReader(strings.NewReader(tc.ExpectedEncOutput)))
+		actualDecOutput, err := Decode(bufio.NewReader(strings.NewReader(tc.ExpectedEncOutput)))
 
 		if err != nil {
 			t.Errorf("%s: error while decoding %v", tc.Description, tc.ExpectedEncOutput)
