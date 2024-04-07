@@ -8,16 +8,17 @@ import (
 	"universum/storage"
 )
 
+const shardcount uint32 = storage.ShardCount
 const maxRecordDeletionLocalLimit int64 = 1000
 
 var expiryJobLastExecutedAt time.Time
 var expiryJobExecutionFrequency time.Duration = 2 * time.Second
 
-type periodicRecordExpiryWorker struct {
+type recordExpiryWorker struct {
 	ExecutionErr error
 }
 
-func (w *periodicRecordExpiryWorker) expireDeletedRecords(expiryChan chan<- periodicRecordExpiryWorker) (err error) {
+func (w *recordExpiryWorker) expireDeletedRecords(expiryChan chan<- recordExpiryWorker) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if err, ok := r.(error); ok {
@@ -56,7 +57,7 @@ func (w *periodicRecordExpiryWorker) expireDeletedRecords(expiryChan chan<- peri
 
 }
 
-func (w *periodicRecordExpiryWorker) expireRandomSample(memorystore *storage.MemoryStore, shards [storage.ShardCount]*storage.Shard) int64 {
+func (w *recordExpiryWorker) expireRandomSample(memstore *storage.MemoryStore, shards [shardcount]*storage.Shard) int64 {
 	var deletedCount int64 = 0
 
 	randomGenerator := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -69,7 +70,7 @@ func (w *periodicRecordExpiryWorker) expireRandomSample(memorystore *storage.Mem
 		if record.Expiry < time.Now().Unix() {
 			strkey, _ := key.(string)
 
-			if deleted, _ := memorystore.Delete(strkey); deleted {
+			if deleted, _ := memstore.Delete(strkey); deleted {
 				deletedCount++
 			}
 		}
