@@ -6,9 +6,9 @@ import (
 )
 
 func triggerPeriodicExpiryJob() {
-	expworker := new(periodicRecordExpiryWorker)
+	expworker := new(recordExpiryWorker)
 
-	expiryChan := make(chan periodicRecordExpiryWorker, 1)
+	expiryChan := make(chan recordExpiryWorker, 1)
 	go expworker.expireDeletedRecords(expiryChan)
 
 	// Go routine to respawn the worker
