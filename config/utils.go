@@ -66,3 +66,13 @@ func GetTransactionLogFilePath() string {
 
 	return path
 }
+
+func GetForceAOFReplayOnError() bool {
+	forceReplay, err := GetInt64("ForceAOFReplayOnError", APP_CODE_NAME)
+
+	if err != nil {
+		return false
+	}
+
+	return forceReplay == 1
+}

@@ -36,26 +36,30 @@ func ExecuteCommand(buffer *bufio.Reader) (string, error) {
 }
 
 func parseCommand(buffer *bufio.Reader) (*entity.Command, error) {
-	raw, err := resp3.Decode(buffer)
+	decodedResp, err := resp3.Decode(buffer)
 
 	if err != nil {
 		return nil, err
 	}
 
-	parsedCommand, ok := raw.([]interface{})
+	return getCommandFromRESP(decodedResp)
+}
+
+func getCommandFromRESP(decodedResp interface{}) (*entity.Command, error) {
+	decodedList, ok := decodedResp.([]interface{})
 
 	if !ok {
 		return nil, errors.New("incompatible RESP3 input, expected a list")
 	}
 
-	rawcommand, readerr := resp3.Encode(parsedCommand)
+	rawcommand, readerr := resp3.Encode(decodedResp)
 	if readerr != nil {
-		return nil, errors.New("failed to read the command")
+		return nil, errors.New("failed to read the decoded RESP command")
 	}
 
 	command := &entity.Command{
-		Name: strings.ToUpper(fmt.Sprintf("%v", parsedCommand[0])),
-		Args: parsedCommand[1:],
+		Name: strings.ToUpper(fmt.Sprintf("%v", decodedList[0])),
+		Args: decodedList[1:],
 		Raw:  []byte(rawcommand),
 	}
 

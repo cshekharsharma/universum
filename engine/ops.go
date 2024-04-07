@@ -2,6 +2,9 @@
 package engine
 
 import (
+	"log"
+	"os"
+	"universum/config"
 	"universum/consts"
 	"universum/engine/entity"
 	"universum/resp3"
@@ -16,9 +19,21 @@ func GetMemstore() *storage.MemoryStore {
 }
 
 func Startup() {
+	// Initiaise the in-memory store
 	memstore = storage.CreateNewMemoryStore()
 	memstore.Initialize()
 
+	// Replay all commands from translog into the database
+	keyCount, err := ReplayTranslog(config.GetForceAOFReplayOnError())
+	if err != nil {
+		log.Printf("[Translog Replay [failed]: %v\n [KEYOFFSET: %d]", err, keyCount+1)
+		Shutdown()
+	} else {
+		log.Printf("[Translog Replay [success]: Total %d keys successfully replayed into the database.\n", keyCount)
+	}
+
+	// Trigger a expiry background job to periodically
+	// delete expired keys from the database
 	triggerPeriodicExpiryJob()
 }
 
@@ -191,4 +206,5 @@ func Shutdown() {
 	// do all the shut down operations, such as fsyncing AOF
 	// and freeing up occupied resources and memory.
 	NewTranslogBuffer().Flush()
+	os.Exit(0)
 }

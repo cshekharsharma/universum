@@ -1,12 +1,16 @@
 package engine
 
 import (
+	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"sync"
 	"universum/config"
+	"universum/resp3"
 )
 
 var translogInstance *transLogBuffer
@@ -18,7 +22,6 @@ type transLogBuffer struct {
 }
 
 func NewTranslogBuffer() *transLogBuffer {
-
 	if translogInstance == nil {
 		translogMutex.Lock()
 
@@ -53,6 +56,58 @@ func (tb *transLogBuffer) Flush() {
 
 	tb.flushBufferToFile(&tb.buffer, filename)
 	tb.buffer.Reset()
+}
+
+func ReplayTranslog(forceReply bool) (int64, error) {
+	var keycount int64 = 0
+
+	filepath := config.GetTransactionLogFilePath()
+	filePtr, _ := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0644)
+	defer filePtr.Close()
+
+	buffer := bufio.NewReader(filePtr)
+
+	for {
+		decoded, err := resp3.Decode(buffer)
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			} else {
+				return keycount, fmt.Errorf("failed to parse a commands from translog, "+
+					"please fix the translog file, or run the server with force replay enabled "+
+					"in config to skip the record and continue further. ERR=[%v]", err)
+			}
+		}
+
+		command, cmderr := getCommandFromRESP(decoded)
+		if cmderr != nil {
+			if forceReply {
+				continue
+			}
+
+			return keycount, fmt.Errorf("failed to parse a commands from translog, "+
+				"please fix the translog file, or run the server with force replay enabled "+
+				"in config to skip the record and continue further. ERR=[%v]", err)
+		}
+
+		_, execErr := executeCommand(command)
+		if execErr != nil {
+			if forceReply {
+				continue
+			}
+
+			return keycount, errors.New("failed to replay a commands into the memorystore, " +
+				"potentially errornous translog or intermittent write failure. Run the server " +
+				"with force replay enabled in config to skip the record and continue further")
+		}
+
+		log.Printf(" >> Reply Done for command: %d\n", keycount)
+		keycount++
+	}
+
+	filePtr.Truncate(0) // truncate the translog for fresh records
+	return keycount, nil
 }
 
 func (tb *transLogBuffer) flushBufferToFile(buffer *bytes.Buffer, filename string) error {

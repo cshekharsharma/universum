@@ -162,5 +162,4 @@ func WaitForSignal(wg *sync.WaitGroup, sigs chan os.Signal) {
 	atomic.StoreInt32(&serverState, STATE_SHUTTING_DOWN)
 
 	engine.Shutdown()
-	os.Exit(0)
 }
