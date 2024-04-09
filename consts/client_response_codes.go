@@ -1,6 +1,9 @@
 package consts
 
 const (
+	CRC_SERVER_SHUTTING_DOWN uint32 = 501
+	CRC_SERVER_BUSY          uint32 = 502
+
 	CRC_RECORD_FOUND   uint32 = 1000
 	CRC_RECORD_UPDATED uint32 = 1010
 	CRC_RECORD_DELETED uint32 = 1020

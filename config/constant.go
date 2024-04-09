@@ -12,3 +12,4 @@ const MAX_SERVER_CONCURRENCY int64 = 600
 const DEFAULT_CONN_READ_TIMEOUT int64 = 10
 
 const DEFAULT_TRANSLOG_FILE_PATH string = "/opt/universum/translog.aof"
+const DEFAULT_SERVER_LOG_FILE_PATH string = "/var/log/universum/server.log"

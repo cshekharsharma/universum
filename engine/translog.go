@@ -10,6 +10,7 @@ import (
 	"os"
 	"sync"
 	"universum/config"
+	"universum/internal/logger"
 	"universum/resp3"
 )
 
@@ -88,7 +89,7 @@ func ReplayTranslog(forceReply bool) (int64, error) {
 
 			return keycount, fmt.Errorf("failed to parse a commands from translog, "+
 				"please fix the translog file, or run the server with force replay enabled "+
-				"in config to skip the record and continue further. ERR=[%v]", err)
+				"in config to skip the record and continue further. ERR=[%v]", cmderr)
 		}
 
 		_, execErr := executeCommand(command)
@@ -102,7 +103,7 @@ func ReplayTranslog(forceReply bool) (int64, error) {
 				"with force replay enabled in config to skip the record and continue further")
 		}
 
-		log.Printf(" >> Reply Done for command: %d\n", keycount)
+		logger.Get().Debug("message replay done for key counter: %d", keycount)
 		keycount++
 	}
 

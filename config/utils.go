@@ -76,3 +76,13 @@ func GetForceAOFReplayOnError() bool {
 
 	return forceReplay == 1
 }
+
+func GetServerLogFilePath() string {
+	path, err := GetString("ServerLogFilePath", APP_CODE_NAME)
+
+	if err != nil {
+		path = DEFAULT_SERVER_LOG_FILE_PATH
+	}
+
+	return path
+}
