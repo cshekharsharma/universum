@@ -2,11 +2,11 @@
 package engine
 
 import (
-	"log"
 	"os"
 	"universum/config"
 	"universum/consts"
 	"universum/engine/entity"
+	"universum/internal/logger"
 	"universum/resp3"
 	"universum/storage"
 	"universum/utils"
@@ -26,10 +26,10 @@ func Startup() {
 	// Replay all commands from translog into the database
 	keyCount, err := ReplayTranslog(config.GetForceAOFReplayOnError())
 	if err != nil {
-		log.Printf("[Translog Replay [failed]: %v\n [KEYOFFSET: %d]", err, keyCount+1)
+		logger.Get().Fatal("Translog replay failed, KeyOffset=%d, Err=%v", keyCount+1, err.Error())
 		Shutdown()
 	} else {
-		log.Printf("[Translog Replay [success]: Total %d keys successfully replayed into the database.\n", keyCount)
+		logger.Get().Info("Translog replay completed. Total %d keys successfully replayed into DB", keyCount)
 	}
 
 	// Trigger a expiry background job to periodically
