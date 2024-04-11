@@ -70,7 +70,8 @@ func StartTCPServer(wg *sync.WaitGroup) {
 
 	for {
 		if atomic.LoadInt32(&serverState) == STATE_SHUTTING_DOWN {
-			handleRequestWhenShuttingDown(listener)
+			go handleRequestWhenShuttingDown(listener)
+			continue
 		}
 
 		if atomic.LoadInt32(&serverState) == STATE_BUSY {
@@ -86,7 +87,8 @@ func StartTCPServer(wg *sync.WaitGroup) {
 			if atomic.LoadInt32(&serverState) != STATE_READY {
 				// if server is still not ready, means its not wise
 				// to wait for longer. so do something to close the connection
-				handleRequestWhenServerBusy(listener)
+				go handleRequestWhenServerBusy(listener)
+				continue
 			}
 		}
 
@@ -116,8 +118,8 @@ func StartTCPServer(wg *sync.WaitGroup) {
 				atomic.StoreInt32(&serverState, STATE_BUSY)
 			}
 
-			logger.Get().Warn("Max connections reached, refusing this connection")
-			conn.Close()
+			go handleRequestWhenServerBusy(listener)
+			logger.Get().Warn("SERVER BUSY: Max concurrent connection limit reached.")
 		}
 	}
 

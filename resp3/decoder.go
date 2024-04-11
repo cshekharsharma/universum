@@ -6,12 +6,25 @@ import (
 	"strconv"
 )
 
-// decodeRESP3 decodes a RESP3 encoded message from a bufio.Reader.
-// It returns the decoded message as an interface{}, which can be type asserted as needed.
+// Decode reads from the provided bufio.Reader and interprets the next RESP3 data type,
+// returning the parsed value as an interface{}. RESP3 protocol supports various data types
+// like Simple Strings, Errors, Integers, Floats, Bulk Strings, Arrays, Booleans, Maps, and Nulls.
+// This function is capable of decoding these types based on the initial byte that indicates
+// the data type, followed by the data itself.
 //
-// # Sample code for using RESP3 parser
+// Parameters:
+//   - reader *bufio.Reader: A pointer to a bufio.Reader from which the data will be read. It is
+//     expected that the reader is already initialized and points to a source of RESP3 formatted data.
 //
-//	Sample input string: "*5\r\n$4\r\nMSET\r\n$4\r\nkey1\r\n$16\r\nvalue1 dash dash\r\n$4\r\nkey2\r\n$6\r\nvalue2\r\n"
+// Returns:
+//
+//   - interface{}: The decoded data from the reader. The actual type of the returned value can be
+//     one of several Go types depending on the RESP3 data type encountered. This could be a string
+//     for Simple Strings and Bulk Strings, error for RESP3 Errors, int64 for Integers, float64 for
+//     Floats, []interface{} for Arrays, map[string]interface{} for Maps, bool for Booleans, or nil
+//     for Nulls.
+//
+//     Sample input string: "*5\r\n$4\r\nMSET\r\n$4\r\nkey1\r\n$16\r\nvalue1 dash dash\r\n$4\r\nkey2\r\n$6\r\nvalue2\r\n"
 func Decode(reader *bufio.Reader) (interface{}, error) {
 	dataType, err := reader.ReadByte()
 

@@ -7,17 +7,30 @@ import (
 	"universum/storage"
 )
 
-func EncodedRESP3Response(response interface{}) string {
-	encoded, err := Encode(response)
-
-	if err != nil {
-		newErr := fmt.Errorf("unexpected error occured while processing output: %v", err)
-		encoded, _ = Encode(newErr)
-	}
-
-	return encoded
-}
-
+// Encode converts a Go data type into its corresponding RESP3 encoded string format.
+// It supports encoding basic types (string, integers, floats), composite types (slices, maps),
+// booleans, nil values, custom error messages, and even specific custom types like
+// *storage.ScalarRecord. The function uses type assertion and reflection to determine
+// the input type and formats it accordingly.
+//
+// Parameters:
+//   - value interface{}: The value to be encoded into RESP3 format. This could be any supported
+//     Go data type, including custom types that have a defined encoding pattern.
+//
+// Returns:
+//   - string: The RESP3 encoded string representation of the input `value`.
+//   - error: An error is returned if the value type is not supported for encoding or
+//     if any issue arises during the encoding process.
+//
+// Supported Types:
+//   - Basic types: Encodes strings, integers, and floats with respective RESP3 prefixes.
+//   - Composite types: Encodes slices as RESP3 arrays and maps as RESP3 maps, recursively encoding
+//     their elements.
+//   - Booleans: Encodes true and false as RESP3 booleans.
+//   - Nil: Encodes a nil value as RESP3 Null.
+//   - Errors: Encodes Go error types as RESP3 error messages.
+//   - *storage.ScalarRecord: Encodes custom struct types by converting them into a generic map
+//     and then encoding this map.
 func Encode(value interface{}) (string, error) {
 	switch v := value.(type) {
 	case string:
