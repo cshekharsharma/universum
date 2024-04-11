@@ -7,5 +7,5 @@ func GetCurrentEPochTime() uint32 {
 }
 
 func SecondsSince(since uint32) uint32 {
-	return since - GetCurrentEPochTime()
+	return GetCurrentEPochTime() - since
 }

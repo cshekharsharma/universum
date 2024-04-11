@@ -6,6 +6,6 @@ func getFormattedClientMessage(data interface{}, code uint32, message string) st
 	return resp3.EncodedRESP3Response([]interface{}{
 		data,
 		code,
-		"",
+		message,
 	})
 }

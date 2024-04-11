@@ -1,3 +1,11 @@
+// Package logger implements a thread-safe logging system that outputs messages
+// to both the console and a log file. It supports different log levels such as
+// DEBUG, INFO, WARN, ERROR, and FATAL, with console output being color-coded for
+// each level for easy differentiation.
+//
+// The logger ensures thread safety through the use of mutexes, guaranteeing that
+// concurrent log messages are processed in an orderly manner. Log messages are
+// timestamped and formatted consistently across both output destinations.
 package logger
 
 import (
@@ -9,6 +17,7 @@ import (
 	"universum/config"
 )
 
+// ANSI color codes for console logger
 const (
 	colorReset  = "\033[0m"
 	colorRed    = "\033[31m"
@@ -37,6 +46,10 @@ type Logger struct {
 	mutex         sync.Mutex
 }
 
+// Get returns a singleton instance of Logger. It initializes the logger with
+// output directed to both the console and a log file specified by the application
+// configuration. The function ensures that only one instance of Logger is created
+// and used throughout the application, providing a centralized logging solution.
 func Get() *Logger {
 	once.Do(func() {
 		logFilePath := config.GetServerLogFilePath()
@@ -54,6 +67,8 @@ func Get() *Logger {
 	return loggerInstance
 }
 
+// log is an internal method that formats and logs messages. It applies color coding for console output,
+// handles timestamping, and ensures thread safety. Used by Debug, Info, Warn, Error, and Fatal methods.
 func (l *Logger) log(level string, color, format string, v ...interface{}) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
@@ -67,22 +82,29 @@ func (l *Logger) log(level string, color, format string, v ...interface{}) {
 	l.fileLogger.Printf("%s %s :: %s\n", currTime, levelStr, message)
 }
 
+// Debug logs a message at the DEBUG level. Messages are displayed in cyan in the
+// console and are also written to the log file with a timestamp and the DEBUG label.
 func (l *Logger) Debug(format string, v ...interface{}) {
 	l.log(levelDebug, colorCyan, format, v...)
 }
 
+// Info logs a message at the INFO level, using green for console output.
 func (l *Logger) Info(format string, v ...interface{}) {
 	l.log(levelInfo, colorGreen, format, v...)
 }
 
+// Warn logs a message at the WARN level, with yellow coloring in the console.
 func (l *Logger) Warn(format string, v ...interface{}) {
 	l.log(levelWarn, colorYellow, format, v...)
 }
 
+// Error logs a message at the ERROR level. These messages appear in red in the console.
 func (l *Logger) Error(format string, v ...interface{}) {
 	l.log(levelError, colorRed, format, v...)
 }
 
+// Fatal logs a message at the FATAL level, similar to Error, but intended for
+// use with critical errors that will result in program termination.
 func (l *Logger) Fatal(format string, v ...interface{}) {
 	l.log(levelFatal, colorRed, format, v...)
 }
