@@ -1,6 +1,8 @@
 package storage
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	RECORD_TYPE_SCALER = "scalar"

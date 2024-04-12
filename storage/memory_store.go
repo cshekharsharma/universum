@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	ShardCount         uint32 = 32
+	ShardCount         uint32 = 3
 	infiniteExpiryTime int64  = 4102444800
 )
 
@@ -129,6 +129,29 @@ func (ms *MemoryStore) IncrDecrInteger(key string, offset int64, isIncr bool) (i
 	}
 
 	return newValue, consts.CRC_RECORD_UPDATED
+}
+
+func (ms *MemoryStore) Append(key string, value string) (int64, uint32) {
+	val, code := ms.Get(key)
+
+	if code != consts.CRC_RECORD_FOUND {
+		return config.INVALID_NUMERIC_VALUE, consts.CRC_RECORD_NOT_FOUND
+	}
+
+	record := val.(*ScalarRecord)
+	if record.Type != TYPE_ENCODING_STRING {
+		return config.INVALID_NUMERIC_VALUE, consts.CRC_INCR_INVALID_TYPE
+	}
+
+	newValue := record.Value.(string) + value
+	ttl := record.Expiry - time.Now().Unix()
+
+	didSet, setcode := ms.Set(key, newValue, ttl)
+	if !didSet {
+		return config.INVALID_NUMERIC_VALUE, setcode
+	}
+
+	return int64(len(newValue)), consts.CRC_RECORD_UPDATED
 }
 
 func (ms *MemoryStore) getShard(key string) *Shard {
