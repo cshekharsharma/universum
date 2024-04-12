@@ -3,8 +3,7 @@ package engine
 
 import (
 	"os"
-	"universum/config"
-	"universum/consts"
+	"reflect"
 	"universum/engine/entity"
 	"universum/internal/logger"
 	"universum/resp3"
@@ -24,37 +23,30 @@ func Startup() {
 	memstore.Initialize()
 
 	// Replay all commands from translog into the database
-	keyCount, err := ReplayTranslog(config.GetForceAOFReplayOnError())
+	keyCount, err := PopulateRecordsFromSnapshot()
+
 	if err != nil {
-		logger.Get().Fatal("Translog replay failed, KeyOffset=%d, Err=%v", keyCount+1, err.Error())
+		logger.Get().Error("Translog replay failed, KeyOffset=%d, Err=%v", keyCount+1, err.Error())
 		Shutdown()
 	} else {
-		logger.Get().Info("Translog replay completed. Total %d keys successfully replayed into DB", keyCount)
+		logger.Get().Info("Translog replay done. Total %d keys replayed into DB", keyCount)
 	}
 
-	// Trigger a expiry background job to periodically
-	// delete expired keys from the database
+	// Trigger periodic jobs
 	triggerPeriodicExpiryJob()
+	triggerPeriodicSnapshotJob()
 }
 
 func executeGET(command *entity.Command) string {
-	var output []interface{}
+	rules := []utils.ValidationRule{
+		{Name: "key", Datatype: reflect.String},
+	}
 
-	if hasError, validityRes := utils.ValidateArgumentCount(command, 1); hasError {
+	if isValid, validityRes := utils.ValidateArguments(command, rules); !isValid {
 		return resp3.EncodedRESP3Response(validityRes)
 	}
 
-	key, ok := command.Args[0].(string)
-	if !ok {
-		output = []interface{}{
-			nil,
-			consts.CRC_INVALID_CMD_INPUT,
-			"ERR: key has invalid type. string expected",
-		}
-
-		return resp3.EncodedRESP3Response(output)
-	}
-
+	key, _ := command.Args[0].(string)
 	record, code := memstore.Get(key)
 
 	return resp3.EncodedRESP3Response([]interface{}{
@@ -65,39 +57,21 @@ func executeGET(command *entity.Command) string {
 }
 
 func executeSET(command *entity.Command) string {
-	var output []interface{}
+	rules := []utils.ValidationRule{
+		{Name: "key", Datatype: reflect.String},
+		{Name: "value", Datatype: reflect.Interface},
+		{Name: "ttl", Datatype: reflect.Int64},
+	}
 
-	if hasError, validityRes := utils.ValidateArgumentCount(command, 3); hasError {
+	if isValid, validityRes := utils.ValidateArguments(command, rules); !isValid {
 		return resp3.EncodedRESP3Response(validityRes)
 	}
 
-	key, ok := command.Args[0].(string)
-	if !ok {
-		output = []interface{}{
-			false,
-			consts.CRC_INVALID_CMD_INPUT,
-			"ERR: key has invalid type. string expected",
-		}
+	key, _ := command.Args[0].(string)
+	value := command.Args[1]
+	ttl, _ := command.Args[2].(int64)
 
-		return resp3.EncodedRESP3Response(output)
-	}
-
-	ttl, ok := command.Args[2].(int64)
-	if !ok {
-		output = []interface{}{
-			false,
-			consts.CRC_INVALID_CMD_INPUT,
-			"ERR: TTL has invalid type, int64 expected",
-		}
-
-		return resp3.EncodedRESP3Response(output)
-	}
-
-	success, code := memstore.Set(key, command.Args[1], ttl)
-
-	if success && code == consts.CRC_RECORD_UPDATED {
-		NewTranslogBuffer().AddToBuffer(string(command.Raw))
-	}
+	success, code := memstore.Set(key, value, ttl)
 
 	return resp3.EncodedRESP3Response([]interface{}{
 		success,
@@ -107,23 +81,15 @@ func executeSET(command *entity.Command) string {
 }
 
 func executeEXISTS(command *entity.Command) string {
-	var output []interface{}
+	rules := []utils.ValidationRule{
+		{Name: "key", Datatype: reflect.String},
+	}
 
-	if hasError, validityRes := utils.ValidateArgumentCount(command, 1); hasError {
+	if isValid, validityRes := utils.ValidateArguments(command, rules); !isValid {
 		return resp3.EncodedRESP3Response(validityRes)
 	}
 
-	key, ok := command.Args[0].(string)
-	if !ok {
-		output = []interface{}{
-			nil,
-			consts.CRC_INVALID_CMD_INPUT,
-			"ERR: key has invalid type. string expected",
-		}
-
-		return resp3.EncodedRESP3Response(output)
-	}
-
+	key, _ := command.Args[0].(string)
 	exists, code := memstore.Exists(key)
 
 	return resp3.EncodedRESP3Response([]interface{}{
@@ -134,28 +100,16 @@ func executeEXISTS(command *entity.Command) string {
 }
 
 func executeDELETE(command *entity.Command) string {
-	var output []interface{}
+	rules := []utils.ValidationRule{
+		{Name: "key", Datatype: reflect.String},
+	}
 
-	if hasError, validityRes := utils.ValidateArgumentCount(command, 1); hasError {
+	if isValid, validityRes := utils.ValidateArguments(command, rules); !isValid {
 		return resp3.EncodedRESP3Response(validityRes)
 	}
 
-	key, ok := command.Args[0].(string)
-	if !ok {
-		output = []interface{}{
-			nil,
-			consts.CRC_INVALID_CMD_INPUT,
-			"ERR: key has invalid type. string expected",
-		}
-
-		return resp3.EncodedRESP3Response(output)
-	}
-
+	key, _ := command.Args[0].(string)
 	deleted, code := memstore.Delete(key)
-
-	if deleted && code == consts.CRC_RECORD_DELETED {
-		NewTranslogBuffer().AddToBuffer(string(command.Raw))
-	}
 
 	return resp3.EncodedRESP3Response([]interface{}{
 		deleted,
@@ -165,35 +119,19 @@ func executeDELETE(command *entity.Command) string {
 }
 
 func executeINCRDECR(command *entity.Command, isIncr bool) string {
-	var output []interface{}
+	rules := []utils.ValidationRule{
+		{Name: "key", Datatype: reflect.String},
+		{Name: "offset", Datatype: reflect.Int64},
+	}
 
-	if hasError, validityRes := utils.ValidateArgumentCount(command, 2); hasError {
+	if isValid, validityRes := utils.ValidateArguments(command, rules); !isValid {
 		return resp3.EncodedRESP3Response(validityRes)
 	}
 
-	key, ok := command.Args[0].(string)
-	if !ok {
-		output = []interface{}{
-			false,
-			consts.CRC_INVALID_CMD_INPUT,
-			"ERR: key has invalid type. string expected",
-		}
+	key, _ := command.Args[0].(string)
+	offset, _ := command.Args[1].(int64)
 
-		return resp3.EncodedRESP3Response(output)
-	}
-
-	offset, ok := command.Args[1].(int64)
-	if !ok {
-		output = []interface{}{
-			false,
-			consts.CRC_INVALID_CMD_INPUT,
-			"ERR: Offset has invalid type, int64 expected",
-		}
-
-		return resp3.EncodedRESP3Response(output)
-	}
-
-	updatedValue, code := memstore.IncrDecrInteger(key, int64(offset), isIncr)
+	updatedValue, code := memstore.IncrDecrInteger(key, offset, isIncr)
 
 	return resp3.EncodedRESP3Response([]interface{}{
 		updatedValue,
@@ -202,9 +140,31 @@ func executeINCRDECR(command *entity.Command, isIncr bool) string {
 	})
 }
 
+func executeAPPEND(command *entity.Command) string {
+	rules := []utils.ValidationRule{
+		{Name: "key", Datatype: reflect.String},
+		{Name: "value", Datatype: reflect.String},
+	}
+
+	if isValid, validityRes := utils.ValidateArguments(command, rules); !isValid {
+		return resp3.EncodedRESP3Response(validityRes)
+	}
+
+	key, _ := command.Args[0].(string)
+	value, _ := command.Args[1].(string)
+
+	length, code := memstore.Append(key, value)
+
+	return resp3.EncodedRESP3Response([]interface{}{
+		length,
+		code,
+		"",
+	})
+}
+
 func Shutdown() {
 	// do all the shut down operations, such as fsyncing AOF
 	// and freeing up occupied resources and memory.
-	NewTranslogBuffer().Flush()
+	StartInMemoryDBSnapshot(GetMemstore())
 	os.Exit(0)
 }

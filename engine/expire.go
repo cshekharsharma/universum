@@ -2,9 +2,9 @@ package engine
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"time"
+	"universum/internal/logger"
 	"universum/storage"
 )
 
@@ -54,7 +54,6 @@ func (w *recordExpiryWorker) expireDeletedRecords(expiryChan chan<- recordExpiry
 
 		time.Sleep(expiryJobExecutionFrequency)
 	}
-
 }
 
 func (w *recordExpiryWorker) expireRandomSample(memstore *storage.MemoryStore, shards [shardcount]*storage.Shard) int64 {
@@ -85,7 +84,7 @@ func (w *recordExpiryWorker) expireRandomSample(memstore *storage.MemoryStore, s
 	expiryJobLastExecutedAt = time.Now()
 
 	if deletedCount > 0 {
-		log.Printf("Few keys deleted. ShardID=%d, Count=%d\n", randomIndex, deletedCount)
+		logger.Get().Debug("Few keys deleted. ShardID=%d, Count=%d", randomIndex, deletedCount)
 	}
 
 	return deletedCount

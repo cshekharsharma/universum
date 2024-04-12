@@ -16,6 +16,7 @@ const (
 	COMMAND_EXISTS string = "EXISTS"
 	COMMAND_INCR   string = "INCR"
 	COMMAND_DECR   string = "DECR"
+	COMMAND_APPEND string = "APPEND"
 )
 
 func ExecuteCommand(buffer *bufio.Reader) (string, error) {
@@ -52,15 +53,9 @@ func getCommandFromRESP(decodedResp interface{}) (*entity.Command, error) {
 		return nil, errors.New("incompatible RESP3 input, expected a list")
 	}
 
-	rawcommand, readerr := resp3.Encode(decodedResp)
-	if readerr != nil {
-		return nil, errors.New("failed to read the decoded RESP command")
-	}
-
 	command := &entity.Command{
 		Name: strings.ToUpper(fmt.Sprintf("%v", decodedList[0])),
 		Args: decodedList[1:],
-		Raw:  []byte(rawcommand),
 	}
 
 	return command, nil
@@ -86,8 +81,11 @@ func executeCommand(command *entity.Command) (string, error) {
 	case COMMAND_DECR:
 		return executeINCRDECR(command, false), nil
 
+	case COMMAND_APPEND:
+		return executeAPPEND(command), nil
+
 	default:
-		return "", fmt.Errorf("invalid command `%s` provided", command)
+		return "", fmt.Errorf("invalid command `%s` provided", command.Name)
 	}
 
 }
