@@ -3,14 +3,13 @@ package storage
 import (
 	"hash/fnv"
 	"sync"
-	"time"
 	"universum/config"
 	"universum/consts"
 	"universum/utils"
 )
 
 const (
-	ShardCount         uint32 = 3
+	ShardCount         uint32 = 4
 	infiniteExpiryTime int64  = 4102444800
 )
 
@@ -86,7 +85,7 @@ func (ms *MemoryStore) Set(key string, value interface{}, ttl int64) (bool, uint
 	}
 
 	if ttl > 0 {
-		record.Expiry = time.Now().Unix() + ttl
+		record.Expiry = utils.GetCurrentEPochTime() + ttl
 	}
 
 	shard := ms.getShard(key)
@@ -121,7 +120,7 @@ func (ms *MemoryStore) IncrDecrInteger(key string, offset int64, isIncr bool) (i
 		newValue = int64(oldValue) - offset
 	}
 
-	ttl := record.Expiry - time.Now().Unix()
+	ttl := record.Expiry - utils.GetCurrentEPochTime()
 	didSet, setcode := ms.Set(key, newValue, ttl)
 
 	if !didSet {
@@ -144,7 +143,7 @@ func (ms *MemoryStore) Append(key string, value string) (int64, uint32) {
 	}
 
 	newValue := record.Value.(string) + value
-	ttl := record.Expiry - time.Now().Unix()
+	ttl := record.Expiry - utils.GetCurrentEPochTime()
 
 	didSet, setcode := ms.Set(key, newValue, ttl)
 	if !didSet {
@@ -152,6 +151,79 @@ func (ms *MemoryStore) Append(key string, value string) (int64, uint32) {
 	}
 
 	return int64(len(newValue)), consts.CRC_RECORD_UPDATED
+}
+
+func (ms *MemoryStore) MGet(keys []string) (map[string]interface{}, uint32) {
+	responseMap := make(map[string]interface{})
+
+	for idx := range keys {
+		record, code := ms.Get(keys[idx])
+		responseMap[keys[idx]] = &RecordResponse{
+			Record: record,
+			Code:   code,
+		}
+	}
+
+	return responseMap, consts.CRC_MGET_COMPLETED
+}
+
+func (ms *MemoryStore) MSet(kvMap map[string]interface{}) (map[string]interface{}, uint32) {
+	responseMap := make(map[string]interface{})
+
+	for key, value := range kvMap {
+		didSet, _ := ms.Set(key, value, 0)
+		responseMap[key] = didSet
+	}
+
+	return responseMap, consts.CRC_MSET_COMPLETED
+}
+
+func (ms *MemoryStore) MDelete(keys []string) (map[string]interface{}, uint32) {
+	responseMap := make(map[string]interface{})
+
+	for idx := range keys {
+		deleted, _ := ms.Delete(keys[idx])
+		responseMap[keys[idx]] = deleted
+	}
+
+	return responseMap, consts.CRC_MDEL_COMPLETED
+}
+
+func (ms *MemoryStore) TTL(key string) (int64, uint32) {
+	val, code := ms.Get(key)
+
+	if code != consts.CRC_RECORD_FOUND {
+		return 0, consts.CRC_RECORD_NOT_FOUND
+	}
+
+	record := val.(*ScalarRecord)
+
+	ttl := record.Expiry - utils.GetCurrentEPochTime()
+	if ttl == infiniteExpiryTime {
+		ttl = -1
+	}
+
+	return ttl, consts.CRC_RECORD_FOUND
+}
+
+func (ms *MemoryStore) Expire(key string, ttl int64) (bool, uint32) {
+	val, code := ms.Get(key)
+
+	if code != consts.CRC_RECORD_FOUND {
+		return false, consts.CRC_RECORD_NOT_FOUND
+	}
+
+	record := val.(*ScalarRecord)
+	record.LAT = utils.GetCurrentEPochTime()
+	record.Expiry = utils.GetCurrentEPochTime() + ttl
+
+	if ttl == 0 {
+		record.Expiry = infiniteExpiryTime
+	}
+
+	shard := ms.getShard(key)
+	shard.data.Store(key, record)
+	return true, consts.CRC_RECORD_UPDATED
 }
 
 func (ms *MemoryStore) getShard(key string) *Shard {

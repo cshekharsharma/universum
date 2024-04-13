@@ -83,13 +83,22 @@ func Encode(value interface{}) (string, error) {
 			return "_\r\n", nil
 		}
 
-		generic := make(map[string]interface{})
-		generic["Type"] = v.Type
-		generic["LAT"] = v.LAT
-		generic["Value"] = v.Value
-		generic["Expiry"] = v.Expiry
+		scalarRecord := make(map[string]interface{})
+		scalarRecord["Type"] = v.Type
+		scalarRecord["LAT"] = v.LAT
+		scalarRecord["Value"] = v.Value
+		scalarRecord["Expiry"] = v.Expiry
+		return Encode(scalarRecord)
 
-		return Encode(generic)
+	case *storage.RecordResponse:
+		if v == nil {
+			return "_\r\n", nil
+		}
+
+		recordResponse := make(map[string]interface{})
+		recordResponse["Record"] = v.Record
+		recordResponse["Code"] = v.Code
+		return Encode(recordResponse)
 
 	default:
 		return "", fmt.Errorf("unsupported type: %v", reflect.TypeOf(value))

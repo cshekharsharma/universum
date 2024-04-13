@@ -67,16 +67,6 @@ func GetTransactionLogFilePath() string {
 	return path
 }
 
-func GetForceAOFReplayOnError() bool {
-	forceReplay, err := GetInt64("ForceAOFReplayOnError", APP_CODE_NAME)
-
-	if err != nil {
-		return false
-	}
-
-	return forceReplay == 1
-}
-
 func GetServerLogFilePath() string {
 	path, err := GetString("ServerLogFilePath", APP_CODE_NAME)
 
@@ -85,4 +75,24 @@ func GetServerLogFilePath() string {
 	}
 
 	return path
+}
+
+func GetAutoRecordExpiryFrequency() time.Duration {
+	frequency, err := GetInt64("AutoRecordExpiryFrequency", APP_CODE_NAME)
+
+	if err != nil {
+		frequency = DEFAULT_AUTO_EXPIRY_FREQUENCY
+	}
+
+	return time.Duration(frequency) * time.Second
+}
+
+func GetAutoSnapshotFrequency() time.Duration {
+	frequency, err := GetInt64("AutoSnapshotFrequency", APP_CODE_NAME)
+
+	if err != nil {
+		frequency = DEFAULT_AUTO_SNAPSHOT_FREQUENCY
+	}
+
+	return time.Duration(frequency) * time.Second
 }
