@@ -6,13 +6,14 @@ import (
 	"time"
 	"universum/internal/logger"
 	"universum/storage"
+	"universum/utils"
 )
 
 const shardcount uint32 = storage.ShardCount
 const maxRecordDeletionLocalLimit int64 = 1000
 
 var expiryJobLastExecutedAt time.Time
-var expiryJobExecutionFrequency time.Duration = 2 * time.Second
+var expiryJobExecutionFrequency time.Duration
 
 type recordExpiryWorker struct {
 	ExecutionErr error
@@ -66,7 +67,7 @@ func (w *recordExpiryWorker) expireRandomSample(memstore *storage.MemoryStore, s
 	randomShard.GetData().Range(func(key interface{}, value interface{}) bool {
 		record := value.(*storage.ScalarRecord)
 
-		if record.Expiry < time.Now().Unix() {
+		if record.Expiry < utils.GetCurrentEPochTime() {
 			strkey, _ := key.(string)
 
 			if deleted, _ := memstore.Delete(strkey); deleted {

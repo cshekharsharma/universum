@@ -11,6 +11,7 @@ import (
 var CONFIG *IniFile
 
 const INVALID_NUMERIC_VALUE = -99999999
+const INVALID_EPOCH_VALUE = 0
 
 func Load(filepath string) error {
 	var err error

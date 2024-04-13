@@ -10,13 +10,22 @@ import (
 )
 
 const (
-	COMMAND_GET    string = "GET"
-	COMMAND_SET    string = "SET"
-	COMMAND_DELETE string = "DELETE"
-	COMMAND_EXISTS string = "EXISTS"
-	COMMAND_INCR   string = "INCR"
-	COMMAND_DECR   string = "DECR"
-	COMMAND_APPEND string = "APPEND"
+	COMMAND_PING     string = "PING"
+	COMMAND_EXISTS   string = "EXISTS"
+	COMMAND_GET      string = "GET"
+	COMMAND_SET      string = "SET"
+	COMMAND_DELETE   string = "DELETE"
+	COMMAND_INCR     string = "INCR"
+	COMMAND_DECR     string = "DECR"
+	COMMAND_APPEND   string = "APPEND"
+	COMMAND_MGET     string = "MGET"
+	COMMAND_MSET     string = "MSET"
+	COMMAND_MDELETE  string = "MDELETE"
+	COMMAND_TTL      string = "TTL"
+	COMMAND_EXPIRE   string = "EXPIRE"
+	COMMAND_SNAPSHOT string = "SNAPSHOT"
+	COMMAND_INFO     string = "INFO"
+	COMMAND_HELP     string = "HELP"
 )
 
 func ExecuteCommand(buffer *bufio.Reader) (string, error) {
@@ -28,6 +37,7 @@ func ExecuteCommand(buffer *bufio.Reader) (string, error) {
 
 	fmt.Printf("REQUEST: %#v\n", command)
 	output, err := executeCommand(command)
+	fmt.Printf("RESPONSE: %#v\n", output)
 
 	if err != nil {
 		return "", err
@@ -63,14 +73,18 @@ func getCommandFromRESP(decodedResp interface{}) (*entity.Command, error) {
 
 func executeCommand(command *entity.Command) (string, error) {
 	switch command.Name {
+
+	case COMMAND_PING:
+		return executePING(command), nil
+
 	case COMMAND_EXISTS:
 		return executeEXISTS(command), nil
 
-	case COMMAND_SET:
-		return executeSET(command), nil
-
 	case COMMAND_GET:
 		return executeGET(command), nil
+
+	case COMMAND_SET:
+		return executeSET(command), nil
 
 	case COMMAND_DELETE:
 		return executeDELETE(command), nil
@@ -83,6 +97,30 @@ func executeCommand(command *entity.Command) (string, error) {
 
 	case COMMAND_APPEND:
 		return executeAPPEND(command), nil
+
+	case COMMAND_MGET:
+		return executeMGET(command), nil
+
+	case COMMAND_MSET:
+		return executeMSET(command), nil
+
+	case COMMAND_MDELETE:
+		return executeMDELETE(command), nil
+
+	case COMMAND_TTL:
+		return executeTTL(command), nil
+
+	case COMMAND_EXPIRE:
+		return executeEXPIRE(command), nil
+
+	case COMMAND_SNAPSHOT:
+		return executeSNAPSHOT(command), nil
+
+	case COMMAND_INFO:
+		return executeINFO(command), nil
+
+	case COMMAND_HELP:
+		return executeHELP(command), nil
 
 	default:
 		return "", fmt.Errorf("invalid command `%s` provided", command.Name)

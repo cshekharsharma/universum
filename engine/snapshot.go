@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"sync"
 	"time"
@@ -13,13 +12,14 @@ import (
 	"universum/internal/logger"
 	"universum/resp3"
 	"universum/storage"
+	"universum/utils"
 	"universum/utils/filesys"
 )
 
 var snapshotMutex sync.Mutex
 
 var snapshotJobLastExecutedAt time.Time
-var snapshotJobExecutionFrequency time.Duration = 10 * time.Second
+var snapshotJobExecutionFrequency time.Duration
 
 type databaseSnapshotWorker struct {
 	ExecutionErr error
@@ -123,7 +123,6 @@ func PopulateRecordsFromSnapshot() (int64, error) {
 	var keycount int64 = 0
 
 	filepath := config.GetTransactionLogFilePath()
-	log.Println(filepath)
 	filePtr, _ := os.OpenFile(filepath, os.O_RDONLY|os.O_CREATE, 0777)
 	defer filePtr.Close()
 
@@ -155,7 +154,7 @@ func PopulateRecordsFromSnapshot() (int64, error) {
 		key, record := getRecordFromSerializedMap(decodedMap)
 		scalarRecord, _ := record.(*storage.ScalarRecord)
 
-		if scalarRecord.Expiry <= time.Now().Unix() {
+		if scalarRecord.Expiry <= utils.GetCurrentEPochTime() {
 			continue // skip as the record has already expired
 		}
 
@@ -164,7 +163,7 @@ func PopulateRecordsFromSnapshot() (int64, error) {
 			Args: []interface{}{
 				key,
 				scalarRecord.Value,
-				scalarRecord.Expiry - time.Now().Unix(),
+				scalarRecord.Expiry - utils.GetCurrentEPochTime(),
 			},
 		}
 
@@ -199,7 +198,7 @@ func getRecordFromSerializedMap(recordMap map[string]interface{}) (string, stora
 	}
 
 	if lat, ok := recordMap["LAT"]; ok {
-		record.LAT, _ = lat.(uint32)
+		record.LAT, _ = lat.(int64)
 	}
 
 	if expiry, ok := recordMap["Expiry"]; ok {

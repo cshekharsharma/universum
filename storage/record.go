@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"time"
+	"universum/utils"
 )
 
 const (
@@ -13,10 +13,15 @@ type Record interface {
 	IsExpired() bool
 }
 
+type RecordResponse struct {
+	Record Record
+	Code   uint32
+}
+
 type ScalarRecord struct {
 	Value  interface{}
 	Type   uint8
-	LAT    uint32
+	LAT    int64
 	Expiry int64
 }
 
@@ -29,5 +34,5 @@ func (sr *ScalarRecord) IsExpired() bool {
 		return false
 	}
 
-	return time.Now().Unix() > sr.Expiry
+	return utils.GetCurrentEPochTime() > sr.Expiry
 }
