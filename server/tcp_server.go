@@ -27,7 +27,6 @@ import (
 )
 
 var maxRetryCountWhenBusy int = 5
-var serverState int32
 
 // StartTCPServer initializes and starts the TCP server, managing incoming
 // client connections. It sets up a listener on the configured port, utilizes
@@ -40,10 +39,10 @@ var serverState int32
 func StartTCPServer(wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer func() {
-		atomic.StoreInt32(&serverState, STATE_SHUTTING_DOWN)
+		atomic.StoreInt32(&consts.ServerState, consts.STATE_SHUTTING_DOWN)
 	}()
 
-	atomic.StoreInt32(&serverState, STATE_STARTING)
+	atomic.StoreInt32(&consts.ServerState, consts.STATE_STARTING)
 
 	port := fmt.Sprintf(":%d", config.GetServerPort())
 	maxConnections := config.GetMaxClientConnections()
@@ -52,7 +51,7 @@ func StartTCPServer(wg *sync.WaitGroup) {
 	jobs := make(chan *net.TCPConn, concurrencyLimit)
 	connectionLimiter := make(chan struct{}, maxConnections-concurrencyLimit)
 
-	for i := 0; i < concurrencyLimit; i++ {
+	for i := 0; i < int(concurrencyLimit); i++ {
 		go concurrentWorker(jobs, connectionLimiter)
 	}
 
@@ -66,25 +65,25 @@ func StartTCPServer(wg *sync.WaitGroup) {
 	logger.Get().Info("%s server started listening on port %s", config.APP_CODE_NAME, port)
 
 	engine.Startup()
-	atomic.StoreInt32(&serverState, STATE_READY)
+	atomic.StoreInt32(&consts.ServerState, consts.STATE_READY)
 
 	for {
-		if atomic.LoadInt32(&serverState) == STATE_SHUTTING_DOWN {
+		if atomic.LoadInt32(&consts.ServerState) == consts.STATE_SHUTTING_DOWN {
 			go handleRequestWhenShuttingDown(listener)
 			continue
 		}
 
-		if atomic.LoadInt32(&serverState) == STATE_BUSY {
+		if atomic.LoadInt32(&consts.ServerState) == consts.STATE_BUSY {
 			// server is potentially overloaded with requests, so wait for some time.
 			for i := 0; i < maxRetryCountWhenBusy; i++ {
-				if atomic.LoadInt32(&serverState) == STATE_READY {
+				if atomic.LoadInt32(&consts.ServerState) == consts.STATE_READY {
 					break
 				}
 
 				time.Sleep(100 * time.Millisecond)
 			}
 
-			if atomic.LoadInt32(&serverState) != STATE_READY {
+			if atomic.LoadInt32(&consts.ServerState) != consts.STATE_READY {
 				// if server is still not ready, means its not wise
 				// to wait for longer. so do something to close the connection
 				go handleRequestWhenServerBusy(listener)
@@ -114,8 +113,8 @@ func StartTCPServer(wg *sync.WaitGroup) {
 		default:
 			// Reached max connections; change the server state to busy, if not already
 			// set and refuse the current incoming request.
-			if atomic.LoadInt32(&serverState) == STATE_READY {
-				atomic.StoreInt32(&serverState, STATE_BUSY)
+			if atomic.LoadInt32(&consts.ServerState) == consts.STATE_READY {
+				atomic.StoreInt32(&consts.ServerState, consts.STATE_BUSY)
 			}
 
 			go handleRequestWhenServerBusy(listener)
@@ -139,7 +138,7 @@ func concurrentWorker(jobs <-chan *net.TCPConn, connectionLimiter <-chan struct{
 		handleConnection(conn)
 		// After handling, release a spot in the limiter.
 		<-connectionLimiter
-		atomic.StoreInt32(&serverState, STATE_READY)
+		atomic.StoreInt32(&consts.ServerState, consts.STATE_READY)
 	}
 }
 
@@ -161,9 +160,11 @@ func handleConnection(conn *net.TCPConn) {
 	defer func() {
 		err := errors.New("connection pipe broken, closing the connection")
 
-		atomic.StoreInt32(&serverState, STATE_READY)
+		atomic.StoreInt32(&consts.ServerState, consts.STATE_READY)
 
 		outputWithEOM := resp3.EncodedRESP3Response(err) + consts.RESPONSE_DELIMITER
+		engine.AddNetworkBytesSent(int64(len(outputWithEOM)))
+
 		writer.Write([]byte(outputWithEOM))
 		writer.Flush()
 		conn.Close()
@@ -191,6 +192,7 @@ func handleConnection(conn *net.TCPConn) {
 			logger.Get().Error("Error writing to the socket: %v", err.Error())
 		}
 
+		engine.AddNetworkBytesSent(int64(len(outputWithEOM)))
 		writer.Flush()
 	}
 }
@@ -267,13 +269,13 @@ func WaitForSignal(wg *sync.WaitGroup, sigs chan os.Signal) {
 	logger.Get().Fatal("Shutting down the server due to signal: %s", receivedSignal.String())
 
 	// if server is busy continue to wait with period sleep of 100ms
-	for atomic.LoadInt32(&serverState) == STATE_BUSY {
+	for atomic.LoadInt32(&consts.ServerState) == consts.STATE_BUSY {
 		time.Sleep(time.Millisecond * 100)
 	}
 
 	// immediately set the status to be SHUTTING DOWN,
 	// so it does not start taking more connections.
-	atomic.StoreInt32(&serverState, STATE_SHUTTING_DOWN)
+	atomic.StoreInt32(&consts.ServerState, consts.STATE_SHUTTING_DOWN)
 
 	engine.Shutdown()
 }

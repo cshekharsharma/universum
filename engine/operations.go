@@ -19,7 +19,7 @@ func Startup() {
 	memstore.Initialize()
 
 	// Replay all commands from translog into the database
-	keyCount, err := PopulateRecordsFromSnapshot()
+	keyCount, err := ReplayDBRecordsFromSnapshot()
 
 	if err != nil {
 		logger.Get().Error("Translog replay failed, KeyOffset=%d, Err=%v", keyCount+1, err.Error())

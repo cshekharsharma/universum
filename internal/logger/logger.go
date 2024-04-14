@@ -13,8 +13,8 @@ import (
 	"log"
 	"os"
 	"sync"
-	"time"
 	"universum/config"
+	"universum/utils"
 )
 
 // ANSI color codes for console logger
@@ -73,7 +73,7 @@ func (l *Logger) log(level string, color, format string, v ...interface{}) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	currTime := time.Now().Format("2006-01-02 15:04:05.000")
+	currTime := utils.GetCurrentReadableTime()
 	message := fmt.Sprintf(format, v...)
 
 	levelStr := fmt.Sprintf("%5s", level)

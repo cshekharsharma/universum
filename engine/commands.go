@@ -238,7 +238,14 @@ func executeSNAPSHOT(command *entity.Command) string {
 }
 
 func executeINFO(command *entity.Command) string {
-	return command.Name
+	rules := []utils.ValidationRule{}
+
+	if isValid, validityRes := utils.ValidateArguments(command, rules); !isValid {
+		return resp3.EncodedRESP3Response(validityRes)
+	}
+
+	infoResponse := GetDatabaseInfoStatistics().ToString()
+	return resp3.EncodedRESP3Response([]interface{}{infoResponse, consts.CRC_INFO_CONTENT_OK, ""})
 }
 
 func executeHELP(command *entity.Command) string {
@@ -260,5 +267,5 @@ func executeHELP(command *entity.Command) string {
 		helpcontent = getCommandHelpContent(commandName)
 	}
 
-	return resp3.EncodedRESP3Response([]interface{}{helpcontent, consts.CRC_HELP_CONTENT, ""})
+	return resp3.EncodedRESP3Response([]interface{}{helpcontent, consts.CRC_HELP_CONTENT_OK, ""})
 }
