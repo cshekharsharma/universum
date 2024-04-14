@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"universum/engine/entity"
+	"universum/internal/logger"
 	"universum/resp3"
 )
 
@@ -43,10 +44,14 @@ func ExecuteCommand(buffer *bufio.Reader) (string, error) {
 		return "", err
 	}
 
+	AddCommandsProcessed(1)
 	return output, nil
 }
 
 func parseCommand(buffer *bufio.Reader) (*entity.Command, error) {
+	buffer.Peek(1)
+	AddNetworkBytesReceived(int64(buffer.Buffered()))
+	logger.Get().Info("Buffered: %d", buffer.Buffered())
 	decodedResp, err := resp3.Decode(buffer)
 
 	if err != nil {

@@ -61,6 +61,7 @@ func StartInMemoryDBSnapshot(memstore *storage.MemoryStore) {
 
 	masterRecordCount := 0
 	shardRecordCount := 0
+	snapshotStartTime := time.Now().UnixMilli()
 
 	masterSnapshotFile := config.GetTransactionLogFilePath()
 	tempSnapshotFile := fmt.Sprintf("%s/%s_qscRPQ6xHj", os.TempDir(), config.APP_CODE_NAME)
@@ -115,12 +116,22 @@ func StartInMemoryDBSnapshot(memstore *storage.MemoryStore) {
 	}
 
 	os.Remove(tempSnapshotFile)
+
+	DatabaseInfoStats.Persistence.LastSnapshotTakenAt = utils.GetCurrentReadableTime()
+	DatabaseInfoStats.Persistence.LastSnapshotLatency = fmt.Sprintf("%dms", time.Now().UnixMilli()-snapshotStartTime)
+	DatabaseInfoStats.Persistence.SnapshotSizeInBytes = 0
+
+	if fi, err := os.Stat(masterSnapshotFile); err == nil {
+		DatabaseInfoStats.Persistence.SnapshotSizeInBytes = fi.Size()
+	}
+
 	logger.Get().Info("Completed periodic DB snapshot for all shards 1-%d; Total Records=%d",
 		len(allShards), masterRecordCount)
 }
 
-func PopulateRecordsFromSnapshot() (int64, error) {
+func ReplayDBRecordsFromSnapshot() (int64, error) {
 	var keycount int64 = 0
+	var replayStartTime int64 = time.Now().UnixMilli()
 
 	filepath := config.GetTransactionLogFilePath()
 	filePtr, _ := os.OpenFile(filepath, os.O_RDONLY|os.O_CREATE, 0777)
@@ -181,6 +192,12 @@ func PopulateRecordsFromSnapshot() (int64, error) {
 	}
 
 	filePtr.Truncate(0) // truncate the translog for fresh records
+	replayLatency := fmt.Sprintf("%d ms", time.Now().UnixMilli()-replayStartTime)
+
+	DatabaseInfoStats.Persistence.LastSnapshotReplayLatency = replayLatency
+	DatabaseInfoStats.Persistence.TotalKeysReplayed = keycount
+	DatabaseInfoStats.Persistence.LastSnapshotReplayedAt = utils.GetCurrentReadableTime()
+
 	return keycount, nil
 }
 

@@ -8,7 +8,9 @@ import (
 	"sync"
 	"syscall"
 	"universum/config"
+	"universum/engine"
 	"universum/server"
+	"universum/utils"
 )
 
 var configfile string
@@ -20,6 +22,10 @@ func main() {
 	if configerr != nil {
 		log.Fatalf("Cannot proceed without config: %v", configerr)
 	}
+
+	engine.InitInfoStatistics()
+	engine.DatabaseInfoStats.Server.ConfigFile = configfile
+	engine.DatabaseInfoStats.Server.StartedAt = utils.GetCurrentReadableTime()
 
 	var sigs chan os.Signal = make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)

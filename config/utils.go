@@ -2,17 +2,17 @@ package config
 
 import "time"
 
-func GetServerPort() int {
+func GetServerPort() int64 {
 	port, err := GetInt64("ServerPort", APP_CODE_NAME)
 
 	if err != nil {
 		port = DEFAULT_SERVER_PORT
 	}
 
-	return int(port)
+	return port
 }
 
-func GetMaxClientConnections() int {
+func GetMaxClientConnections() int64 {
 	maxClients, err := GetInt64("MaxConnections", APP_CODE_NAME)
 
 	if err != nil {
@@ -23,10 +23,10 @@ func GetMaxClientConnections() int {
 		maxClients = MAX_CLIENT_CONNECTIONS
 	}
 
-	return int(maxClients)
+	return maxClients
 }
 
-func GetServerConcurrencyLimit(maxConnections int) int {
+func GetServerConcurrencyLimit(maxConnections int64) int64 {
 	concurrency, err := GetInt64("MaxConcurrency", APP_CODE_NAME)
 
 	if err != nil {
@@ -40,11 +40,11 @@ func GetServerConcurrencyLimit(maxConnections int) int {
 	// making sure that concurrency level is not more than maximum
 	// allowed connection limit. Since that will just be a waste of
 	// resources, we will never reach 100% utilisation concurrency.
-	if int(concurrency) > maxConnections {
+	if concurrency > maxConnections {
 		concurrency = int64(maxConnections)
 	}
 
-	return int(concurrency)
+	return concurrency
 }
 
 func GetTCPConnectionReadtime() time.Duration {
