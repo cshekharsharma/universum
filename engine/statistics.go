@@ -3,6 +3,7 @@ package engine
 import (
 	"go/build"
 	"math"
+	"sync/atomic"
 	"time"
 	"universum/config"
 	"universum/consts"
@@ -14,6 +15,34 @@ import (
 )
 
 var DatabaseInfoStats *entity.InfoStats
+
+var ks_networkBytesSent int64 = 0
+var ks_networkBytesReceived int64 = 0
+var ks_commandsProcessed int64 = 0
+
+func GetNetworkBytesSent() int64 {
+	return atomic.LoadInt64(&ks_networkBytesSent)
+}
+
+func AddNetworkBytesSent(delta int64) {
+	atomic.AddInt64(&ks_networkBytesSent, delta)
+}
+
+func GetNetworkBytesReceived() int64 {
+	return atomic.LoadInt64(&ks_networkBytesReceived)
+}
+
+func AddNetworkBytesReceived(delta int64) {
+	atomic.AddInt64(&ks_networkBytesReceived, delta)
+}
+
+func GetCommandsProcessed() int64 {
+	return atomic.LoadInt64(&ks_commandsProcessed)
+}
+
+func AddCommandsProcessed(delta int64) {
+	atomic.AddInt64(&ks_commandsProcessed, delta)
+}
 
 func InitInfoStatistics() {
 	timezone, _ := time.Now().Zone()
@@ -35,7 +64,7 @@ func InitInfoStatistics() {
 		Clients: &entity.ClientStats{
 			MaxAllowedConnections:    config.GetMaxClientConnections(),
 			MaxConnectionConcurrency: config.GetServerConcurrencyLimit(config.GetMaxClientConnections()),
-			ConnectedClients:         -1,
+			ConnectedClients:         0,
 		},
 
 		Persistence: &entity.PersistenceStats{
@@ -44,12 +73,7 @@ func InitInfoStatistics() {
 			LastSnapshotTakenAt:   snapshotJobLastExecutedAt.String(),
 		},
 
-		CpuInfo: &entity.CpuStats{
-			CpuCount:       0,
-			CpuLoadPercent: 0,
-			TotalMemory:    0,
-			UsedMemory:     0,
-		},
+		CpuInfo: &entity.CpuStats{},
 
 		Network: &entity.NetworkStats{
 			CommandsProcessed:    GetCommandsProcessed(),
@@ -58,13 +82,14 @@ func InitInfoStatistics() {
 		},
 
 		Keyspace: &entity.KeyspaceStats{
-			TotalKeyCount:   GetTotalKeyCount(),
-			KeyCountWithTTL: GetKeyCountWithTTL(),
+			TotalKeyCount:   0,
+			KeyCountWithTTL: 0,
 		},
 	}
 }
 
 func GetDatabaseInfoStatistics() *entity.InfoStats {
+	DatabaseInfoStats.Server.ServerState = consts.GetServerStateAsString()
 	DatabaseInfoStats.Server.ClockTime = utils.GetCurrentReadableTime()
 
 	if cpucount, err := cpu.Counts(true); err == nil {
@@ -77,12 +102,21 @@ func GetDatabaseInfoStatistics() *entity.InfoStats {
 
 	if virtualMemory, err := mem.VirtualMemory(); err == nil {
 		DatabaseInfoStats.CpuInfo.TotalMemory = virtualMemory.Total
-		DatabaseInfoStats.CpuInfo.UsedMemory = virtualMemory.Used
+		DatabaseInfoStats.CpuInfo.FreeMemory = virtualMemory.Total - virtualMemory.Used
+		DatabaseInfoStats.CpuInfo.AllowedMemoryStorageLimit = uint64(config.GetAllowedMemoryStorageLimit())
+		DatabaseInfoStats.CpuInfo.MemoryStorageConsumption = utils.GetMemoryUsedByCurrentPID()
 	}
 
 	DatabaseInfoStats.Network.CommandsProcessed = GetCommandsProcessed()
 	DatabaseInfoStats.Network.NetworkBytesSent = GetNetworkBytesSent()
 	DatabaseInfoStats.Network.NetworkBytesReceived = GetNetworkBytesReceived()
+
+	activeConnections := consts.GetActiveTCPConnectionCount()
+	DatabaseInfoStats.Clients.ConnectedClients = activeConnections
+
+	if activeConnections < 0 {
+		DatabaseInfoStats.Clients.ConnectedClients = 0
+	}
 
 	return DatabaseInfoStats
 }
