@@ -6,6 +6,8 @@ import (
 	"github.com/shirou/gopsutil/v3/process"
 )
 
+const HEALTHY_MEMORY_CONSUMPTION_RATIO = 0.8
+
 func GetMemoryUsedByCurrentPID() uint64 {
 	pid := os.Getpid()
 	proc, err := process.NewProcess(int32(pid))
