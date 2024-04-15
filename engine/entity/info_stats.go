@@ -49,10 +49,12 @@ type PersistenceStats struct {
 }
 
 type CpuStats struct {
-	CpuCount       int64
-	CpuLoadPercent float64
-	TotalMemory    uint64
-	UsedMemory     uint64
+	CpuCount                  int64
+	CpuLoadPercent            float64
+	TotalMemory               uint64
+	FreeMemory                uint64
+	AllowedMemoryStorageLimit uint64
+	MemoryStorageConsumption  uint64
 }
 
 type NetworkStats struct {

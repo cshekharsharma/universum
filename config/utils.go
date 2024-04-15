@@ -57,6 +57,16 @@ func GetTCPConnectionReadtime() time.Duration {
 	return time.Duration(timeout) * time.Minute
 }
 
+func GetAllowedMemoryStorageLimit() int64 {
+	limit, err := GetInt64("AllowedMemoryStorageLimit", APP_CODE_NAME)
+
+	if err != nil {
+		limit = 0
+	}
+
+	return limit
+}
+
 func GetTransactionLogFilePath() string {
 	path, err := GetString("TransactionLogFilePath", APP_CODE_NAME)
 

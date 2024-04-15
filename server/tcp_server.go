@@ -99,6 +99,8 @@ func StartTCPServer(wg *sync.WaitGroup) {
 			continue
 		}
 
+		consts.IncrementActiveTCPConnection()
+
 		// set nodelay=true for tcp connection, so the response is immediately
 		// sent to the client without waiting lazily for response because of nagle's algorithm
 		tcpConn.SetNoDelay(true)
@@ -167,7 +169,9 @@ func handleConnection(conn *net.TCPConn) {
 
 		writer.Write([]byte(outputWithEOM))
 		writer.Flush()
+
 		conn.Close()
+		consts.DecrementActiveTCPConnection()
 	}()
 
 	readtimeout := config.GetTCPConnectionReadtime()
@@ -212,6 +216,8 @@ func handleRequestWhenShuttingDown(listener net.Listener) {
 		return
 	}
 
+	consts.IncrementActiveTCPConnection()
+
 	shutdownMessage := getFormattedClientMessage(nil,
 		consts.CRC_SERVER_SHUTTING_DOWN,
 		"Server shutting down, cannot serve the request.",
@@ -222,7 +228,9 @@ func handleRequestWhenShuttingDown(listener net.Listener) {
 	writer := bufio.NewWriter(conn)
 	writer.Write([]byte(outputWithEOM))
 	writer.Flush()
+
 	conn.Close()
+	consts.DecrementActiveTCPConnection()
 }
 
 // handleRequestWhenServerBusy accepts a new connection and sends a busy message
@@ -240,6 +248,8 @@ func handleRequestWhenServerBusy(listener net.Listener) {
 		return
 	}
 
+	consts.IncrementActiveTCPConnection()
+
 	shutdownMessage := getFormattedClientMessage(nil,
 		consts.CRC_SERVER_BUSY,
 		"Server is busy, try connecting after some backoff.",
@@ -250,7 +260,9 @@ func handleRequestWhenServerBusy(listener net.Listener) {
 	writer := bufio.NewWriter(conn)
 	writer.Write([]byte(outputWithEOM))
 	writer.Flush()
+
 	conn.Close()
+	consts.DecrementActiveTCPConnection()
 }
 
 // WaitForSignal blocks until a shutdown signal is received. It then initiates
