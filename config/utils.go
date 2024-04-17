@@ -106,3 +106,13 @@ func GetAutoSnapshotFrequency() time.Duration {
 
 	return time.Duration(frequency) * time.Second
 }
+
+func GetRecordAutoEvictionPolicy() string {
+	policy, err := GetString("RecordAutoEvictionPolicy", APP_CODE_NAME)
+
+	if err != nil {
+		policy = DEFAULT_AUTO_EVICTION_POLICY
+	}
+
+	return policy
+}
