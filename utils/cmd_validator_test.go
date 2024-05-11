@@ -16,7 +16,7 @@ func TestValidateArguments(t *testing.T) {
 		wantResponse []interface{}
 	}{
 		{
-			name: "correct argument types",
+			name: "CorrectArgs",
 			cmd: &entity.Command{
 				Args: []interface{}{"hello", 123},
 			},
@@ -28,7 +28,7 @@ func TestValidateArguments(t *testing.T) {
 			wantResponse: []interface{}{},
 		},
 		{
-			name: "incorrect argument types",
+			name: "IncorrectArgs",
 			cmd: &entity.Command{
 				Args: []interface{}{"hello", "world"},
 			},
@@ -44,7 +44,7 @@ func TestValidateArguments(t *testing.T) {
 			},
 		},
 		{
-			name: "incorrect number of arguments",
+			name: "IncorrectArgCount",
 			cmd: &entity.Command{
 				Args: []interface{}{"hello"},
 			},
@@ -60,7 +60,7 @@ func TestValidateArguments(t *testing.T) {
 			},
 		},
 		{
-			name: "wildcard datatype",
+			name: "WildcardDatatype",
 			cmd: &entity.Command{
 				Args: []interface{}{"hello", 123},
 			},

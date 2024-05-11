@@ -34,6 +34,7 @@ func Startup() {
 	// Trigger periodic jobs
 	triggerPeriodicExpiryJob()
 	triggerPeriodicSnapshotJob()
+	triggerPeriodicEvictionJob()
 }
 
 func Shutdown() {
