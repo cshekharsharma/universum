@@ -1,7 +1,7 @@
 package consts
 
 const (
-	SERVER_VERSION string = "v0.1.0-beta.1"
+	SERVER_VERSION string = "v1.0.0-beta"
 
 	STATE_STARTING      int32 = 1
 	STATE_READY         int32 = 1 << 2
