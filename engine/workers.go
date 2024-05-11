@@ -3,6 +3,7 @@ package engine
 import (
 	"log"
 	"time"
+	"universum/config"
 )
 
 func triggerPeriodicExpiryJob() {
@@ -38,6 +39,29 @@ func triggerPeriodicSnapshotJob() {
 
 			// Restart the worker if that has died
 			go failed.startInMemoryDBSnapshot(snapshotChan)
+			time.Sleep(10 * time.Second)
+		}
+	}()
+}
+
+func triggerPeriodicEvictionJob() {
+	if config.GetRecordAutoEvictionPolicy() == EVICTION_POLICY_NONE {
+		return
+	}
+
+	evictionWorker := new(autoEvictionWorker)
+
+	evictionChan := make(chan autoEvictionWorker, 1)
+	go evictionWorker.startAutoEviction(evictionChan)
+
+	// Go routine to respawn the worker
+	go func() {
+		for failed := range evictionChan {
+
+			log.Printf("Periodic auto eviction worker terminated. %v\n", failed.ExecutionErr)
+
+			// Restart the worker if that has died
+			go failed.startAutoEviction(evictionChan)
 			time.Sleep(10 * time.Second)
 		}
 	}()

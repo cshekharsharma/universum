@@ -1,6 +1,4 @@
 # TODOs
 
-- Implement memory size capping based on config
-- LRU based eviction if memory is full
-- Add INFO command
-- Implement db keystats holder
+- LRU based eviction logic if memory is full
+- Compression of backup file to save disk space
