@@ -1,5 +1,12 @@
 package config
 
+var (
+	AppVersion string
+	BuildTime  int64
+	GitHash    string
+	AppEnv     string
+)
+
 const (
 	APP_NAME_LABEL string = "UniversumDB"
 	APP_CODE_NAME  string = "universum"

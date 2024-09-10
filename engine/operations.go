@@ -19,6 +19,15 @@ func Startup() {
 	memstore.Initialize()
 
 	// Replay all commands from translog into the database
+	aofFile := config.GetTransactionLogFilePath()
+	if _, err := os.Stat(aofFile); os.IsNotExist(err) {
+		_, err := os.Create(aofFile)
+		if err != nil {
+			logger.Get().Error("Error creating AOF file, shutting down: %v", err)
+			os.Exit(1)
+		}
+	}
+
 	keyCount, err := ReplayDBRecordsFromSnapshot()
 
 	if err != nil {

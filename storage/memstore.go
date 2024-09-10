@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	ShardCount         uint32 = 4
+	ShardCount         uint32 = 32
 	infiniteExpiryTime int64  = 4102444800
 )
 

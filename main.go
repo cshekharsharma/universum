@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"universum/config"
@@ -13,9 +14,21 @@ import (
 	"universum/utils"
 )
 
-var configfile string
+var (
+	AppVersion string
+	BuildTime  string
+	GitHash    string
+	AppEnv     string
+
+	configfile string
+)
 
 func main() {
+	config.AppVersion = AppVersion
+	config.GitHash = GitHash
+	config.AppEnv = AppEnv
+	config.BuildTime, _ = strconv.ParseInt(BuildTime, 10, 64)
+
 	configureCommandLineParams()
 	configerr := config.Load(configfile)
 

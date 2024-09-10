@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	RECORD_TYPE_SCALER = "scalar"
+	RecordTypeScalar = "scalar"
 )
 
 type Record interface {
@@ -26,7 +26,7 @@ type ScalarRecord struct {
 }
 
 func (sr *ScalarRecord) GetFamily() string {
-	return RECORD_TYPE_SCALER
+	return RecordTypeScalar
 }
 
 func (sr *ScalarRecord) IsExpired() bool {
