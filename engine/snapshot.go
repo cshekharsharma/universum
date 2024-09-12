@@ -138,7 +138,13 @@ func ReplayDBRecordsFromSnapshot() (int64, error) {
 	filePtr, _ := os.OpenFile(filepath, os.O_RDONLY|os.O_CREATE, 0777)
 	defer filePtr.Close()
 
-	buffer := bufio.NewReader(filePtr)
+	snapshotSizeInBytes, err := filesys.GetFileSizeInBytes(filePtr)
+	if err != nil {
+		logger.Get().Error("failed to get the size of the snapshot file, ERR=%v", err.Error())
+		return keycount, err
+	}
+
+	buffer := bufio.NewReaderSize(filePtr, int(snapshotSizeInBytes))
 
 	for {
 		decoded, err := resp3.Decode(buffer)

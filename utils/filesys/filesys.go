@@ -43,3 +43,15 @@ func AtomicCopyFileContent(src string, dest string) error {
 
 	return nil
 }
+
+// GetFileSizeInBytes returns the size of the file in bytes.
+// It takes a file pointer as input and returns the file size in bytes.
+// If an error occurs, it returns the error.
+func GetFileSizeInBytes(filePtr *os.File) (int64, error) {
+	fileInfo, err := filePtr.Stat()
+	if err != nil {
+		return 0, err
+	}
+
+	return fileInfo.Size(), nil
+}

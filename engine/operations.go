@@ -3,6 +3,7 @@ package engine
 import (
 	"os"
 	"universum/config"
+	"universum/entity"
 	"universum/internal/logger"
 	"universum/storage"
 )
@@ -24,7 +25,7 @@ func Startup() {
 		_, err := os.Create(aofFile)
 		if err != nil {
 			logger.Get().Error("Error creating AOF file, shutting down: %v", err)
-			os.Exit(1)
+			Shutdown(entity.ExitCodeStartupFailure)
 		}
 	}
 
@@ -32,7 +33,7 @@ func Startup() {
 
 	if err != nil {
 		logger.Get().Error("Translog replay failed, KeyOffset=%d, Err=%v", keyCount+1, err.Error())
-		Shutdown()
+		Shutdown(entity.ExitCodeStartupFailure)
 	} else {
 		logger.Get().Info("Translog replay done. Total %d keys replayed into DB", keyCount)
 	}
@@ -46,9 +47,12 @@ func Startup() {
 	triggerPeriodicEvictionJob()
 }
 
-func Shutdown() {
+func Shutdown(exitcode int) {
 	// do all the shut down operations, such as fsyncing AOF
 	// and freeing up occupied resources and memory.
-	StartInMemoryDBSnapshot(GetMemstore())
-	os.Exit(0)
+	if exitcode != entity.ExitCodeStartupFailure {
+		StartInMemoryDBSnapshot(GetMemstore())
+	}
+
+	os.Exit(exitcode)
 }

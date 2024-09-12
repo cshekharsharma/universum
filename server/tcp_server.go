@@ -60,7 +60,7 @@ func StartTCPServer(wg *sync.WaitGroup) {
 	listener, err := net.Listen(networkTcp, port)
 	if err != nil {
 		logger.Get().Error("Error listening on socket, will shutdown: %v", err.Error())
-		os.Exit(1)
+		engine.Shutdown(entity.ExitCodeSocketError)
 	}
 
 	defer listener.Close()
@@ -242,7 +242,7 @@ func WaitForSignal(wg *sync.WaitGroup, sigs chan os.Signal) {
 	// Set the state to SHUTTING DOWN to stop accepting new connections
 	atomic.StoreInt32(&entity.ServerState, entity.STATE_SHUTTING_DOWN)
 
-	engine.Shutdown()
+	engine.Shutdown(entity.ExitCodeInturrupted)
 }
 
 // closeTCPConnection closes a TCP connection and removes it from the active
