@@ -109,7 +109,7 @@ build-prod:
 .PHONY: run
 run:
 	@printf "\n${YELLOW}LAUNCHING THE BINARY...${NC}\n\n"
-	./bin/$(BINARYNAME) -config=./docs/config.schema.ini
+	./bin/$(BINARYNAME) -config=/etc/universum/config.ini
 
 # Target: clean
 # Description: Clean the previous builds and remove the binary.

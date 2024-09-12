@@ -43,7 +43,7 @@
 
 ## Configuration
 
-Sample configuration file that can be put in ./config/config.ini
+Sample configuration file that can be put in /etc/universum/config.ini
 
 ```ini
 [universum]
@@ -54,10 +54,10 @@ RequestExecutionTimeout=10
 AutoRecordExpiryFrequency=2
 AllowedMemoryStorageLimit=1073741824
 AutoSnapshotFrequency=100
-RecordAutoEvictionPolicy="LRU"
-TransactionLogFilePath="/opt/universum/translog.aof"
-ServerLogFilePath="/var/log/universum/server.log"
-MinimumLogLevel="INFO"
+RecordAutoEvictionPolicy=LRU
+TransactionLogFilePath=/opt/universum/translog.aof
+ServerLogFilePath=/var/log/universum/server.log
+MinimumLogLevel=INFO
 ```
 
 ## Usage
@@ -97,5 +97,12 @@ Areas of potential improvement:
 1. **Dynamic Scaling**: Consider dynamically scaling workers based on connection load.
 2. **Authentication**: Add client authentication for secure connections.
 3. **Auto-Eviction**: LRU based auto eviction in case of memory overflow
+
+
+## Client Libraries
+
+- **Go Client**: [https://github.com/cshekharsharma/universum-client-go](https://github.com/cshekharsharma/universum-client-go)
+
+----
 
 For any support, contact [shekharsharma705@gmail.com](mailto:shekharsharma705@gmail.com).
