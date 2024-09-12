@@ -15,9 +15,13 @@ const (
 	TYPE_ENCODING_SLICE     uint8 = 6
 	TYPE_ENCODING_MAP       uint8 = 7
 	TYPE_ENCODING_INTERFACE uint8 = 8
+	TYPE_ENCODING_NIL       uint8 = 9
 )
 
 func GetTypeEncoding(v interface{}) uint8 {
+	if v == nil {
+		return TYPE_ENCODING_NIL
+	}
 
 	if reflect.TypeOf(v).Kind() == reflect.Bool {
 		return TYPE_ENCODING_BOOL

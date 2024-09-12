@@ -26,35 +26,24 @@ func GetMaxClientConnections() int64 {
 	return maxClients
 }
 
-func GetServerConcurrencyLimit(maxConnections int64) int64 {
-	concurrency, err := GetInt64("MaxConcurrency", APP_CODE_NAME)
+func GetRequestExecutionTimeout() time.Duration {
+	timeout, err := GetInt64("RequestExecutionTimeout", APP_CODE_NAME)
 
 	if err != nil {
-		concurrency = MAX_SERVER_CONCURRENCY
+		timeout = DEFAULT_REQUEST_EXEC_TIMEOUT
 	}
 
-	if concurrency < 1 {
-		concurrency = MAX_SERVER_CONCURRENCY
-	}
-
-	// making sure that concurrency level is not more than maximum
-	// allowed connection limit. Since that will just be a waste of
-	// resources, we will never reach 100% utilisation concurrency.
-	if concurrency > maxConnections {
-		concurrency = int64(maxConnections)
-	}
-
-	return concurrency
+	return time.Duration(timeout) * time.Second
 }
 
-func GetTCPConnectionReadtime() time.Duration {
-	timeout, err := GetInt64("ConnectionReadTimeout", APP_CODE_NAME)
+func GetTCPConnectionWriteTimeout() time.Duration {
+	timeout, err := GetInt64("ConnectionWriteTimeout", APP_CODE_NAME)
 
 	if err != nil {
-		timeout = DEFAULT_CONN_READ_TIMEOUT
+		timeout = DEFAULT_CONN_WRITE_TIMEOUT
 	}
 
-	return time.Duration(timeout) * time.Minute
+	return time.Duration(timeout) * time.Second
 }
 
 func GetAllowedMemoryStorageLimit() int64 {

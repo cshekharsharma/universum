@@ -3,8 +3,7 @@ package utils
 import (
 	"reflect"
 	"testing"
-	"universum/consts"
-	"universum/engine/entity"
+	"universum/entity"
 )
 
 func TestValidateArguments(t *testing.T) {
@@ -39,7 +38,7 @@ func TestValidateArguments(t *testing.T) {
 			wantValid: false,
 			wantResponse: []interface{}{
 				nil,
-				consts.CRC_INVALID_CMD_INPUT,
+				entity.CRC_INVALID_CMD_INPUT,
 				"ERR: number has invalid type. int expected",
 			},
 		},
@@ -55,7 +54,7 @@ func TestValidateArguments(t *testing.T) {
 			wantValid: false,
 			wantResponse: []interface{}{
 				nil,
-				consts.CRC_INVALID_CMD_INPUT,
+				entity.CRC_INVALID_CMD_INPUT,
 				"ERR: Incorrect number of arguments provided. Want=2, Have=1",
 			},
 		},

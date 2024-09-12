@@ -14,8 +14,8 @@ type Record interface {
 }
 
 type RecordResponse struct {
-	Record Record
-	Code   uint32
+	Value interface{}
+	Code  uint32
 }
 
 type ScalarRecord struct {

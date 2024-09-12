@@ -2,13 +2,14 @@ package engine
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"sync"
 	"time"
 	"universum/config"
-	"universum/engine/entity"
+	"universum/entity"
 	"universum/internal/logger"
 	"universum/resp3"
 	"universum/storage"
@@ -147,7 +148,7 @@ func ReplayDBRecordsFromSnapshot() (int64, error) {
 				break
 			} else {
 				logger.Get().Debug("failed to replay a commands into the memorystore, "+
-					"potentially errornous translog. Pleae fix to proceed: [%v]", err.Error())
+					"potentially errornous translog. Please fix to proceed: [%v]", err.Error())
 
 				return keycount, err
 			}
@@ -178,7 +179,7 @@ func ReplayDBRecordsFromSnapshot() (int64, error) {
 			},
 		}
 
-		_, execErr := executeCommand(command)
+		_, execErr := executeCommand(context.Background(), command)
 
 		if execErr != nil {
 			logger.Get().Debug("failed to replay a commands into the memorystore, " +
@@ -187,7 +188,7 @@ func ReplayDBRecordsFromSnapshot() (int64, error) {
 			continue
 		}
 
-		logger.Get().Debug("message replayed for [%4d] %-8s %#v", keycount, command.Name, command.Args)
+		logger.Get().Debug("message replayed for [%5d] %-8s %#v", keycount, command.Name, command.Args)
 		keycount++
 	}
 

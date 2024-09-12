@@ -1,4 +1,4 @@
-package consts
+package entity
 
 const (
 	CRC_PING_SUCCESS     uint32 = 200

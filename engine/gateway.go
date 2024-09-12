@@ -2,10 +2,13 @@ package engine
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"strings"
-	"universum/engine/entity"
+	"time"
+	"universum/entity"
+	"universum/internal/logger"
 	"universum/resp3"
 )
 
@@ -28,16 +31,18 @@ const (
 	COMMAND_HELP     string = "HELP"
 )
 
-func ExecuteCommand(buffer *bufio.Reader) (string, error) {
+func ExecuteCommand(buffer *bufio.Reader, timeout time.Duration) (string, error) {
 	command, err := parseCommand(buffer)
-
 	if err != nil {
 		return "", err
 	}
 
-	fmt.Printf("REQUEST: %#v\n", command)
-	output, err := executeCommand(command)
-	fmt.Printf("RESPONSE: %#v\n", output)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
+	defer cancel()
+
+	logger.Get().Debug("REQUEST: %#v", command)
+	output, err := executeCommand(ctx, command)
+	logger.Get().Debug("RESPONSE: %#v", output)
 
 	if err != nil {
 		return "", err
@@ -74,9 +79,15 @@ func getCommandFromRESP(decodedResp interface{}) (*entity.Command, error) {
 	return command, nil
 }
 
-func executeCommand(command *entity.Command) (string, error) {
-	switch command.Name {
+func executeCommand(ctx context.Context, command *entity.Command) (string, error) {
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	default:
+		// Continue processing the command
+	}
 
+	switch command.Name {
 	case COMMAND_PING:
 		return executePING(command), nil
 

@@ -88,8 +88,6 @@ var testCases = []testCase{
 func TestEncode(t *testing.T) {
 
 	for _, tc := range testCases {
-		fmt.Printf("Test Case: %s\n", tc.Description)
-
 		actualEncOutput, err := Encode(tc.Input)
 
 		if err != nil {
@@ -106,8 +104,6 @@ func TestEncode(t *testing.T) {
 func TestDecode(t *testing.T) {
 
 	for _, tc := range testCases {
-		fmt.Printf("Test Case: %s\n", tc.Description)
-
 		actualDecOutput, err := Decode(bufio.NewReader(strings.NewReader(tc.ExpectedEncOutput)))
 
 		if err != nil {

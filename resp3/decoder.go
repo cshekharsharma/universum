@@ -2,7 +2,9 @@ package resp3
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"strconv"
 )
 
@@ -29,6 +31,9 @@ func Decode(reader *bufio.Reader) (interface{}, error) {
 	dataType, err := reader.ReadByte()
 
 	if err != nil {
+		if err == io.EOF {
+			return nil, io.EOF // Gracefully handle EOF by returning it
+		}
 		return nil, err
 	}
 
@@ -49,7 +54,7 @@ func Decode(reader *bufio.Reader) (interface{}, error) {
 			return nil, err
 		}
 
-		return fmt.Errorf(string(line)), nil
+		return errors.New(string(line)), nil
 
 	case ':': // Integer
 		line, _, err := reader.ReadLine()
@@ -148,7 +153,11 @@ func Decode(reader *bufio.Reader) (interface{}, error) {
 		for i := 0; i < size; i += 2 {
 			key, _ := Decode(reader)
 			value, _ := Decode(reader)
-			resultMap[key.(string)] = value
+			if key != nil {
+				if key, ok := key.(string); ok {
+					resultMap[key] = value
+				}
+			}
 		}
 		return resultMap, nil
 

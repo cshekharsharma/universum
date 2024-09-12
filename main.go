@@ -54,6 +54,5 @@ func main() {
 
 func configureCommandLineParams() {
 	flag.StringVar(&configfile, "config", config.GetDefaultConfigPath(), "db server config file name")
-
 	flag.Parse()
 }

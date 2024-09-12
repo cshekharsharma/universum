@@ -96,7 +96,7 @@ func Encode(value interface{}) (string, error) {
 		}
 
 		recordResponse := make(map[string]interface{})
-		recordResponse["Record"] = v.Record
+		recordResponse["Value"] = v.Value
 		recordResponse["Code"] = v.Code
 		return Encode(recordResponse)
 

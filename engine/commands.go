@@ -3,11 +3,15 @@ package engine
 
 import (
 	"reflect"
-	"universum/consts"
-	"universum/engine/entity"
+	"universum/entity"
 	"universum/resp3"
 	"universum/utils"
 )
+
+type Command struct {
+	Name string
+	Args []interface{}
+}
 
 func executePING(command *entity.Command) string {
 	rules := []utils.ValidationRule{}
@@ -16,7 +20,7 @@ func executePING(command *entity.Command) string {
 		return resp3.EncodedRESP3Response(validityRes)
 	}
 
-	return resp3.EncodedRESP3Response([]interface{}{"OK", consts.CRC_PING_SUCCESS, ""})
+	return resp3.EncodedRESP3Response([]interface{}{"OK", entity.CRC_PING_SUCCESS, ""})
 }
 
 func executeEXISTS(command *entity.Command) string {
@@ -134,7 +138,7 @@ func executeMGET(command *entity.Command) string {
 
 		if !isOk {
 			return resp3.EncodedRESP3Response([]interface{}{
-				nil, consts.CRC_INVALID_CMD_INPUT,
+				nil, entity.CRC_INVALID_CMD_INPUT,
 				"first argument should be a list of string, one or more invalid values provided"})
 		}
 
@@ -158,7 +162,7 @@ func executeMSET(command *entity.Command) string {
 
 	if !ok {
 		return resp3.EncodedRESP3Response([]interface{}{
-			nil, consts.CRC_INVALID_CMD_INPUT,
+			nil, entity.CRC_INVALID_CMD_INPUT,
 			"first argument should be a dict of string to anything, one or more invalid values provided"})
 	}
 
@@ -183,7 +187,7 @@ func executeMDELETE(command *entity.Command) string {
 
 		if !isOk {
 			return resp3.EncodedRESP3Response([]interface{}{
-				nil, consts.CRC_INVALID_CMD_INPUT,
+				nil, entity.CRC_INVALID_CMD_INPUT,
 				"first argument should be a list of string, one or more invalid values provided"})
 		}
 
@@ -234,7 +238,7 @@ func executeSNAPSHOT(command *entity.Command) string {
 	}
 
 	StartInMemoryDBSnapshot(GetMemstore())
-	return resp3.EncodedRESP3Response([]interface{}{true, consts.CRC_SNAPSHOT_STARTED, ""})
+	return resp3.EncodedRESP3Response([]interface{}{true, entity.CRC_SNAPSHOT_STARTED, ""})
 }
 
 func executeINFO(command *entity.Command) string {
@@ -245,7 +249,7 @@ func executeINFO(command *entity.Command) string {
 	}
 
 	infoResponse := GetDatabaseInfoStatistics().ToString()
-	return resp3.EncodedRESP3Response([]interface{}{infoResponse, consts.CRC_INFO_CONTENT_OK, ""})
+	return resp3.EncodedRESP3Response([]interface{}{infoResponse, entity.CRC_INFO_CONTENT_OK, ""})
 }
 
 func executeHELP(command *entity.Command) string {
@@ -260,12 +264,12 @@ func executeHELP(command *entity.Command) string {
 		commandName, ok := command.Args[0].(string)
 		if !ok {
 			return resp3.EncodedRESP3Response([]interface{}{
-				nil, consts.CRC_INVALID_CMD_INPUT,
+				nil, entity.CRC_INVALID_CMD_INPUT,
 				"first argument should be a valid db command"})
 		}
 
 		helpcontent = getCommandHelpContent(commandName)
 	}
 
-	return resp3.EncodedRESP3Response([]interface{}{helpcontent, consts.CRC_HELP_CONTENT_OK, ""})
+	return resp3.EncodedRESP3Response([]interface{}{helpcontent, entity.CRC_HELP_CONTENT_OK, ""})
 }

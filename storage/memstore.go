@@ -4,7 +4,7 @@ import (
 	"hash/fnv"
 	"sync"
 	"universum/config"
-	"universum/consts"
+	"universum/entity"
 	"universum/utils"
 )
 
@@ -46,16 +46,16 @@ func (ms *MemoryStore) Exists(key string) (bool, uint32) {
 	val, ok := shard.data.Load(key)
 
 	if !ok {
-		return false, consts.CRC_RECORD_NOT_FOUND
+		return false, entity.CRC_RECORD_NOT_FOUND
 	}
 
 	record := val.(*ScalarRecord)
 	if record.IsExpired() {
 		shard.data.Delete(key)
-		return false, consts.CRC_RECORD_EXPIRED
+		return false, entity.CRC_RECORD_EXPIRED
 	}
 
-	return true, consts.CRC_RECORD_FOUND
+	return true, entity.CRC_RECORD_FOUND
 }
 
 func (ms *MemoryStore) Get(key string) (Record, uint32) {
@@ -63,17 +63,17 @@ func (ms *MemoryStore) Get(key string) (Record, uint32) {
 	val, ok := shard.data.Load(key)
 
 	if !ok {
-		return nil, consts.CRC_RECORD_NOT_FOUND
+		return nil, entity.CRC_RECORD_NOT_FOUND
 	}
 
 	record := val.(*ScalarRecord)
 	if record.IsExpired() {
 		shard.data.Delete(key)
-		return nil, consts.CRC_RECORD_EXPIRED
+		return nil, entity.CRC_RECORD_EXPIRED
 	}
 
 	record.LAT = utils.GetCurrentEPochTime()
-	return record, consts.CRC_RECORD_FOUND
+	return record, entity.CRC_RECORD_FOUND
 }
 
 func (ms *MemoryStore) Set(key string, value interface{}, ttl int64) (bool, uint32) {
@@ -90,25 +90,25 @@ func (ms *MemoryStore) Set(key string, value interface{}, ttl int64) (bool, uint
 
 	shard := ms.getShard(key)
 	shard.data.Store(key, record)
-	return true, consts.CRC_RECORD_UPDATED
+	return true, entity.CRC_RECORD_UPDATED
 }
 
 func (ms *MemoryStore) Delete(key string) (bool, uint32) {
 	shard := ms.getShard(key)
 	shard.data.Delete(key)
-	return true, consts.CRC_RECORD_DELETED
+	return true, entity.CRC_RECORD_DELETED
 }
 
 func (ms *MemoryStore) IncrDecrInteger(key string, offset int64, isIncr bool) (int64, uint32) {
 	val, code := ms.Get(key)
 
-	if code != consts.CRC_RECORD_FOUND {
-		return config.INVALID_NUMERIC_VALUE, consts.CRC_RECORD_NOT_FOUND
+	if code != entity.CRC_RECORD_FOUND {
+		return config.INVALID_NUMERIC_VALUE, entity.CRC_RECORD_NOT_FOUND
 	}
 
 	record := val.(*ScalarRecord)
 	if !utils.IsInteger(record.Value) {
-		return config.INVALID_NUMERIC_VALUE, consts.CRC_INCR_INVALID_TYPE
+		return config.INVALID_NUMERIC_VALUE, entity.CRC_INCR_INVALID_TYPE
 	}
 
 	var newValue int64
@@ -127,19 +127,19 @@ func (ms *MemoryStore) IncrDecrInteger(key string, offset int64, isIncr bool) (i
 		return config.INVALID_NUMERIC_VALUE, setcode
 	}
 
-	return newValue, consts.CRC_RECORD_UPDATED
+	return newValue, entity.CRC_RECORD_UPDATED
 }
 
 func (ms *MemoryStore) Append(key string, value string) (int64, uint32) {
 	val, code := ms.Get(key)
 
-	if code != consts.CRC_RECORD_FOUND {
-		return config.INVALID_NUMERIC_VALUE, consts.CRC_RECORD_NOT_FOUND
+	if code != entity.CRC_RECORD_FOUND {
+		return config.INVALID_NUMERIC_VALUE, entity.CRC_RECORD_NOT_FOUND
 	}
 
 	record := val.(*ScalarRecord)
 	if record.Type != TYPE_ENCODING_STRING {
-		return config.INVALID_NUMERIC_VALUE, consts.CRC_INCR_INVALID_TYPE
+		return config.INVALID_NUMERIC_VALUE, entity.CRC_INCR_INVALID_TYPE
 	}
 
 	newValue := record.Value.(string) + value
@@ -150,7 +150,7 @@ func (ms *MemoryStore) Append(key string, value string) (int64, uint32) {
 		return config.INVALID_NUMERIC_VALUE, setcode
 	}
 
-	return int64(len(newValue)), consts.CRC_RECORD_UPDATED
+	return int64(len(newValue)), entity.CRC_RECORD_UPDATED
 }
 
 func (ms *MemoryStore) MGet(keys []string) (map[string]interface{}, uint32) {
@@ -158,13 +158,21 @@ func (ms *MemoryStore) MGet(keys []string) (map[string]interface{}, uint32) {
 
 	for idx := range keys {
 		record, code := ms.Get(keys[idx])
-		responseMap[keys[idx]] = &RecordResponse{
-			Record: record,
-			Code:   code,
+
+		if _, ok := record.(*ScalarRecord); ok {
+			responseMap[keys[idx]] = &RecordResponse{
+				Value: record.(*ScalarRecord).Value,
+				Code:  code,
+			}
+		} else {
+			responseMap[keys[idx]] = &RecordResponse{
+				Value: nil,
+				Code:  code,
+			}
 		}
 	}
 
-	return responseMap, consts.CRC_MGET_COMPLETED
+	return responseMap, entity.CRC_MGET_COMPLETED
 }
 
 func (ms *MemoryStore) MSet(kvMap map[string]interface{}) (map[string]interface{}, uint32) {
@@ -175,7 +183,7 @@ func (ms *MemoryStore) MSet(kvMap map[string]interface{}) (map[string]interface{
 		responseMap[key] = didSet
 	}
 
-	return responseMap, consts.CRC_MSET_COMPLETED
+	return responseMap, entity.CRC_MSET_COMPLETED
 }
 
 func (ms *MemoryStore) MDelete(keys []string) (map[string]interface{}, uint32) {
@@ -186,14 +194,14 @@ func (ms *MemoryStore) MDelete(keys []string) (map[string]interface{}, uint32) {
 		responseMap[keys[idx]] = deleted
 	}
 
-	return responseMap, consts.CRC_MDEL_COMPLETED
+	return responseMap, entity.CRC_MDEL_COMPLETED
 }
 
 func (ms *MemoryStore) TTL(key string) (int64, uint32) {
 	val, code := ms.Get(key)
 
-	if code != consts.CRC_RECORD_FOUND {
-		return 0, consts.CRC_RECORD_NOT_FOUND
+	if code != entity.CRC_RECORD_FOUND {
+		return 0, entity.CRC_RECORD_NOT_FOUND
 	}
 
 	record := val.(*ScalarRecord)
@@ -203,14 +211,14 @@ func (ms *MemoryStore) TTL(key string) (int64, uint32) {
 		ttl = -1
 	}
 
-	return ttl, consts.CRC_RECORD_FOUND
+	return ttl, entity.CRC_RECORD_FOUND
 }
 
 func (ms *MemoryStore) Expire(key string, ttl int64) (bool, uint32) {
 	val, code := ms.Get(key)
 
-	if code != consts.CRC_RECORD_FOUND {
-		return false, consts.CRC_RECORD_NOT_FOUND
+	if code != entity.CRC_RECORD_FOUND {
+		return false, entity.CRC_RECORD_NOT_FOUND
 	}
 
 	record := val.(*ScalarRecord)
@@ -223,7 +231,7 @@ func (ms *MemoryStore) Expire(key string, ttl int64) (bool, uint32) {
 
 	shard := ms.getShard(key)
 	shard.data.Store(key, record)
-	return true, consts.CRC_RECORD_UPDATED
+	return true, entity.CRC_RECORD_UPDATED
 }
 
 func (ms *MemoryStore) getShard(key string) *Shard {

@@ -3,8 +3,7 @@ package utils
 import (
 	"fmt"
 	"reflect"
-	"universum/consts"
-	"universum/engine/entity"
+	"universum/entity"
 )
 
 type ValidationRule struct {
@@ -19,7 +18,7 @@ func ValidateArguments(cmd *entity.Command, validations []ValidationRule) (bool,
 	if argumentCount != requiredCount {
 		return false, []interface{}{
 			nil,
-			consts.CRC_INVALID_CMD_INPUT,
+			entity.CRC_INVALID_CMD_INPUT,
 			fmt.Sprintf("ERR: Incorrect number of arguments provided. Want=%d, Have=%d",
 				requiredCount, argumentCount),
 		}
@@ -36,7 +35,7 @@ func ValidateArguments(cmd *entity.Command, validations []ValidationRule) (bool,
 		if reflect.TypeOf(argument).Kind() != validations[i].Datatype {
 			return false, []interface{}{
 				nil,
-				consts.CRC_INVALID_CMD_INPUT,
+				entity.CRC_INVALID_CMD_INPUT,
 				fmt.Sprintf("ERR: %s has invalid type. %s expected", validations[i].Name, validations[i].Datatype),
 			}
 		}

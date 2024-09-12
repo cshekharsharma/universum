@@ -6,8 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 	"universum/config"
-	"universum/consts"
-	"universum/engine/entity"
+	"universum/entity"
 	"universum/utils"
 
 	"github.com/shirou/gopsutil/v3/cpu"
@@ -50,21 +49,20 @@ func InitInfoStatistics() {
 	DatabaseInfoStats = &entity.InfoStats{
 		StatsGenerationTime: utils.GetCurrentEPochTime(),
 		Server: &entity.ServerStats{
-			BuildVersion: consts.SERVER_VERSION,
+			BuildVersion: entity.SERVER_VERSION,
 			TCPPort:      config.GetServerPort(),
 			ClockTime:    utils.GetCurrentReadableTime(),
 			ConfigFile:   config.DEFAULT_CONFIG_NAME,
 			OSName:       build.Default.GOOS,
 			ArchBits:     build.Default.GOARCH,
 			TimeZone:     timezone,
-			ServerState:  consts.GetServerStateAsString(),
+			ServerState:  entity.GetServerStateAsString(),
 			StartedAt:    utils.GetCurrentReadableTime(),
 		},
 
 		Clients: &entity.ClientStats{
-			MaxAllowedConnections:    config.GetMaxClientConnections(),
-			MaxConnectionConcurrency: config.GetServerConcurrencyLimit(config.GetMaxClientConnections()),
-			ConnectedClients:         0,
+			MaxAllowedConnections: config.GetMaxClientConnections(),
+			ConnectedClients:      0,
 		},
 
 		Persistence: &entity.PersistenceStats{
@@ -89,7 +87,7 @@ func InitInfoStatistics() {
 }
 
 func GetDatabaseInfoStatistics() *entity.InfoStats {
-	DatabaseInfoStats.Server.ServerState = consts.GetServerStateAsString()
+	DatabaseInfoStats.Server.ServerState = entity.GetServerStateAsString()
 	DatabaseInfoStats.Server.ClockTime = utils.GetCurrentReadableTime()
 
 	if cpucount, err := cpu.Counts(true); err == nil {
@@ -111,7 +109,7 @@ func GetDatabaseInfoStatistics() *entity.InfoStats {
 	DatabaseInfoStats.Network.NetworkBytesSent = GetNetworkBytesSent()
 	DatabaseInfoStats.Network.NetworkBytesReceived = GetNetworkBytesReceived()
 
-	activeConnections := consts.GetActiveTCPConnectionCount()
+	activeConnections := entity.GetActiveTCPConnectionCount()
 	DatabaseInfoStats.Clients.ConnectedClients = activeConnections
 
 	if activeConnections < 0 {
