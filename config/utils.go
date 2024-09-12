@@ -105,3 +105,13 @@ func GetRecordAutoEvictionPolicy() string {
 
 	return policy
 }
+
+func GetMinimumLogLevel() string {
+	level, err := GetString("MinimumLogLevel", APP_CODE_NAME)
+
+	if err != nil {
+		level = DEFAULT_MINIMUM_LOG_LEVEL
+	}
+
+	return level
+}

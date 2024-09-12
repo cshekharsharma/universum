@@ -60,8 +60,8 @@ func StartInMemoryDBSnapshot(memstore *storage.MemoryStore) {
 	snapshotMutex.Lock()
 	defer snapshotMutex.Unlock()
 
-	masterRecordCount := 0
-	shardRecordCount := 0
+	var masterRecordCount int64 = 0
+	var shardRecordCount int64 = 0
 	snapshotStartTime := time.Now().UnixMilli()
 
 	masterSnapshotFile := config.GetTransactionLogFilePath()
@@ -126,6 +126,8 @@ func StartInMemoryDBSnapshot(memstore *storage.MemoryStore) {
 		DatabaseInfoStats.Persistence.SnapshotSizeInBytes = fi.Size()
 	}
 
+	DatabaseInfoStats.Keyspace.TotalKeyCount = masterRecordCount
+
 	logger.Get().Info("Completed periodic DB snapshot for all shards 1-%d; Total Records=%d",
 		len(allShards), masterRecordCount)
 }
@@ -153,7 +155,7 @@ func ReplayDBRecordsFromSnapshot() (int64, error) {
 			if err == io.EOF {
 				break
 			} else {
-				logger.Get().Debug("failed to replay a commands into the memorystore, "+
+				logger.Get().Error("failed to replay a commands into the memorystore, "+
 					"potentially errornous translog. Please fix to proceed: [%v]", err.Error())
 
 				return keycount, err
@@ -163,7 +165,7 @@ func ReplayDBRecordsFromSnapshot() (int64, error) {
 		decodedMap, ok := decoded.(map[string]interface{})
 
 		if !ok {
-			logger.Get().Debug("failed to decode a command from RESP to map[string]interface, " +
+			logger.Get().Warn("failed to decode a command from RESP to map[string]interface, " +
 				"potentially errornous translog record found.")
 
 			continue
@@ -188,7 +190,7 @@ func ReplayDBRecordsFromSnapshot() (int64, error) {
 		_, execErr := executeCommand(context.Background(), command)
 
 		if execErr != nil {
-			logger.Get().Debug("failed to replay a commands into the memorystore, " +
+			logger.Get().Error("failed to replay a commands into the memorystore, " +
 				"potentially errornous translog or intermittent write failure.")
 
 			continue

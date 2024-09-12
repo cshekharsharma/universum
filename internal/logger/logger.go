@@ -33,6 +33,12 @@ const (
 	levelWarn  string = "WARN"
 	levelError string = "ERROR"
 	levelFatal string = "FATAL"
+
+	levelCodeDebug int = 0
+	levelCodeInfo  int = 1
+	levelCodeWarn  int = 2
+	levelCodeError int = 3
+	levelCodeFatal int = 4
 )
 
 var (
@@ -73,6 +79,10 @@ func (l *Logger) log(level string, color, format string, v ...interface{}) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
+	if getLevelIdFromName(level) < getLevelIdFromName(config.GetMinimumLogLevel()) {
+		return
+	}
+
 	currTime := utils.GetCurrentReadableTime()
 	message := fmt.Sprintf(format, v...)
 
@@ -107,4 +117,22 @@ func (l *Logger) Error(format string, v ...interface{}) {
 // use with critical errors that will result in program termination.
 func (l *Logger) Fatal(format string, v ...interface{}) {
 	l.log(levelFatal, colorRed, format, v...)
+}
+
+// getLevelIdFromName is a helper function that returns the integer code for a given log level name.
+func getLevelIdFromName(name string) int {
+	switch name {
+	case levelDebug:
+		return levelCodeDebug
+	case levelInfo:
+		return levelCodeInfo
+	case levelWarn:
+		return levelCodeWarn
+	case levelError:
+		return levelCodeError
+	case levelFatal:
+		return levelCodeFatal
+	default:
+		return levelCodeInfo
+	}
 }

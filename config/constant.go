@@ -22,6 +22,7 @@ const (
 	DEFAULT_AUTO_EXPIRY_FREQUENCY   int64  = 2
 	DEFAULT_AUTO_SNAPSHOT_FREQUENCY int64  = 10
 	DEFAULT_AUTO_EVICTION_POLICY    string = "NONE"
+	DEFAULT_MINIMUM_LOG_LEVEL       string = "INFO"
 
 	DEFAULT_TRANSLOG_FILE_PATH   string = "/opt/universum/translog.aof"
 	DEFAULT_SERVER_LOG_FILE_PATH string = "/var/log/universum/server.log"
