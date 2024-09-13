@@ -168,14 +168,14 @@ func (ms *MemoryStore) MGet(keys []string) (map[string]interface{}, uint32) {
 		record, code := ms.Get(keys[idx])
 
 		if _, ok := record.(*ScalarRecord); ok {
-			responseMap[keys[idx]] = &RecordResponse{
-				Value: record.(*ScalarRecord).Value,
-				Code:  code,
+			responseMap[keys[idx]] = map[string]interface{}{
+				"Value": record.(*ScalarRecord).Value,
+				"Code":  code,
 			}
 		} else {
-			responseMap[keys[idx]] = &RecordResponse{
-				Value: nil,
-				Code:  code,
+			responseMap[keys[idx]] = map[string]interface{}{
+				"Value": nil,
+				"Code":  code,
 			}
 		}
 	}

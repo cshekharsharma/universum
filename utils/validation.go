@@ -13,6 +13,9 @@ func IsWriteableDatatype(value interface{}) bool {
 		float32, float64, bool:
 		return true
 
+	case []interface{}:
+		return true
+
 	default:
 		return false
 	}

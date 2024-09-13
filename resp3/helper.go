@@ -3,7 +3,6 @@ package resp3
 import (
 	"bufio"
 	"fmt"
-	"universum/storage"
 
 	"github.com/cshekharsharma/resp-go/resp3"
 )
@@ -34,20 +33,6 @@ func EncodedRESP3Response(response interface{}) string {
 
 // Wrapper function for resp3.Encode
 func Encode(value interface{}) (string, error) {
-	if record, ok := value.(storage.ScalarRecord); ok {
-		value = &resp3.ScalarRecord{
-			Value:  record.Value,
-			Type:   record.Type,
-			LAT:    record.LAT,
-			Expiry: record.Expiry,
-		}
-	}
-	if rr, ok := value.(storage.RecordResponse); ok {
-		value = &resp3.RecordResponse{
-			Value: rr.Value,
-			Code:  rr.Code,
-		}
-	}
 	return resp3.Encode(value)
 }
 

@@ -11,11 +11,7 @@ const (
 type Record interface {
 	GetFamily() string
 	IsExpired() bool
-}
-
-type RecordResponse struct {
-	Value interface{}
-	Code  uint32
+	ToMap() map[string]interface{}
 }
 
 type ScalarRecord struct {
@@ -35,4 +31,13 @@ func (sr *ScalarRecord) IsExpired() bool {
 	}
 
 	return utils.GetCurrentEPochTime() > sr.Expiry
+}
+
+func (sr *ScalarRecord) ToMap() map[string]interface{} {
+	return map[string]interface{}{
+		"Value":  sr.Value,
+		"Type":   sr.Type,
+		"LAT":    sr.LAT,
+		"Expiry": sr.Expiry,
+	}
 }
