@@ -52,7 +52,7 @@ func InitInfoStatistics() {
 			BuildVersion: entity.SERVER_VERSION,
 			TCPPort:      config.GetServerPort(),
 			ClockTime:    utils.GetCurrentReadableTime(),
-			ConfigFile:   config.DEFAULT_CONFIG_NAME,
+			ConfigFile:   config.DefaultConfigName,
 			OSName:       build.Default.GOOS,
 			ArchBits:     build.Default.GOARCH,
 			TimeZone:     timezone,
@@ -87,6 +87,7 @@ func InitInfoStatistics() {
 }
 
 func GetDatabaseInfoStatistics() *entity.InfoStats {
+	DatabaseInfoStats.Server.ConfigFile = config.ConfigPath()
 	DatabaseInfoStats.Server.ServerState = entity.GetServerStateAsString()
 	DatabaseInfoStats.Server.ClockTime = utils.GetCurrentReadableTime()
 

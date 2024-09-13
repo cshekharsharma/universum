@@ -1,8 +1,11 @@
 module universum
 
-go 1.22.3
+go 1.22.5
 
-require github.com/shirou/gopsutil/v3 v3.24.3
+require (
+	github.com/cshekharsharma/resp-go v1.2.0
+	github.com/shirou/gopsutil/v3 v3.24.3
+)
 
 require (
 	github.com/go-ole/go-ole v1.3.0 // indirect

@@ -26,7 +26,7 @@ type databaseSnapshotWorker struct {
 	ExecutionErr error
 }
 
-func (w *databaseSnapshotWorker) startInMemoryDBSnapshot(snapshotChan chan<- databaseSnapshotWorker) (err error) {
+func (w *databaseSnapshotWorker) startDatabaseSnapshot(snapshotChan chan<- databaseSnapshotWorker) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if err, ok := r.(error); ok {
@@ -48,7 +48,7 @@ func (w *databaseSnapshotWorker) startInMemoryDBSnapshot(snapshotChan chan<- dat
 		nextScheduledTime := snapshotJobLastExecutedAt.Add(expiryJobExecutionFrequency)
 
 		if nextScheduledTime.Compare(time.Now()) < 1 {
-			StartInMemoryDBSnapshot(GetMemstore())
+			StartDataBaseSnapshot(GetStore())
 			snapshotJobLastExecutedAt = time.Now()
 		}
 
@@ -56,7 +56,7 @@ func (w *databaseSnapshotWorker) startInMemoryDBSnapshot(snapshotChan chan<- dat
 	}
 }
 
-func StartInMemoryDBSnapshot(memstore *storage.MemoryStore) {
+func StartDataBaseSnapshot(store storage.DataStore) {
 	snapshotMutex.Lock()
 	defer snapshotMutex.Unlock()
 
@@ -65,12 +65,12 @@ func StartInMemoryDBSnapshot(memstore *storage.MemoryStore) {
 	snapshotStartTime := time.Now().UnixMilli()
 
 	masterSnapshotFile := config.GetTransactionLogFilePath()
-	tempSnapshotFile := fmt.Sprintf("%s/%s_qscRPQ6xHj", os.TempDir(), config.APP_CODE_NAME)
+	tempSnapshotFile := fmt.Sprintf("%s/%s_qscRPQ6xHj", os.TempDir(), config.AppCodeName)
 
 	tempFilePtr, _ := os.OpenFile(tempSnapshotFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 	tempFilePtr.Close()
 
-	allShards := memstore.GetAllShards()
+	allShards := store.GetAllShards()
 	translogBuff := newRecordTranslogBuffer()
 
 	logger.Get().Info("Starting periodic record snapshot for all shards 1-%d", len(allShards))
@@ -155,7 +155,7 @@ func ReplayDBRecordsFromSnapshot() (int64, error) {
 			if err == io.EOF {
 				break
 			} else {
-				logger.Get().Error("failed to replay a commands into the memorystore, "+
+				logger.Get().Error("failed to replay a commands into the datastore, "+
 					"potentially errornous translog. Please fix to proceed: [%v]", err.Error())
 
 				return keycount, err
@@ -190,7 +190,7 @@ func ReplayDBRecordsFromSnapshot() (int64, error) {
 		_, execErr := executeCommand(context.Background(), command)
 
 		if execErr != nil {
-			logger.Get().Error("failed to replay a commands into the memorystore, " +
+			logger.Get().Error("failed to replay a commands into the datastore, " +
 				"potentially errornous translog or intermittent write failure.")
 
 			continue
@@ -220,7 +220,7 @@ func getRecordFromSerializedMap(recordMap map[string]interface{}) (string, stora
 
 	if val, ok := recordMap["Value"]; ok {
 		record.Value = val
-		record.Type = storage.GetTypeEncoding(val)
+		record.Type = utils.GetTypeEncoding(val)
 	}
 
 	if lat, ok := recordMap["LAT"]; ok {

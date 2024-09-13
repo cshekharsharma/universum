@@ -8,22 +8,35 @@ var (
 )
 
 const (
-	APP_NAME_LABEL string = "UniversumDB"
-	APP_CODE_NAME  string = "universum"
+	AppNameLabel string = "UniversumDB"
+	AppCodeName  string = "universum"
 
-	DEFAULT_CONFIG_NAME string = "config.ini"
+	DefaultConfigName string = "config.ini"
 
-	DEFAULT_SERVER_PORT int64 = 11191
+	// Config section names
+	SectionServer        string = "server"
+	SectionLogging       string = "logging"
+	SectionSnapshot      string = "snapshot"
+	SectionStorage       string = "storage"
+	SectionAuth          string = "auth"
+	SectionEviction      string = "eviction"
+	SectionStorageMemory string = "storage.memory"
 
-	MAX_CLIENT_CONNECTIONS          int64  = 100000
-	MAX_SERVER_CONCURRENCY          int64  = 600
-	DEFAULT_REQUEST_EXEC_TIMEOUT    int64  = 10
-	DEFAULT_CONN_WRITE_TIMEOUT      int64  = 10
-	DEFAULT_AUTO_EXPIRY_FREQUENCY   int64  = 2
-	DEFAULT_AUTO_SNAPSHOT_FREQUENCY int64  = 10
-	DEFAULT_AUTO_EVICTION_POLICY    string = "NONE"
-	DEFAULT_MINIMUM_LOG_LEVEL       string = "INFO"
+	// Default configuration values
+	DefaultServerPort            int64  = 11191
+	MaxClientConnections         int64  = 100000
+	MaxServerConcurrency         int64  = 600
+	DefaultRequestExecTimeout    int64  = 10
+	DefaultConnWriteTimeout      int64  = 10
+	DefaultAutoExpiryFrequency   int64  = 2
+	DefaultAutoSnapshotFrequency int64  = 10
+	DefaultAutoEvictionPolicy    string = "NONE"
+	DefaultMinimumLogLevel       string = "INFO"
+	DefaultStorageEngine         string = "MEMORY"
+	DefaultMaxRecordSizeInBytes  int64  = 1024 * 1024
 
-	DEFAULT_TRANSLOG_FILE_PATH   string = "/opt/universum/translog.aof"
-	DEFAULT_SERVER_LOG_FILE_PATH string = "/var/log/universum/server.log"
+	DefaultTranslogFilePath  string = "/opt/universum/translog.aof"
+	DefaultServerLogFilePath string = "/var/log/universum/server.log"
+
+	StorageTypeMemory = "MEMORY"
 )

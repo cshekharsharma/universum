@@ -17,7 +17,7 @@ type MemoryStore struct {
 	shards [ShardCount]*Shard
 }
 
-func CreateNewMemoryStore() *MemoryStore {
+func createNewMemoryStore() *MemoryStore {
 	store := &MemoryStore{}
 	for i := range store.shards {
 		store.shards[i] = NewShard(int64(i))
@@ -79,9 +79,17 @@ func (ms *MemoryStore) Get(key string) (Record, uint32) {
 func (ms *MemoryStore) Set(key string, value interface{}, ttl int64) (bool, uint32) {
 	record := &ScalarRecord{
 		Value:  value,
-		Type:   GetTypeEncoding(value),
+		Type:   utils.GetTypeEncoding(value),
 		LAT:    utils.GetCurrentEPochTime(),
 		Expiry: infiniteExpiryTime,
+	}
+
+	if !utils.IsWriteableDatatype(value) {
+		return false, entity.CRC_INVALID_DATATYPE
+	}
+
+	if !utils.IsWriteableDataSize(value, config.GetMaxRecordSizeInBytes()) {
+		return false, entity.CRC_RECORD_TOO_BIG
 	}
 
 	if ttl > 0 {
@@ -103,12 +111,12 @@ func (ms *MemoryStore) IncrDecrInteger(key string, offset int64, isIncr bool) (i
 	val, code := ms.Get(key)
 
 	if code != entity.CRC_RECORD_FOUND {
-		return config.INVALID_NUMERIC_VALUE, entity.CRC_RECORD_NOT_FOUND
+		return config.InvalidNumericValue, entity.CRC_RECORD_NOT_FOUND
 	}
 
 	record := val.(*ScalarRecord)
 	if !utils.IsInteger(record.Value) {
-		return config.INVALID_NUMERIC_VALUE, entity.CRC_INCR_INVALID_TYPE
+		return config.InvalidNumericValue, entity.CRC_INCR_INVALID_TYPE
 	}
 
 	var newValue int64
@@ -124,7 +132,7 @@ func (ms *MemoryStore) IncrDecrInteger(key string, offset int64, isIncr bool) (i
 	didSet, setcode := ms.Set(key, newValue, ttl)
 
 	if !didSet {
-		return config.INVALID_NUMERIC_VALUE, setcode
+		return config.InvalidNumericValue, setcode
 	}
 
 	return newValue, entity.CRC_RECORD_UPDATED
@@ -134,12 +142,12 @@ func (ms *MemoryStore) Append(key string, value string) (int64, uint32) {
 	val, code := ms.Get(key)
 
 	if code != entity.CRC_RECORD_FOUND {
-		return config.INVALID_NUMERIC_VALUE, entity.CRC_RECORD_NOT_FOUND
+		return config.InvalidNumericValue, entity.CRC_RECORD_NOT_FOUND
 	}
 
 	record := val.(*ScalarRecord)
-	if record.Type != TYPE_ENCODING_STRING {
-		return config.INVALID_NUMERIC_VALUE, entity.CRC_INCR_INVALID_TYPE
+	if record.Type != utils.TYPE_ENCODING_STRING {
+		return config.InvalidNumericValue, entity.CRC_INCR_INVALID_TYPE
 	}
 
 	newValue := record.Value.(string) + value
@@ -147,7 +155,7 @@ func (ms *MemoryStore) Append(key string, value string) (int64, uint32) {
 
 	didSet, setcode := ms.Set(key, newValue, ttl)
 	if !didSet {
-		return config.INVALID_NUMERIC_VALUE, setcode
+		return config.InvalidNumericValue, setcode
 	}
 
 	return int64(len(newValue)), entity.CRC_RECORD_UPDATED

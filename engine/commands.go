@@ -33,7 +33,7 @@ func executeEXISTS(command *entity.Command) string {
 	}
 
 	key, _ := command.Args[0].(string)
-	exists, code := memstore.Exists(key)
+	exists, code := store.Exists(key)
 
 	return resp3.EncodedRESP3Response([]interface{}{exists, code, ""})
 }
@@ -48,7 +48,7 @@ func executeGET(command *entity.Command) string {
 	}
 
 	key, _ := command.Args[0].(string)
-	record, code := memstore.Get(key)
+	record, code := store.Get(key)
 
 	return resp3.EncodedRESP3Response([]interface{}{record, code, ""})
 }
@@ -68,7 +68,7 @@ func executeSET(command *entity.Command) string {
 	value := command.Args[1]
 	ttl, _ := command.Args[2].(int64)
 
-	success, code := memstore.Set(key, value, ttl)
+	success, code := store.Set(key, value, ttl)
 	return resp3.EncodedRESP3Response([]interface{}{success, code, ""})
 }
 
@@ -82,7 +82,7 @@ func executeDELETE(command *entity.Command) string {
 	}
 
 	key, _ := command.Args[0].(string)
-	deleted, code := memstore.Delete(key)
+	deleted, code := store.Delete(key)
 
 	return resp3.EncodedRESP3Response([]interface{}{deleted, code, ""})
 }
@@ -100,7 +100,7 @@ func executeINCRDECR(command *entity.Command, isIncr bool) string {
 	key, _ := command.Args[0].(string)
 	offset, _ := command.Args[1].(int64)
 
-	updatedValue, code := memstore.IncrDecrInteger(key, offset, isIncr)
+	updatedValue, code := store.IncrDecrInteger(key, offset, isIncr)
 	return resp3.EncodedRESP3Response([]interface{}{updatedValue, code, ""})
 }
 
@@ -117,7 +117,7 @@ func executeAPPEND(command *entity.Command) string {
 	key, _ := command.Args[0].(string)
 	value, _ := command.Args[1].(string)
 
-	length, code := memstore.Append(key, value)
+	length, code := store.Append(key, value)
 	return resp3.EncodedRESP3Response([]interface{}{length, code, ""})
 }
 
@@ -145,7 +145,7 @@ func executeMGET(command *entity.Command) string {
 		keyStringSlice = append(keyStringSlice, val)
 	}
 
-	records, code := memstore.MGet(keyStringSlice)
+	records, code := store.MGet(keyStringSlice)
 	return resp3.EncodedRESP3Response([]interface{}{records, code, ""})
 }
 
@@ -166,7 +166,7 @@ func executeMSET(command *entity.Command) string {
 			"first argument should be a dict of string to anything, one or more invalid values provided"})
 	}
 
-	setStatuses, code := memstore.MSet(kvMap)
+	setStatuses, code := store.MSet(kvMap)
 	return resp3.EncodedRESP3Response([]interface{}{setStatuses, code, ""})
 }
 
@@ -194,7 +194,7 @@ func executeMDELETE(command *entity.Command) string {
 		keyStringSlice = append(keyStringSlice, val)
 	}
 
-	deleteStatuses, code := memstore.MDelete(keyStringSlice)
+	deleteStatuses, code := store.MDelete(keyStringSlice)
 	return resp3.EncodedRESP3Response([]interface{}{deleteStatuses, code, ""})
 }
 
@@ -208,7 +208,7 @@ func executeTTL(command *entity.Command) string {
 	}
 
 	key, _ := command.Args[0].(string)
-	ttl, code := memstore.TTL(key)
+	ttl, code := store.TTL(key)
 
 	return resp3.EncodedRESP3Response([]interface{}{ttl, code, ""})
 }
@@ -226,7 +226,7 @@ func executeEXPIRE(command *entity.Command) string {
 	key, _ := command.Args[0].(string)
 	ttl, _ := command.Args[1].(int64)
 
-	success, code := memstore.Expire(key, ttl)
+	success, code := store.Expire(key, ttl)
 	return resp3.EncodedRESP3Response([]interface{}{success, code, ""})
 
 }
@@ -237,7 +237,7 @@ func executeSNAPSHOT(command *entity.Command) string {
 		return resp3.EncodedRESP3Response(validityRes)
 	}
 
-	StartInMemoryDBSnapshot(GetMemstore())
+	StartDataBaseSnapshot(GetStore())
 	return resp3.EncodedRESP3Response([]interface{}{true, entity.CRC_SNAPSHOT_STARTED, ""})
 }
 

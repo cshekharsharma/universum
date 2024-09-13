@@ -29,7 +29,7 @@ func triggerPeriodicSnapshotJob() {
 	snapshotWorker := new(databaseSnapshotWorker)
 
 	snapshotChan := make(chan databaseSnapshotWorker, 1)
-	go snapshotWorker.startInMemoryDBSnapshot(snapshotChan)
+	go snapshotWorker.startDatabaseSnapshot(snapshotChan)
 
 	// Go routine to respawn the worker
 	go func() {
@@ -38,7 +38,7 @@ func triggerPeriodicSnapshotJob() {
 			log.Printf("Periodic record snapshot worker terminated. %v\n", failed.ExecutionErr)
 
 			// Restart the worker if that has died
-			go failed.startInMemoryDBSnapshot(snapshotChan)
+			go failed.startDatabaseSnapshot(snapshotChan)
 			time.Sleep(10 * time.Second)
 		}
 	}()

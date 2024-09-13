@@ -6,18 +6,24 @@ import (
 	"universum/entity"
 	"universum/internal/logger"
 	"universum/storage"
+	"universum/utils"
 )
 
-var memstore *storage.MemoryStore
+var store storage.DataStore
 
-func GetMemstore() *storage.MemoryStore {
-	return memstore
+func GetStore() storage.DataStore {
+	store, err := storage.GetStore(config.GetStorageEngine())
+	if err != nil {
+		logger.Get().Error("Error initialising storage engine: %v", err)
+		Shutdown(entity.ExitCodeStartupFailure)
+	}
+	return store
 }
 
 func Startup() {
-	// Initiaise the in-memory store
-	memstore = storage.CreateNewMemoryStore()
-	memstore.Initialize()
+	// Initiaise the data store
+	store = GetStore()
+	store.Initialize()
 
 	// Replay all commands from translog into the database
 	aofFile := config.GetTransactionLogFilePath()
@@ -50,8 +56,15 @@ func Startup() {
 func Shutdown(exitcode int) {
 	// do all the shut down operations, such as fsyncing AOF
 	// and freeing up occupied resources and memory.
-	if exitcode != entity.ExitCodeStartupFailure {
-		StartInMemoryDBSnapshot(GetMemstore())
+	nonSnapshotErrs := []int{
+		entity.ExitCodeStartupFailure,
+		entity.ExitCodeSocketError,
+	}
+
+	shouldSkipSnapshot, _ := utils.ExistsInList(exitcode, nonSnapshotErrs)
+
+	if !shouldSkipSnapshot {
+		StartDataBaseSnapshot(GetStore())
 	}
 
 	os.Exit(exitcode)

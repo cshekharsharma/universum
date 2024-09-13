@@ -1,6 +1,12 @@
 package resp3
 
-import "fmt"
+import (
+	"bufio"
+	"fmt"
+	"universum/storage"
+
+	"github.com/cshekharsharma/resp-go/resp3"
+)
 
 // EncodedRESP3Response takes a generic response object, attempts to encode it into
 // the RESP3 format using the Encode function, and returns the encoded string.
@@ -16,12 +22,36 @@ import "fmt"
 //   - string: The RESP3 encoded string representation of the input `response`. If the
 //     input is an error or encoding fails, the returned string will be an encoded error message.
 func EncodedRESP3Response(response interface{}) string {
-	encoded, err := Encode(response)
+	encoded, err := resp3.Encode(response)
 
 	if err != nil {
 		newErr := fmt.Errorf("unexpected error occured while processing output: %v", err)
-		encoded, _ = Encode(newErr)
+		encoded, _ = resp3.Encode(newErr)
 	}
 
 	return encoded
+}
+
+// Wrapper function for resp3.Encode
+func Encode(value interface{}) (string, error) {
+	if record, ok := value.(storage.ScalarRecord); ok {
+		value = &resp3.ScalarRecord{
+			Value:  record.Value,
+			Type:   record.Type,
+			LAT:    record.LAT,
+			Expiry: record.Expiry,
+		}
+	}
+	if rr, ok := value.(storage.RecordResponse); ok {
+		value = &resp3.RecordResponse{
+			Value: rr.Value,
+			Code:  rr.Code,
+		}
+	}
+	return resp3.Encode(value)
+}
+
+// Wrapper function for resp3.Decode
+func Decode(reader *bufio.Reader) (interface{}, error) {
+	return resp3.Decode(reader)
 }

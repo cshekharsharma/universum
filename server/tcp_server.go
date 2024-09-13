@@ -64,7 +64,7 @@ func StartTCPServer(wg *sync.WaitGroup) {
 	}
 
 	defer listener.Close()
-	logger.Get().Info("%s server started listening on port %s", config.APP_CODE_NAME, port)
+	logger.Get().Info("%s server started listening on port %s", config.AppCodeName, port)
 
 	engine.Startup()
 	atomic.StoreInt32(&entity.ServerState, entity.STATE_READY)

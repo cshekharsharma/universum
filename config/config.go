@@ -9,20 +9,27 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"universum/utils"
 )
 
 // CONFIG holds the parsed configuration file as an instance of IniFile.
 // The configuration file is loaded when the Load function is called.
 var CONFIG *IniFile
 
-// INVALID_NUMERIC_VALUE is a constant representing an invalid numeric value
+// InvalidNumericValue is a constant representing an invalid numeric value
 // returned when a requested configuration key is not found.
-const INVALID_NUMERIC_VALUE = -99999999
+const InvalidNumericValue = -99999999
 
-// INVALID_EPOCH_VALUE is a constant representing an invalid epoch value,
+// InvalidEpochValue is a constant representing an invalid epoch value,
 // used when a date or time-related key is not found or improperly formatted.
-const INVALID_EPOCH_VALUE = 0
+const InvalidEpochValue = 0
+
+// configPath is the file path on disk where the configuration file is located.
+var configPath string
+
+// ConfigPath returns the file path on disk from where the configuration is being read
+func ConfigPath() string {
+	return configPath
+}
 
 // Load loads the configuration from the provided file path into the CONFIG variable.
 //
@@ -40,7 +47,7 @@ func Load(filepath string) error {
 		return errors.New("error loading config file: Invalid/empty config path provided")
 	}
 
-	CONFIG, err = NewIniFile(filepath)
+	CONFIG, err = ReadConfig(filepath)
 
 	if err != nil {
 		return fmt.Errorf("error loading config file: %v", err)
@@ -82,7 +89,7 @@ func GetInt64(key string, section string) (int64, error) {
 			return strconv.ParseInt(value, 10, 64)
 		}
 	}
-	return INVALID_NUMERIC_VALUE, errors.New("no config found for provided key-section pair")
+	return InvalidNumericValue, errors.New("no config found for provided key-section pair")
 }
 
 // GetFloat64 retrieves a floating-point value from the configuration file.
@@ -101,7 +108,7 @@ func GetFloat64(key string, section string) (float64, error) {
 			return strconv.ParseFloat(value, 64)
 		}
 	}
-	return INVALID_NUMERIC_VALUE, errors.New("no config found for provided key-section pair")
+	return InvalidNumericValue, errors.New("no config found for provided key-section pair")
 }
 
 // GetString retrieves a string value from the configuration file.
@@ -153,10 +160,5 @@ func GetDefaultConfigPath() string {
 		return configpath
 	}
 
-	if utils.IsDarwin() {
-		return fmt.Sprintf("/Library/Application Support/%s/%s", APP_CODE_NAME, DEFAULT_CONFIG_NAME)
-	}
-
-	// Assuming if it's not Darwin, then it's Linux.
-	return fmt.Sprintf("/etc/%s/%s", APP_CODE_NAME, DEFAULT_CONFIG_NAME)
+	return fmt.Sprintf("/etc/%s/%s", AppCodeName, DefaultConfigName)
 }

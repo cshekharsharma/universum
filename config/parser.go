@@ -1,7 +1,5 @@
-// Package config provides functionality for reading and parsing INI-style configuration
-// files. It organizes configuration data into sections and key-value pairs, allowing
-// structured access to the data.
-
+// Package config provides functionality for reading and parsing INI-style configuration files.
+// The configuration data is organized into sections and key-value pairs.
 package config
 
 import (
@@ -11,39 +9,18 @@ import (
 	"strings"
 )
 
-// IniFile represents an INI file structure, where configuration data is organized
-// into sections and key-value pairs.
-//
-// Fields:
-//   - Sections: A map where the key is the section name (string) and the value is
-//     another map representing the key-value pairs within that section.
+// IniFile represents a parsed INI file, with sections containing key-value pairs.
 type IniFile struct {
 	Sections map[string]map[string]string
 }
 
-// NewIniFile loads and parses an INI file from the given filename. It returns an
-// IniFile object containing the parsed sections and key-value pairs.
+// ReadConfig reads and parses an INI file from the provided filename, returning an IniFile
+// object containing sections and key-value pairs.
 //
-// Parameters:
-//   - filename: The path to the INI file to be loaded.
-//
-// Returns:
-//   - *IniFile: A pointer to the newly created IniFile object.
-//   - error: If the file cannot be opened or read, an error is returned. This can
-//     also occur if the file is improperly formatted.
-//
-// The INI file format supports sections, which are enclosed in square brackets ([]),
-// and key-value pairs that are separated by an equals sign (=). Comments are denoted
-// by lines starting with a semicolon (;).
-//
-// Example INI file format:
-//
-//	[SectionName]
-//	key1 = value1
-//	key2 = value2
-//
-// Empty lines and comment lines (starting with ;) are ignored.
-func NewIniFile(filename string) (*IniFile, error) {
+// Returns an error if the file cannot be opened or if the format is invalid.
+func ReadConfig(filename string) (*IniFile, error) {
+	configPath = filename
+
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -51,13 +28,17 @@ func NewIniFile(filename string) (*IniFile, error) {
 	defer file.Close()
 
 	reader := bufio.NewReader(file)
+	return parseIniFile(reader)
+}
 
+// parseIniFile parses the content of an INI file from the given reader.
+// It handles unquoted, single-quoted, and double-quoted values.
+func parseIniFile(reader *bufio.Reader) (*IniFile, error) {
 	ini := &IniFile{
 		Sections: make(map[string]map[string]string),
 	}
 
 	var section string
-
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
@@ -68,7 +49,6 @@ func NewIniFile(filename string) (*IniFile, error) {
 		}
 
 		line = strings.TrimSpace(line)
-
 		if len(line) == 0 || line[0] == ';' {
 			continue
 		}
@@ -87,7 +67,10 @@ func NewIniFile(filename string) (*IniFile, error) {
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
 
-		// Add key-value pair to the current section
+		if len(value) >= 2 && ((value[0] == '"' && value[len(value)-1] == '"') || (value[0] == '\'' && value[len(value)-1] == '\'')) {
+			value = value[1 : len(value)-1]
+		}
+
 		ini.Sections[section][key] = value
 	}
 

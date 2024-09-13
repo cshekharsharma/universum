@@ -9,7 +9,7 @@ func getGenericHelpContent() string {
 	return fmt.Sprintf("%s is a fast key-value pair in-memory database, "+
 		"that supports periodic implicite backups and data reconstruction.\n\n"+
 		"It uses RESP3 format for client-server communication.\n\n"+
-		"For help related to a specific command, please use: `HELP <command>\n\n`", config.APP_CODE_NAME)
+		"For help related to a specific command, please use: `HELP <command>\n\n`", config.AppNameLabel)
 }
 
 func getCommandHelpContent(command string) string {

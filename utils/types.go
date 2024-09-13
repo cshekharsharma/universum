@@ -1,8 +1,7 @@
-package storage
+package utils
 
 import (
 	"reflect"
-	"universum/utils"
 )
 
 const (
@@ -27,11 +26,11 @@ func GetTypeEncoding(v interface{}) uint8 {
 		return TYPE_ENCODING_BOOL
 	}
 
-	if utils.IsInteger(v) {
+	if IsInteger(v) {
 		return TYPE_ENCODING_INT
 	}
 
-	if utils.IsFloat(v) {
+	if IsFloat(v) {
 		return TYPE_ENCODING_FLOAT
 	}
 

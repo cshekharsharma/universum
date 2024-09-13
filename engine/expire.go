@@ -35,8 +35,8 @@ func (w *recordExpiryWorker) expireDeletedRecords(expiryChan chan<- recordExpiry
 		expiryChan <- *w
 	}()
 
-	memorystore := GetMemstore()
-	shards := memorystore.GetAllShards()
+	store := GetStore()
+	shards := store.GetAllShards()
 
 	var totalDeleted int64 = 0
 	expiryJobLastExecutedAt = time.Now()
@@ -45,7 +45,7 @@ func (w *recordExpiryWorker) expireDeletedRecords(expiryChan chan<- recordExpiry
 		nextScheduledTime := expiryJobLastExecutedAt.Add(expiryJobExecutionFrequency)
 
 		if nextScheduledTime.Compare(time.Now()) < 1 {
-			deleted := w.expireRandomSample(memorystore, shards)
+			deleted := w.expireRandomSample(store, shards)
 			totalDeleted = deleted + totalDeleted
 
 			if deleted > 0 {
@@ -57,7 +57,7 @@ func (w *recordExpiryWorker) expireDeletedRecords(expiryChan chan<- recordExpiry
 	}
 }
 
-func (w *recordExpiryWorker) expireRandomSample(memstore *storage.MemoryStore, shards [shardcount]*storage.Shard) int64 {
+func (w *recordExpiryWorker) expireRandomSample(store storage.DataStore, shards [shardcount]*storage.Shard) int64 {
 	var deletedCount int64 = 0
 
 	randomGenerator := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -70,7 +70,7 @@ func (w *recordExpiryWorker) expireRandomSample(memstore *storage.MemoryStore, s
 		if record.Expiry < utils.GetCurrentEPochTime() {
 			strkey, _ := key.(string)
 
-			if deleted, _ := memstore.Delete(strkey); deleted {
+			if deleted, _ := store.Delete(strkey); deleted {
 				deletedCount++
 			}
 		}
