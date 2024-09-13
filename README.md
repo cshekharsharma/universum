@@ -1,5 +1,5 @@
 
-# UniversumDB 🌎
+# UniversumDB  🌎
 
 **UniversumDB** is a high-performance key-value pair database designed for handling large number of concurrent client connections. It supports an in-memory key-value database with functionalities like auto-snapshot, record replay on start etc. 
 
@@ -46,18 +46,36 @@
 Sample configuration file that can be put in /etc/universum/config.ini
 
 ```ini
-[universum]
+[server]
 ServerPort=11191
 MaxConnections=100
 ConnectionWriteTimeout=10
 RequestExecutionTimeout=10
-AutoRecordExpiryFrequency=2
+
+[storage]
+StorageEngine="MEMORY"
+MaxRecordSizeInBytes=1048576
+
+[storage.memory]
 AllowedMemoryStorageLimit=1073741824
+
+[snapshot]
 AutoSnapshotFrequency=100
-RecordAutoEvictionPolicy=LRU
 TransactionLogFilePath=/opt/universum/translog.aof
+
+[logging]
 ServerLogFilePath=/var/log/universum/server.log
 MinimumLogLevel=INFO
+
+[eviction]
+AutoRecordExpiryFrequency=2
+RecordAutoEvictionPolicy=LRU
+
+[auth]
+AuthenticationEnabled=1
+DbUserName=admin
+DbUserPassword=admin
+
 ```
 
 ## Usage
@@ -87,7 +105,7 @@ To contribute:
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the Apache 2.0 License.
 
 ---
 
