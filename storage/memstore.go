@@ -215,10 +215,6 @@ func (ms *MemoryStore) TTL(key string) (int64, uint32) {
 	record := val.(*ScalarRecord)
 
 	ttl := record.Expiry - utils.GetCurrentEPochTime()
-	if ttl == infiniteExpiryTime {
-		ttl = -1
-	}
-
 	return ttl, entity.CRC_RECORD_FOUND
 }
 
@@ -230,16 +226,8 @@ func (ms *MemoryStore) Expire(key string, ttl int64) (bool, uint32) {
 	}
 
 	record := val.(*ScalarRecord)
-	record.LAT = utils.GetCurrentEPochTime()
-	record.Expiry = utils.GetCurrentEPochTime() + ttl
 
-	if ttl == 0 {
-		record.Expiry = infiniteExpiryTime
-	}
-
-	shard := ms.getShard(key)
-	shard.data.Store(key, record)
-	return true, entity.CRC_RECORD_UPDATED
+	return ms.Set(key, record.Value, ttl)
 }
 
 func (ms *MemoryStore) getShard(key string) *Shard {

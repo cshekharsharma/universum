@@ -85,7 +85,7 @@ func (w *recordExpiryWorker) expireRandomSample(store storage.DataStore, shards 
 	expiryJobLastExecutedAt = time.Now()
 
 	if deletedCount > 0 {
-		logger.Get().Debug("Few keys deleted. ShardID=%d, Count=%d", randomIndex, deletedCount)
+		logger.Get().Debug("RecordExpiryWorker:: ShardID=%d, Count=%d", randomIndex, deletedCount)
 	}
 
 	return deletedCount

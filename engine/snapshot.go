@@ -81,6 +81,10 @@ func StartDataBaseSnapshot(store storage.DataStore) {
 		currentShard.GetData().Range(func(key interface{}, value interface{}) bool {
 			record := value.(*storage.ScalarRecord)
 
+			if record.Expiry <= utils.GetCurrentEPochTime() {
+				return true // record already expired so skip
+			}
+
 			serialisedRecord, err := resp3.Encode(map[string]interface{}{
 				"Key":    key,
 				"Value":  record.Value,

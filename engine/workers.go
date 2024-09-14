@@ -1,9 +1,9 @@
 package engine
 
 import (
-	"log"
 	"time"
 	"universum/config"
+	"universum/internal/logger"
 )
 
 func triggerPeriodicExpiryJob() {
@@ -16,7 +16,7 @@ func triggerPeriodicExpiryJob() {
 	go func() {
 		for failed := range expiryChan {
 
-			log.Printf("Periodic record expiry worker terminated. %v\n", failed.ExecutionErr)
+			logger.Get().Warn("Periodic record expiry worker terminated. %v", failed.ExecutionErr)
 
 			// Restart the worker if that has died
 			go failed.expireDeletedRecords(expiryChan)
@@ -35,7 +35,7 @@ func triggerPeriodicSnapshotJob() {
 	go func() {
 		for failed := range snapshotChan {
 
-			log.Printf("Periodic record snapshot worker terminated. %v\n", failed.ExecutionErr)
+			logger.Get().Warn("Periodic record snapshot worker terminated. %v", failed.ExecutionErr)
 
 			// Restart the worker if that has died
 			go failed.startDatabaseSnapshot(snapshotChan)
@@ -58,7 +58,7 @@ func triggerPeriodicEvictionJob() {
 	go func() {
 		for failed := range evictionChan {
 
-			log.Printf("Periodic auto eviction worker terminated. %v\n", failed.ExecutionErr)
+			logger.Get().Warn("Periodic auto eviction worker terminated. %v", failed.ExecutionErr)
 
 			// Restart the worker if that has died
 			go failed.startAutoEviction(evictionChan)
