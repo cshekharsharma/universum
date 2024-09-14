@@ -50,7 +50,11 @@ func executeGET(command *entity.Command) string {
 	key, _ := command.Args[0].(string)
 	record, code := store.Get(key)
 
-	return resp3.EncodedRESP3Response([]interface{}{record.ToMap(), code, ""})
+	var recordAsMap interface{} = record
+	if record != nil {
+		recordAsMap = record.ToMap()
+	}
+	return resp3.EncodedRESP3Response([]interface{}{recordAsMap, code, ""})
 }
 
 func executeSET(command *entity.Command) string {
