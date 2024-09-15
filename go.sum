@@ -1,5 +1,5 @@
-github.com/cshekharsharma/resp-go v1.3.0 h1:2NL8BtThOOqqoQW9mux3A22IEV7QwJSvNvVrgmdDTmE=
-github.com/cshekharsharma/resp-go v1.3.0/go.mod h1:y8QlvdiApF7vSUEhrkV5Nfk1vKjJbzyOjh9rYM5R3b0=
+github.com/cshekharsharma/resp-go v1.4.0 h1:czLjD6MoTe9hD45AHtvVNIzFsPc8LsKXCzr81orahFQ=
+github.com/cshekharsharma/resp-go v1.4.0/go.mod h1:y8QlvdiApF7vSUEhrkV5Nfk1vKjJbzyOjh9rYM5R3b0=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
