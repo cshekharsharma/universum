@@ -5,6 +5,7 @@ go 1.22.5
 require (
 	github.com/cshekharsharma/resp-go v1.4.0
 	github.com/shirou/gopsutil/v3 v3.24.3
+	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
 )
 
 require (

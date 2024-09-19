@@ -5,25 +5,13 @@ import (
 	"universum/config"
 	"universum/entity"
 	"universum/internal/logger"
-	"universum/storage"
 	"universum/utils"
 )
 
-var store storage.DataStore
-
-func GetStore() storage.DataStore {
-	store, err := storage.GetStore(config.GetStorageEngine())
-	if err != nil {
-		logger.Get().Error("Error initialising storage engine: %v", err)
-		Shutdown(entity.ExitCodeStartupFailure)
-	}
-	return store
-}
-
 func Startup() {
 	// Initiaise the data store
-	store = GetStore()
-	store.Initialize()
+	datastore = getDataStore(config.GetStorageEngineType())
+	datastore.Initialize()
 
 	// Replay all commands from translog into the database
 	aofFile := config.GetTransactionLogFilePath()
@@ -35,14 +23,7 @@ func Startup() {
 		}
 	}
 
-	keyCount, err := ReplayDBRecordsFromSnapshot()
-
-	if err != nil {
-		logger.Get().Error("Translog replay failed, KeyOffset=%d, Err=%v", keyCount+1, err.Error())
-		Shutdown(entity.ExitCodeStartupFailure)
-	} else {
-		logger.Get().Info("Translog replay done. Total %d keys replayed into DB", keyCount)
-	}
+	ReplayDBRecordsFromSnapshot(datastore)
 
 	expiryJobExecutionFrequency = config.GetAutoRecordExpiryFrequency()
 	snapshotJobExecutionFrequency = config.GetAutoSnapshotFrequency()
@@ -64,7 +45,7 @@ func Shutdown(exitcode int) {
 	shouldSkipSnapshot, _ := utils.ExistsInList(exitcode, nonSnapshotErrs)
 
 	if !shouldSkipSnapshot {
-		StartDataBaseSnapshot(GetStore())
+		StartDataBaseSnapshot(getDataStore(config.GetStorageEngineType()))
 	}
 
 	os.Exit(exitcode)

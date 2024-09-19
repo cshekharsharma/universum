@@ -1,4 +1,4 @@
-package engine
+package storage
 
 import (
 	"bytes"
@@ -8,20 +8,20 @@ import (
 	"universum/internal/logger"
 )
 
-var translogBufferInstance *translogBuffer
+var translogBufferInstance *TranslogBuffer
 var translogInitMutex sync.Mutex
 
-type translogBuffer struct {
+type TranslogBuffer struct {
 	buffer bytes.Buffer
 	mutex  sync.Mutex
 }
 
-func newRecordTranslogBuffer() *translogBuffer {
+func NewRecordTranslogBuffer() *TranslogBuffer {
 	if translogBufferInstance == nil {
 		translogInitMutex.Lock()
 
 		if translogBufferInstance == nil {
-			translogBufferInstance = new(translogBuffer)
+			translogBufferInstance = new(TranslogBuffer)
 		}
 
 		translogInitMutex.Unlock()
@@ -30,7 +30,7 @@ func newRecordTranslogBuffer() *translogBuffer {
 	return translogBufferInstance
 }
 
-func (tb *translogBuffer) addToTranslogBuffer(message string) bool {
+func (tb *TranslogBuffer) AddToTranslogBuffer(message string) bool {
 	tb.mutex.Lock()
 	defer tb.mutex.Unlock()
 	_, err := tb.buffer.WriteString(message)
@@ -43,7 +43,7 @@ func (tb *translogBuffer) addToTranslogBuffer(message string) bool {
 	return true
 }
 
-func (tb *translogBuffer) flush(targetFile string) {
+func (tb *TranslogBuffer) Flush(targetFile string) {
 	tb.mutex.Lock()
 	defer tb.mutex.Unlock()
 
@@ -55,7 +55,7 @@ func (tb *translogBuffer) flush(targetFile string) {
 	tb.buffer.Reset()
 }
 
-func (tb *translogBuffer) flushBufferToFile(buffer *bytes.Buffer, filename string) error {
+func (tb *TranslogBuffer) flushBufferToFile(buffer *bytes.Buffer, filename string) error {
 	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0777)
 	if err != nil {
 		return fmt.Errorf("FileError: %v", err)

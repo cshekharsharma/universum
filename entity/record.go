@@ -1,8 +1,6 @@
-package storage
+package entity
 
-import (
-	"universum/utils"
-)
+import "time"
 
 const (
 	RecordTypeScalar = "scalar"
@@ -30,7 +28,7 @@ func (sr *ScalarRecord) IsExpired() bool {
 		return false
 	}
 
-	return utils.GetCurrentEPochTime() > sr.Expiry
+	return time.Now().Unix() > sr.Expiry
 }
 
 func (sr *ScalarRecord) ToMap() map[string]interface{} {

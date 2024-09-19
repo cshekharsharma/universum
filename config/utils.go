@@ -40,7 +40,7 @@ func GetTCPConnectionWriteTimeout() time.Duration {
 }
 
 // storage configs
-func GetStorageEngine() string {
+func GetStorageEngineType() string {
 	store, err := GetString("StorageEngine", SectionStorage)
 	if err != nil {
 		store = DefaultStorageEngine
@@ -62,11 +62,19 @@ func GetMaxRecordSizeInBytes() int64 {
 }
 
 func GetAllowedMemoryStorageLimit() int64 {
-	limit, err := GetInt64("AllowedMemoryStorageLimit", SectionStorage)
+	limit, err := GetInt64("AllowedMemoryStorageLimit", SectionStorageMemory)
 	if err != nil {
 		limit = 0
 	}
 	return limit
+}
+
+func GetMemtableStorageType() string {
+	mtype, err := GetString("MemtableStorageType", SectionStorageLSM)
+	if err != nil {
+		mtype = MemtableStorageTypeLB
+	}
+	return mtype
 }
 
 // Snapshot configs

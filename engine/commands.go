@@ -3,6 +3,7 @@ package engine
 
 import (
 	"reflect"
+	"universum/config"
 	"universum/entity"
 	"universum/resp3"
 	"universum/utils"
@@ -33,7 +34,7 @@ func executeEXISTS(command *entity.Command) string {
 	}
 
 	key, _ := command.Args[0].(string)
-	exists, code := store.Exists(key)
+	exists, code := datastore.Exists(key)
 
 	return resp3.EncodedRESP3Response([]interface{}{exists, code, ""})
 }
@@ -48,7 +49,7 @@ func executeGET(command *entity.Command) string {
 	}
 
 	key, _ := command.Args[0].(string)
-	record, code := store.Get(key)
+	record, code := datastore.Get(key)
 
 	var recordAsMap interface{} = record
 	if record != nil {
@@ -72,7 +73,7 @@ func executeSET(command *entity.Command) string {
 	value := command.Args[1]
 	ttl, _ := command.Args[2].(int64)
 
-	success, code := store.Set(key, value, ttl)
+	success, code := datastore.Set(key, value, ttl)
 	return resp3.EncodedRESP3Response([]interface{}{success, code, ""})
 }
 
@@ -86,7 +87,7 @@ func executeDELETE(command *entity.Command) string {
 	}
 
 	key, _ := command.Args[0].(string)
-	deleted, code := store.Delete(key)
+	deleted, code := datastore.Delete(key)
 
 	return resp3.EncodedRESP3Response([]interface{}{deleted, code, ""})
 }
@@ -104,7 +105,7 @@ func executeINCRDECR(command *entity.Command, isIncr bool) string {
 	key, _ := command.Args[0].(string)
 	offset, _ := command.Args[1].(int64)
 
-	updatedValue, code := store.IncrDecrInteger(key, offset, isIncr)
+	updatedValue, code := datastore.IncrDecrInteger(key, offset, isIncr)
 	return resp3.EncodedRESP3Response([]interface{}{updatedValue, code, ""})
 }
 
@@ -121,7 +122,7 @@ func executeAPPEND(command *entity.Command) string {
 	key, _ := command.Args[0].(string)
 	value, _ := command.Args[1].(string)
 
-	length, code := store.Append(key, value)
+	length, code := datastore.Append(key, value)
 	return resp3.EncodedRESP3Response([]interface{}{length, code, ""})
 }
 
@@ -149,7 +150,7 @@ func executeMGET(command *entity.Command) string {
 		keyStringSlice = append(keyStringSlice, val)
 	}
 
-	records, code := store.MGet(keyStringSlice)
+	records, code := datastore.MGet(keyStringSlice)
 	return resp3.EncodedRESP3Response([]interface{}{records, code, ""})
 }
 
@@ -170,7 +171,7 @@ func executeMSET(command *entity.Command) string {
 			"first argument should be a dict of string to anything, one or more invalid values provided"})
 	}
 
-	setStatuses, code := store.MSet(kvMap)
+	setStatuses, code := datastore.MSet(kvMap)
 	return resp3.EncodedRESP3Response([]interface{}{setStatuses, code, ""})
 }
 
@@ -198,7 +199,7 @@ func executeMDELETE(command *entity.Command) string {
 		keyStringSlice = append(keyStringSlice, val)
 	}
 
-	deleteStatuses, code := store.MDelete(keyStringSlice)
+	deleteStatuses, code := datastore.MDelete(keyStringSlice)
 	return resp3.EncodedRESP3Response([]interface{}{deleteStatuses, code, ""})
 }
 
@@ -212,7 +213,7 @@ func executeTTL(command *entity.Command) string {
 	}
 
 	key, _ := command.Args[0].(string)
-	ttl, code := store.TTL(key)
+	ttl, code := datastore.TTL(key)
 
 	return resp3.EncodedRESP3Response([]interface{}{ttl, code, ""})
 }
@@ -230,7 +231,7 @@ func executeEXPIRE(command *entity.Command) string {
 	key, _ := command.Args[0].(string)
 	ttl, _ := command.Args[1].(int64)
 
-	success, code := store.Expire(key, ttl)
+	success, code := datastore.Expire(key, ttl)
 	return resp3.EncodedRESP3Response([]interface{}{success, code, ""})
 
 }
@@ -241,7 +242,7 @@ func executeSNAPSHOT(command *entity.Command) string {
 		return resp3.EncodedRESP3Response(validityRes)
 	}
 
-	StartDataBaseSnapshot(GetStore())
+	StartDataBaseSnapshot(getDataStore(config.GetStorageEngineType()))
 	return resp3.EncodedRESP3Response([]interface{}{true, entity.CRC_SNAPSHOT_STARTED, ""})
 }
 

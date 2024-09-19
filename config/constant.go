@@ -21,6 +21,7 @@ const (
 	SectionAuth          string = "auth"
 	SectionEviction      string = "eviction"
 	SectionStorageMemory string = "storage.memory"
+	SectionStorageLSM    string = "storage.lsm"
 
 	// Default configuration values
 	DefaultServerPort            int64  = 11191
@@ -38,5 +39,8 @@ const (
 	DefaultTranslogFilePath  string = "/opt/universum/translog.aof"
 	DefaultServerLogFilePath string = "/var/log/universum/server.log"
 
-	StorageTypeMemory = "MEMORY"
+	StorageTypeMemory     string = "MEMORY"
+	StorageTypeLSM        string = "LSM"
+	MemtableStorageTypeLB string = "LB"
+	MemtableStorageTypeLM string = "LM"
 )

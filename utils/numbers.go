@@ -84,3 +84,19 @@ func IsFloat(value interface{}) bool {
 
 	return isFloat
 }
+
+// MaxUint64 returns the maximum of two uint32 numbers.
+func MaxUint64(a, b uint64) uint64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// MaxUint8 returns the maximum of two uint8 numbers.
+func MaxUint8(a, b uint8) uint8 {
+	if a > b {
+		return a
+	}
+	return b
+}

@@ -2,15 +2,11 @@ package engine
 
 import (
 	"fmt"
-	"math/rand"
 	"time"
-	"universum/internal/logger"
+	"universum/config"
 	"universum/storage"
-	"universum/utils"
+	"universum/storage/memory"
 )
-
-const shardcount uint32 = storage.ShardCount
-const maxRecordDeletionLocalLimit int64 = 1000
 
 var expiryJobLastExecutedAt time.Time
 var expiryJobExecutionFrequency time.Duration
@@ -35,8 +31,7 @@ func (w *recordExpiryWorker) expireDeletedRecords(expiryChan chan<- recordExpiry
 		expiryChan <- *w
 	}()
 
-	store := GetStore()
-	shards := store.GetAllShards()
+	store := getDataStore(config.GetStorageEngineType())
 
 	var totalDeleted int64 = 0
 	expiryJobLastExecutedAt = time.Now()
@@ -45,48 +40,27 @@ func (w *recordExpiryWorker) expireDeletedRecords(expiryChan chan<- recordExpiry
 		nextScheduledTime := expiryJobLastExecutedAt.Add(expiryJobExecutionFrequency)
 
 		if nextScheduledTime.Compare(time.Now()) < 1 {
-			deleted := w.expireRandomSample(store, shards)
+			deleted := w.expireRandomSample(store)
 			totalDeleted = deleted + totalDeleted
 
+			expiryJobLastExecutedAt = time.Now()
 			if deleted > 0 {
 				continue
 			}
+
 		}
 
 		time.Sleep(expiryJobExecutionFrequency)
 	}
 }
 
-func (w *recordExpiryWorker) expireRandomSample(store storage.DataStore, shards [shardcount]*storage.Shard) int64 {
-	var deletedCount int64 = 0
+func (w *recordExpiryWorker) expireRandomSample(store storage.DataStore) int64 {
+	switch store.GetStoreType() {
+	case config.StorageTypeMemory:
+		shards := store.(*memory.MemoryStore).GetAllShards()
+		return memory.ExpireRandomSample(store.(*memory.MemoryStore), shards)
 
-	randomGenerator := rand.New(rand.NewSource(time.Now().UnixNano()))
-	randomIndex := randomGenerator.Intn(len(shards))
-	randomShard := shards[randomIndex]
-
-	randomShard.GetData().Range(func(key interface{}, value interface{}) bool {
-		record := value.(*storage.ScalarRecord)
-
-		if record.Expiry < utils.GetCurrentEPochTime() {
-			strkey, _ := key.(string)
-
-			if deleted, _ := store.Delete(strkey); deleted {
-				deletedCount++
-			}
-		}
-
-		if deletedCount >= maxRecordDeletionLocalLimit {
-			return false
-		}
-
-		return true
-	})
-
-	expiryJobLastExecutedAt = time.Now()
-
-	if deletedCount > 0 {
-		logger.Get().Debug("RecordExpiryWorker:: ShardID=%d, Count=%d", randomIndex, deletedCount)
+	default:
+		return 0
 	}
-
-	return deletedCount
 }

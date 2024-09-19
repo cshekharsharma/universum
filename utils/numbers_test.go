@@ -91,3 +91,37 @@ func TestIsFloat(t *testing.T) {
 		})
 	}
 }
+
+func TestMaxUint64(t *testing.T) {
+	tests := []struct {
+		a, b uint
+		want uint
+	}{
+		{0, 0, 0},
+		{1, 0, 1},
+		{0, 1, 1},
+		{1, 1, 1},
+		{1, 2, 2},
+		{2, 1, 2},
+		{2, 2, 2},
+		{2, 3, 3},
+		{3, 2, 3},
+		{3, 3, 3},
+	}
+
+	for _, tt := range tests {
+		t.Run("", func(t *testing.T) {
+			if got := MaxUint64(uint64(tt.a), uint64(tt.b)); got != uint64(tt.want) {
+				t.Errorf("MaxUint64() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+
+	for _, tt := range tests {
+		t.Run("", func(t *testing.T) {
+			if got := MaxUint8(uint8(tt.a), uint8(tt.b)); got != uint8(tt.want) {
+				t.Errorf("MaxUint8() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

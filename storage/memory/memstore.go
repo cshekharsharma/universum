@@ -1,4 +1,4 @@
-package storage
+package memory
 
 import (
 	"hash/fnv"
@@ -17,7 +17,7 @@ type MemoryStore struct {
 	shards [ShardCount]*Shard
 }
 
-func createNewMemoryStore() *MemoryStore {
+func CreateNewMemoryStore() *MemoryStore {
 	store := &MemoryStore{}
 	for i := range store.shards {
 		store.shards[i] = NewShard(int64(i))
@@ -37,19 +37,23 @@ func createNewMemoryStore() *MemoryStore {
 
 func (ms *MemoryStore) Initialize() {}
 
+func (ms *MemoryStore) GetStoreType() string {
+	return config.StorageTypeMemory
+}
+
 func (ms *MemoryStore) GetAllShards() [ShardCount]*Shard {
 	return ms.shards
 }
 
 func (ms *MemoryStore) Exists(key string) (bool, uint32) {
-	shard := ms.getShard(key)
+	shard := ms.getShardByKey(key)
 	val, ok := shard.data.Load(key)
 
 	if !ok {
 		return false, entity.CRC_RECORD_NOT_FOUND
 	}
 
-	record := val.(*ScalarRecord)
+	record := val.(*entity.ScalarRecord)
 	if record.IsExpired() {
 		shard.data.Delete(key)
 		return false, entity.CRC_RECORD_EXPIRED
@@ -58,15 +62,15 @@ func (ms *MemoryStore) Exists(key string) (bool, uint32) {
 	return true, entity.CRC_RECORD_FOUND
 }
 
-func (ms *MemoryStore) Get(key string) (Record, uint32) {
-	shard := ms.getShard(key)
+func (ms *MemoryStore) Get(key string) (entity.Record, uint32) {
+	shard := ms.getShardByKey(key)
 	val, ok := shard.data.Load(key)
 
 	if !ok {
 		return nil, entity.CRC_RECORD_NOT_FOUND
 	}
 
-	record := val.(*ScalarRecord)
+	record := val.(*entity.ScalarRecord)
 	if record.IsExpired() {
 		shard.data.Delete(key)
 		return nil, entity.CRC_RECORD_EXPIRED
@@ -77,7 +81,7 @@ func (ms *MemoryStore) Get(key string) (Record, uint32) {
 }
 
 func (ms *MemoryStore) Set(key string, value interface{}, ttl int64) (bool, uint32) {
-	record := &ScalarRecord{
+	record := &entity.ScalarRecord{
 		Value:  value,
 		Type:   utils.GetTypeEncoding(value),
 		LAT:    utils.GetCurrentEPochTime(),
@@ -96,13 +100,13 @@ func (ms *MemoryStore) Set(key string, value interface{}, ttl int64) (bool, uint
 		record.Expiry = utils.GetCurrentEPochTime() + ttl
 	}
 
-	shard := ms.getShard(key)
+	shard := ms.getShardByKey(key)
 	shard.data.Store(key, record)
 	return true, entity.CRC_RECORD_UPDATED
 }
 
 func (ms *MemoryStore) Delete(key string) (bool, uint32) {
-	shard := ms.getShard(key)
+	shard := ms.getShardByKey(key)
 	shard.data.Delete(key)
 	return true, entity.CRC_RECORD_DELETED
 }
@@ -114,7 +118,7 @@ func (ms *MemoryStore) IncrDecrInteger(key string, offset int64, isIncr bool) (i
 		return config.InvalidNumericValue, entity.CRC_RECORD_NOT_FOUND
 	}
 
-	record := val.(*ScalarRecord)
+	record := val.(*entity.ScalarRecord)
 	if !utils.IsInteger(record.Value) {
 		return config.InvalidNumericValue, entity.CRC_INCR_INVALID_TYPE
 	}
@@ -145,7 +149,7 @@ func (ms *MemoryStore) Append(key string, value string) (int64, uint32) {
 		return config.InvalidNumericValue, entity.CRC_RECORD_NOT_FOUND
 	}
 
-	record := val.(*ScalarRecord)
+	record := val.(*entity.ScalarRecord)
 	if record.Type != utils.TYPE_ENCODING_STRING {
 		return config.InvalidNumericValue, entity.CRC_INCR_INVALID_TYPE
 	}
@@ -167,9 +171,9 @@ func (ms *MemoryStore) MGet(keys []string) (map[string]interface{}, uint32) {
 	for idx := range keys {
 		record, code := ms.Get(keys[idx])
 
-		if _, ok := record.(*ScalarRecord); ok {
+		if _, ok := record.(*entity.ScalarRecord); ok {
 			responseMap[keys[idx]] = map[string]interface{}{
-				"Value": record.(*ScalarRecord).Value,
+				"Value": record.(*entity.ScalarRecord).Value,
 				"Code":  code,
 			}
 		} else {
@@ -212,7 +216,7 @@ func (ms *MemoryStore) TTL(key string) (int64, uint32) {
 		return 0, entity.CRC_RECORD_NOT_FOUND
 	}
 
-	record := val.(*ScalarRecord)
+	record := val.(*entity.ScalarRecord)
 
 	ttl := record.Expiry - utils.GetCurrentEPochTime()
 	return ttl, entity.CRC_RECORD_FOUND
@@ -225,12 +229,11 @@ func (ms *MemoryStore) Expire(key string, ttl int64) (bool, uint32) {
 		return false, entity.CRC_RECORD_NOT_FOUND
 	}
 
-	record := val.(*ScalarRecord)
-
+	record := val.(*entity.ScalarRecord)
 	return ms.Set(key, record.Value, ttl)
 }
 
-func (ms *MemoryStore) getShard(key string) *Shard {
+func (ms *MemoryStore) getShardByKey(key string) *Shard {
 	hasher := fnv.New32a()
 	hasher.Write([]byte(key))
 
