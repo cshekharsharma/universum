@@ -5,10 +5,12 @@
 package config
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // CONFIG holds the parsed configuration file as an instance of IniFile.
@@ -47,7 +49,36 @@ func Load(filepath string) error {
 		return errors.New("error loading config file: Invalid/empty config path provided")
 	}
 
-	CONFIG, err = ReadConfig(filepath)
+	file, err := os.Open(filepath)
+	if err != nil {
+		return fmt.Errorf("could not read config file: %v", err)
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+	CONFIG, err = parseIniFile(reader)
+
+	if err != nil {
+		return fmt.Errorf("error loading config file: %v", err)
+	}
+
+	return nil
+}
+
+// LoadFromString loads the configuration from the provided string into the CONFIG variable.
+// This function is useful for loading configuration data from a string source, such as a
+// database or other external source.
+//
+// Parameters:
+//   - confString: A string containing the configuration data in INI format.
+//
+// Returns:
+// - error: If the string cannot be loaded, an error is returned. If the string is
+func LoadFromString(confString string) error {
+	var err error
+
+	reader := bufio.NewReader(strings.NewReader(confString))
+	CONFIG, err = parseIniFile(reader)
 
 	if err != nil {
 		return fmt.Errorf("error loading config file: %v", err)

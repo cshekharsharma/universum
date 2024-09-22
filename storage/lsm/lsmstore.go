@@ -19,8 +19,8 @@ func CreateNewLSMStore(mtype string) *LSMStore {
 		memTable: memtable,
 		sstables: make([]*sstable.SSTable, 10),
 	}
-
 }
+
 func (lsm *LSMStore) Initialize() {}
 
 func (lsm *LSMStore) GetStoreType() string {

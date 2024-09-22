@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 )
 
 // TestResult represents the JSON output from `go test -v -json`
@@ -19,7 +20,7 @@ type TestResult struct {
 }
 
 func main() {
-
+	startTime := time.Now().UnixMilli()
 	cmd := exec.Command("go", "test", "./...", "-v", "-json", "-coverprofile=./coverage.txt")
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -56,7 +57,7 @@ func main() {
 			continue
 		}
 
-		fmt.Printf(">> %s: \033[36m[%.1fs]\033[0m %s/%s\n", status, result.Elapsed, result.Package, result.Test)
+		fmt.Printf(">> %s: \033[36m[%.2fs]\033[0m %s/%s\n", status, result.Elapsed, result.Package, result.Test)
 
 		if failedTests > 0 {
 			os.Exit(1)
@@ -70,8 +71,9 @@ func main() {
 	skippedPercent := fmt.Sprintf("%.2f", float64(skippedTests)/float64(totalTests)*100)
 
 	fmt.Printf("=============================================================\n\n")
-	fmt.Printf("\033[1;32mPASSED:  \033[0m %d/%d  [ %v%% ]\n", passedTests, totalTests, passedPercent)
-	fmt.Printf("\033[1;31mFAILED:  \033[0m %d/%d  [ %v%% ]\n", failedTests, totalTests, failedPercent)
-	fmt.Printf("\033[1;33mSKIPPED: \033[0m %d/%d  [ %v%% ]\n\n", skippedTests, totalTests, skippedPercent)
+	fmt.Printf("\033[1;32mPASSED:  \033[0m %d/%d \t[ %v%% ]\n", passedTests, totalTests, passedPercent)
+	fmt.Printf("\033[1;31mFAILED:  \033[0m %d/%d \t[ %v%% ]\n", failedTests, totalTests, failedPercent)
+	fmt.Printf("\033[1;33mSKIPPED: \033[0m %d/%d \t[ %v%% ]\n\n", skippedTests, totalTests, skippedPercent)
+	fmt.Printf("\033[1;36mDURATION: \033[0m \033[1;32m\u2605\u2605\u2605\033[0m %.3f seconds\n", float64(time.Now().UnixMilli()-startTime)/1000)
 	fmt.Printf("=============================================================\n\n")
 }

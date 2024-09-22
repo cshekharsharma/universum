@@ -5,30 +5,12 @@ package config
 import (
 	"bufio"
 	"io"
-	"os"
 	"strings"
 )
 
 // IniFile represents a parsed INI file, with sections containing key-value pairs.
 type IniFile struct {
 	Sections map[string]map[string]string
-}
-
-// ReadConfig reads and parses an INI file from the provided filename, returning an IniFile
-// object containing sections and key-value pairs.
-//
-// Returns an error if the file cannot be opened or if the format is invalid.
-func ReadConfig(filename string) (*IniFile, error) {
-	configPath = filename
-
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	reader := bufio.NewReader(file)
-	return parseIniFile(reader)
 }
 
 // parseIniFile parses the content of an INI file from the given reader.

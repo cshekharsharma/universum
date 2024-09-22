@@ -29,7 +29,7 @@ func (lb *ListBloomMemTable) Exists(key string) (bool, uint32) {
 	lb.lock.RLock()
 	defer lb.lock.RUnlock()
 
-	if lb.bloomFilter.Exists(key) {
+	if !lb.bloomFilter.Exists(key) {
 		return false, entity.CRC_RECORD_NOT_FOUND
 	}
 
@@ -52,7 +52,7 @@ func (lb *ListBloomMemTable) Get(key string) (entity.Record, uint32) {
 	lb.lock.RLock()
 	defer lb.lock.RUnlock()
 
-	if lb.bloomFilter.Exists(key) {
+	if !lb.bloomFilter.Exists(key) {
 		return nil, entity.CRC_RECORD_NOT_FOUND
 	}
 

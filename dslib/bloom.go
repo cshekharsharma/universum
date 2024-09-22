@@ -125,14 +125,14 @@ func (bf *BloomFilter) Merge(other *BloomFilter) error {
 	return nil
 }
 
+func (bf *BloomFilter) MemoryUsage() uint64 {
+	return bf.Size / 8
+}
+
 func OptimalBloomFilterSize(numKeys uint64, falsePositiveRate float64) (uint64, uint8) {
 	n := float64(numKeys)
 	m := (-n * math.Log(falsePositiveRate)) / math.Pow(math.Ln2, 2)
 	k := uint8(math.Ceil(math.Ln2 * (m / n)))
 
 	return uint64(math.Ceil(m)), k
-}
-
-func (bf *BloomFilter) MemoryUsage() uint64 {
-	return bf.Size / 8
 }
