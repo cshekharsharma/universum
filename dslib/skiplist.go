@@ -148,3 +148,16 @@ func (sl *SkipList) Remove(key string) bool {
 	sl.size--
 	return true
 }
+
+// GetAllRecords returns all records in the skip list
+func (sl *SkipList) GetAllRecords() map[string]interface{} {
+	records := make(map[string]interface{})
+	current := sl.head.next[0]
+
+	for current != nil {
+		records[current.key] = current.value
+		current = current.next[0]
+	}
+
+	return records
+}

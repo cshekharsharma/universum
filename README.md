@@ -1,9 +1,10 @@
 
 # UniversumDB  🌎
 
-**UniversumDB** is a high-performance key-value pair database designed for handling large number of concurrent client connections. It supports an in-memory key-value database with functionalities like auto-snapshot, record replay on start etc. 
+**UniversumDB** is a high-performance key-value pair database designed for handling large number of concurrent client connections. It supports an in-memory key-value database with functionalities like auto-snapshot, record replay on start etc.
 
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/cshekharsharma/universum)](https://goreportcard.com/badge/github.com/cshekharsharma/universum)
 
 ## Features
 

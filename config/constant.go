@@ -35,7 +35,8 @@ const (
 	DefaultMinimumLogLevel       string = "INFO"
 	DefaultStorageEngine         string = "MEMORY"
 	DefaultMaxRecordSizeInBytes  int64  = 1024 * 1024
-	DefaultSSTableBlockSize      int64  = 4096
+	DefaultWriteBlockSize        int64  = 65536
+	DefaultDataStoragePath       string = "/opt/universum/data"
 
 	DefaultTranslogFilePath  string = "/opt/universum/translog.aof"
 	DefaultServerLogFilePath string = "/var/log/universum/server.log"

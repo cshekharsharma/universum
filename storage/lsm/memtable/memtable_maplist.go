@@ -48,3 +48,7 @@ func (lm *ListMapMemTable) IsFull() bool {
 func (lm *ListMapMemTable) GetRecordCount() int64 {
 	return 0
 }
+
+func (lb *ListMapMemTable) GetAllRecords() map[string]interface{} {
+	return nil
+}

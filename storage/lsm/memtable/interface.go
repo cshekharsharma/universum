@@ -25,6 +25,7 @@ type MemTable interface {
 	GetSize() int64
 	IsFull() bool
 	GetRecordCount() int64
+	GetAllRecords() map[string]interface{}
 }
 
 func CreateNewMemTable(tabletype string) MemTable {

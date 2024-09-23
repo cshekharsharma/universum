@@ -35,7 +35,9 @@ func CreateNewMemoryStore() *MemoryStore {
 	return store
 }
 
-func (ms *MemoryStore) Initialize() {}
+func (ms *MemoryStore) Initialize() error {
+	return nil
+}
 
 func (ms *MemoryStore) GetStoreType() string {
 	return config.StorageTypeMemory

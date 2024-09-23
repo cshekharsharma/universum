@@ -279,3 +279,10 @@ func (lb *ListBloomMemTable) reduceMemtableSize(key string) {
 		lb.size = 0
 	}
 }
+
+func (lb *ListBloomMemTable) GetAllRecords() map[string]interface{} {
+	lb.lock.RLock()
+	defer lb.lock.RUnlock()
+
+	return lb.skipList.GetAllRecords()
+}

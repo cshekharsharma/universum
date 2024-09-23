@@ -5,7 +5,7 @@ import (
 )
 
 type DataStore interface {
-	Initialize()
+	Initialize() error
 	GetStoreType() string
 
 	Exists(key string) (bool, uint32)

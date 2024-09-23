@@ -69,6 +69,23 @@ func GetAllowedMemoryStorageLimit() int64 {
 	return limit
 }
 
+// Memory storage engine configs
+func GetTransactionLogFilePath() string {
+	path, err := GetString("TransactionLogFilePath", SectionStorageMemory)
+	if err != nil {
+		path = DefaultTranslogFilePath
+	}
+	return path
+}
+
+func GetAutoSnapshotFrequency() time.Duration {
+	frequency, err := GetInt64("AutoSnapshotFrequency", SectionStorageMemory)
+	if err != nil {
+		frequency = DefaultAutoSnapshotFrequency
+	}
+	return time.Duration(frequency) * time.Second
+}
+
 func GetMemtableStorageType() string {
 	mtype, err := GetString("MemtableStorageType", SectionStorageLSM)
 	if err != nil {
@@ -77,21 +94,21 @@ func GetMemtableStorageType() string {
 	return mtype
 }
 
-// Snapshot configs
-func GetTransactionLogFilePath() string {
-	path, err := GetString("TransactionLogFilePath", SectionSnapshot)
+// LSM Storage engine configs
+func GetLSMWriteBlockSize() int64 {
+	blockSize, err := GetInt64("DefaultWriteBlockSize", SectionStorageLSM)
 	if err != nil {
-		path = DefaultTranslogFilePath
+		blockSize = DefaultWriteBlockSize
 	}
-	return path
+	return blockSize
 }
 
-func GetAutoSnapshotFrequency() time.Duration {
-	frequency, err := GetInt64("AutoSnapshotFrequency", SectionSnapshot)
+func GetDataStoragePath() string {
+	path, err := GetString("DataStoragePath", SectionStorageLSM)
 	if err != nil {
-		frequency = DefaultAutoSnapshotFrequency
+		path = DefaultDataStoragePath
 	}
-	return time.Duration(frequency) * time.Second
+	return path
 }
 
 // Eviction configs
