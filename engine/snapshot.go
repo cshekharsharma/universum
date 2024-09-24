@@ -55,7 +55,7 @@ func StartDataBaseSnapshot(store storage.DataStore) error {
 	var err error
 
 	snapshotservice := getSnapshotService(config.GetStorageEngineType())
-	recordCount, ssSizeInBytes, err = snapshotservice.StartDataBaseSnapshot(store.(*memory.MemoryStore))
+	recordCount, ssSizeInBytes, err = snapshotservice.StartDatabaseSnapshot(store.(*memory.MemoryStore))
 
 	DatabaseInfoStats.Persistence.LastSnapshotTakenAt = utils.GetCurrentReadableTime()
 	DatabaseInfoStats.Persistence.LastSnapshotLatency = fmt.Sprintf("%dms", time.Now().UnixMilli()-snapshotStartTime)

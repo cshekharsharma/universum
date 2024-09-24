@@ -2,16 +2,18 @@ package lsm
 
 import (
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 	"universum/config"
 )
 
 const SstFileExtension = ".sst"
 
 func getAllSSTableFiles() ([]string, error) {
-	dir := config.GetDataStoragePath()
+	dir := config.GetDataStorageDirectory()
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read SSTable directory: %v", err)
@@ -24,4 +26,13 @@ func getAllSSTableFiles() ([]string, error) {
 		}
 	}
 	return sstableFiles, nil
+}
+
+func generateSSTableFileName() string {
+	hasher := fnv.New64a()
+	hasher.Write([]byte(fmt.Sprintf("%d", time.Now().UnixNano())))
+	hash := hasher.Sum64()
+
+	path := fmt.Sprintf("%s/%x.%s", config.GetDataStorageDirectory(), hash, SstFileExtension)
+	return filepath.Clean(path)
 }

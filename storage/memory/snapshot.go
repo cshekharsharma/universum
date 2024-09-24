@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 	"universum/config"
 	"universum/entity"
@@ -17,9 +18,11 @@ import (
 
 var snapshotMutex sync.Mutex
 
+const SnapshotFileName string = "snapshot.db"
+
 type MemoryStoreSnapshotService struct{}
 
-func (ms *MemoryStoreSnapshotService) StartDataBaseSnapshot(store storage.DataStore) (int64, int64, error) {
+func (ms *MemoryStoreSnapshotService) StartDatabaseSnapshot(store storage.DataStore) (int64, int64, error) {
 	snapshotMutex.Lock()
 	defer snapshotMutex.Unlock()
 
@@ -28,7 +31,7 @@ func (ms *MemoryStoreSnapshotService) StartDataBaseSnapshot(store storage.DataSt
 	var masterRecordCount int64 = 0
 	var shardRecordCount int64 = 0
 
-	masterSnapshotFile := config.GetTransactionLogFilePath()
+	masterSnapshotFile := GetSnapshotFilePath()
 	tempSnapshotFile := fmt.Sprintf("%s/%s_qscRPQ6xHj", os.TempDir(), config.AppCodeName)
 
 	tempFilePtr, _ := os.OpenFile(tempSnapshotFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
@@ -152,7 +155,7 @@ func (ms *MemoryStoreSnapshotService) ReplayDBRecordsFromSnapshot(datastore stor
 
 func (ms *MemoryStoreSnapshotService) getRecordBuffer() (*bufio.Reader, error) {
 
-	filepath := config.GetTransactionLogFilePath()
+	filepath := GetSnapshotFilePath()
 	filePtr, _ := os.OpenFile(filepath, os.O_RDONLY|os.O_CREATE, 0777)
 	defer filePtr.Close()
 
@@ -165,4 +168,9 @@ func (ms *MemoryStoreSnapshotService) getRecordBuffer() (*bufio.Reader, error) {
 	buffer := bufio.NewReaderSize(filePtr, int(snapshotSizeInBytes))
 	filePtr.Truncate(0)
 	return buffer, nil
+}
+
+func GetSnapshotFilePath() string {
+	masterSnapshotFile := fmt.Sprintf("%s/%s", config.GetSnapshotFileDirectory(), SnapshotFileName)
+	return filepath.Clean(masterSnapshotFile)
 }

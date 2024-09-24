@@ -39,7 +39,7 @@ type ClientStats struct {
 
 type PersistenceStats struct {
 	AutoSnapshotFrequency     string
-	SnapshotFilePath          string
+	SnapshotFileDirectory     string
 	SnapshotSizeInBytes       int64
 	LastSnapshotTakenAt       string
 	LastSnapshotLatency       string

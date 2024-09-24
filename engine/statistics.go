@@ -67,7 +67,7 @@ func InitInfoStatistics() {
 
 		Persistence: &entity.PersistenceStats{
 			AutoSnapshotFrequency: config.GetAutoSnapshotFrequency().String(),
-			SnapshotFilePath:      config.GetTransactionLogFilePath(),
+			SnapshotFileDirectory: config.GetSnapshotFileDirectory(),
 			LastSnapshotTakenAt:   snapshotJobLastExecutedAt.String(),
 		},
 

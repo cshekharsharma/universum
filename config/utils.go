@@ -34,7 +34,7 @@ func GetRequestExecutionTimeout() time.Duration {
 func GetTCPConnectionWriteTimeout() time.Duration {
 	timeout, err := GetInt64("ConnectionWriteTimeout", SectionServer)
 	if err != nil {
-		timeout = DefaultConnWriteTimeout
+		timeout = DefaultConnectionWriteTimeout
 	}
 	return time.Duration(timeout) * time.Second
 }
@@ -70,10 +70,10 @@ func GetAllowedMemoryStorageLimit() int64 {
 }
 
 // Memory storage engine configs
-func GetTransactionLogFilePath() string {
-	path, err := GetString("TransactionLogFilePath", SectionStorageMemory)
+func GetSnapshotFileDirectory() string {
+	path, err := GetString("SnapshotFileDirectory", SectionStorageMemory)
 	if err != nil {
-		path = DefaultTranslogFilePath
+		path = DefaultSnapshotFileDirectory
 	}
 	return path
 }
@@ -103,10 +103,10 @@ func GetLSMWriteBlockSize() int64 {
 	return blockSize
 }
 
-func GetDataStoragePath() string {
-	path, err := GetString("DataStoragePath", SectionStorageLSM)
+func GetDataStorageDirectory() string {
+	path, err := GetString("DataStorageDirectory", SectionStorageLSM)
 	if err != nil {
-		path = DefaultDataStoragePath
+		path = DefaultDataStorageDirectory
 	}
 	return path
 }

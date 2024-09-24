@@ -22,6 +22,6 @@ type DataStore interface {
 }
 
 type SnapshotService interface {
-	StartDataBaseSnapshot(store DataStore) (int64, int64, error)
+	StartDatabaseSnapshot(store DataStore) (int64, int64, error)
 	ReplayDBRecordsFromSnapshot(store DataStore) (int64, error)
 }

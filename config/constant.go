@@ -13,6 +13,12 @@ const (
 
 	DefaultConfigName string = "config.ini"
 
+	// Constants for valid field values
+	StorageTypeMemory     string = "MEMORY"
+	StorageTypeLSM        string = "LSM"
+	MemtableStorageTypeLB string = "LB" // skip list + bloom filter
+	MemtableStorageTypeLM string = "LM" // sorted list + sync.Map
+
 	// Config section names
 	SectionServer        string = "server"
 	SectionLogging       string = "logging"
@@ -23,26 +29,35 @@ const (
 	SectionStorageMemory string = "storage.memory"
 	SectionStorageLSM    string = "storage.lsm"
 
-	// Default configuration values
-	DefaultServerPort            int64  = 11191
-	MaxClientConnections         int64  = 100000
-	MaxServerConcurrency         int64  = 600
-	DefaultRequestExecTimeout    int64  = 10
-	DefaultConnWriteTimeout      int64  = 10
-	DefaultAutoExpiryFrequency   int64  = 2
+	// Section:Server
+	DefaultServerPort             int64 = 11191
+	MaxClientConnections          int64 = 100000
+	DefaultConnectionWriteTimeout int64 = 10
+	DefaultRequestExecTimeout     int64 = 10
+
+	// Storage
+	DefaultStorageEngine        string = "MEMORY"
+	DefaultMaxRecordSizeInBytes int64  = 1024 * 1024 // 1 MB
+
+	// Storage.Memory
+	AllowedMemoryStorageLimit    int64  = 1024 * 1024 * 1024 // 1 GB
 	DefaultAutoSnapshotFrequency int64  = 10
-	DefaultAutoEvictionPolicy    string = "NONE"
-	DefaultMinimumLogLevel       string = "INFO"
-	DefaultStorageEngine         string = "MEMORY"
-	DefaultMaxRecordSizeInBytes  int64  = 1024 * 1024
-	DefaultWriteBlockSize        int64  = 65536
-	DefaultDataStoragePath       string = "/opt/universum/data"
+	DefaultSnapshotFileDirectory string = "/opt/universum/snapshot"
 
-	DefaultTranslogFilePath  string = "/opt/universum/translog.aof"
+	// Storage.LSM
+	DefaultMemtableStorageType  string = MemtableStorageTypeLB
+	DefaultWriteBlockSize       int64  = 65536
+	DefaultDataStorageDirectory string = "/opt/universum/data"
+	DefaultAOFTranslogDirectory string = "/opt/universum/translog"
+
+	// Section:Logging
 	DefaultServerLogFilePath string = "/var/log/universum/server.log"
+	DefaultMinimumLogLevel   string = "INFO"
 
-	StorageTypeMemory     string = "MEMORY"
-	StorageTypeLSM        string = "LSM"
-	MemtableStorageTypeLB string = "LB"
-	MemtableStorageTypeLM string = "LM"
+	// Section:Eviction
+	DefaultAutoExpiryFrequency int64  = 2
+	DefaultAutoEvictionPolicy  string = "NONE"
+
+	// Section:Auth
+	DefaultAuthenticationMode int64 = 1
 )

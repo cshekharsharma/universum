@@ -1,7 +1,9 @@
 package memory
 
 import (
+	"fmt"
 	"hash/fnv"
+	"os"
 	"sync"
 	"universum/config"
 	"universum/entity"
@@ -36,6 +38,13 @@ func CreateNewMemoryStore() *MemoryStore {
 }
 
 func (ms *MemoryStore) Initialize() error {
+	aofFile := GetSnapshotFilePath()
+	if _, err := os.Stat(aofFile); os.IsNotExist(err) {
+		_, err := os.Create(aofFile)
+		if err != nil {
+			return fmt.Errorf("error creating translog file, shutting down: %v", err)
+		}
+	}
 	return nil
 }
 

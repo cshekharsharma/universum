@@ -11,16 +11,11 @@ import (
 func Startup() {
 	// Initiaise the data store
 	datastore = getDataStore(config.GetStorageEngineType())
-	datastore.Initialize()
+	err := datastore.Initialize()
 
-	// Replay all commands from translog into the database
-	aofFile := config.GetTransactionLogFilePath()
-	if _, err := os.Stat(aofFile); os.IsNotExist(err) {
-		_, err := os.Create(aofFile)
-		if err != nil {
-			logger.Get().Error("Error creating AOF file, shutting down: %v", err)
-			Shutdown(entity.ExitCodeStartupFailure)
-		}
+	if err != nil {
+		logger.Get().Fatal("Application startup failed: %v", err)
+		Shutdown(entity.ExitCodeStartupFailure)
 	}
 
 	ReplayDBRecordsFromSnapshot(datastore)
