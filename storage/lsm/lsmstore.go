@@ -18,6 +18,7 @@ type LSMStore struct {
 	memTable memtable.MemTable
 	sstables []*sstable.SSTable // or another suitable data structure
 	mutex    sync.Mutex
+	wal      *WriteAheadLogger
 }
 
 func CreateNewLSMStore(mtype string) *LSMStore {
@@ -61,7 +62,14 @@ func (lsm *LSMStore) Initialize() error {
 		sstables[i] = sst
 	}
 
+	lsm.wal, err = NewWAL(config.GetWriteAheadLogDirectory())
+	if err != nil {
+		return fmt.Errorf("failed to initialize write ahead logger: %v", err)
+	}
+
 	memtable.FlusherChan = make(chan memtable.MemTable, FlusherChanSize)
+	go lsm.MemtableBGFlusher() // start the background flusher job
+
 	return nil
 }
 
@@ -116,7 +124,7 @@ func (lsm *LSMStore) Set(key string, value interface{}, ttl int64) (bool, uint32
 		return false, statusCode
 	}
 
-	err := appendRecordToAOF(key, value, ttl)
+	err := lsm.wal.AddToWALBuffer(key, value, ttl)
 	if err != nil {
 		return false, entity.CRC_AOF_WRITE_FAILED
 	}
@@ -164,51 +172,54 @@ func (lsm *LSMStore) Expire(key string, ttl int64) (bool, uint32) {
 	return false, 0
 }
 
-func (lsm *LSMStore) memtableBGFlusher() error {
-	for {
-		select {
-		case memtable := <-memtable.FlusherChan:
-			go func(container interface{}) {
-				var sst *sstable.SSTable
-				var err error
-
-				newFileName := generateSSTableFileName()
-
-				for i := 0; i < SSTableFlushRetryCount; i++ {
-					sst, err = sstable.NewSSTable(newFileName, true, 0, 0)
-
-					if err != nil {
-						logger.Get().Fatal("[#%d] BGFlusher: Failed to create new SSTable: %v", i, err)
-						time.Sleep(10 * time.Millisecond)
-
-						if i == SSTableFlushRetryCount-1 {
-							// @TODO handle error. or may be shutdown.
-						}
-						continue
-					}
-					break
-				}
-
-				for i := 0; i < SSTableFlushRetryCount; i++ {
-					err = sst.FlushMemTableToSSTable(memtable)
-
-					if err != nil {
-						logger.Get().Fatal("[#%d] BGFlusher: Failed to flush SSTable to disk: %v", i, err)
-						time.Sleep(10 * time.Millisecond)
-
-						if i == SSTableFlushRetryCount-1 {
-							// @TODO handle error. or may be shutdown.
-						}
-						continue
-					}
-					break
-				}
-
-				lsm.mutex.Lock()
-				lsm.sstables = append(lsm.sstables, sst)
-				lsm.mutex.Unlock()
-
-			}(memtable)
+func (lsm *LSMStore) MemtableBGFlusher() error {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Get().Error("MemtableBGFlusher: Recovered from panic: %v", r)
+			go lsm.MemtableBGFlusher() // Restart the flusher if it panics.
 		}
+	}()
+
+	for memtable := range memtable.FlusherChan {
+		go func(container interface{}) {
+			var sst *sstable.SSTable
+			var err error
+
+			newFileName := generateSSTableFileName()
+
+			for i := 0; i < SSTableFlushRetryCount; i++ {
+				sst, err = sstable.NewSSTable(newFileName, true, 0, 0)
+				if err != nil {
+					logger.Get().Error("[#%d] BGFlusher: Failed to create new SSTable: %v", i, err)
+					time.Sleep(10 * time.Millisecond)
+
+					if i == SSTableFlushRetryCount-1 {
+						// @TODO: handle error or consider shutting down the service if needed.
+					}
+					continue
+				}
+				break
+			}
+
+			for i := 0; i < SSTableFlushRetryCount; i++ {
+				err = sst.FlushMemTableToSSTable(memtable)
+				if err != nil {
+					logger.Get().Error("[#%d] BGFlusher: Failed to flush SSTable to disk: %v", i, err)
+					time.Sleep(10 * time.Millisecond)
+
+					if i == SSTableFlushRetryCount-1 {
+						// @TODO: handle error or consider shutting down the service if needed.
+					}
+					continue
+				}
+				break
+			}
+
+			lsm.mutex.Lock()
+			lsm.sstables = append(lsm.sstables, sst)
+			lsm.mutex.Unlock()
+
+		}(memtable)
 	}
+	return nil
 }

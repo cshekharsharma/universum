@@ -2,6 +2,7 @@ package config
 
 import "time"
 
+// Section:Server
 func GetServerPort() int64 {
 	port, err := GetInt64("ServerPort", SectionServer)
 	if err != nil {
@@ -39,7 +40,7 @@ func GetTCPConnectionWriteTimeout() time.Duration {
 	return time.Duration(timeout) * time.Second
 }
 
-// storage configs
+// Section:Storage
 func GetStorageEngineType() string {
 	store, err := GetString("StorageEngine", SectionStorage)
 	if err != nil {
@@ -61,21 +62,13 @@ func GetMaxRecordSizeInBytes() int64 {
 	return size
 }
 
+// Section:Storage.Memory
 func GetAllowedMemoryStorageLimit() int64 {
 	limit, err := GetInt64("AllowedMemoryStorageLimit", SectionStorageMemory)
 	if err != nil {
 		limit = 0
 	}
 	return limit
-}
-
-// Memory storage engine configs
-func GetSnapshotFileDirectory() string {
-	path, err := GetString("SnapshotFileDirectory", SectionStorageMemory)
-	if err != nil {
-		path = DefaultSnapshotFileDirectory
-	}
-	return path
 }
 
 func GetAutoSnapshotFrequency() time.Duration {
@@ -86,6 +79,15 @@ func GetAutoSnapshotFrequency() time.Duration {
 	return time.Duration(frequency) * time.Second
 }
 
+func GetSnapshotFileDirectory() string {
+	path, err := GetString("SnapshotFileDirectory", SectionStorageMemory)
+	if err != nil {
+		path = DefaultSnapshotFileDirectory
+	}
+	return path
+}
+
+// Section:Storage.LSM
 func GetMemtableStorageType() string {
 	mtype, err := GetString("MemtableStorageType", SectionStorageLSM)
 	if err != nil {
@@ -94,7 +96,6 @@ func GetMemtableStorageType() string {
 	return mtype
 }
 
-// LSM Storage engine configs
 func GetLSMWriteBlockSize() int64 {
 	blockSize, err := GetInt64("DefaultWriteBlockSize", SectionStorageLSM)
 	if err != nil {
@@ -111,7 +112,31 @@ func GetDataStorageDirectory() string {
 	return path
 }
 
-// Eviction configs
+func GetWriteAheadLogDirectory() string {
+	path, err := GetString("WriteAheadLogDirectory", SectionStorageLSM)
+	if err != nil {
+		path = DefaultWriteAheadLogDirectory
+	}
+	return path
+}
+
+func GetWriteAheadLogFrequency() time.Duration {
+	frequency, err := GetInt64("WriteAheadLogFrequency", SectionStorageLSM)
+	if err != nil {
+		frequency = DefaultWriteAheadLogFrequency
+	}
+	return time.Duration(frequency) * time.Second
+}
+
+func GetWriteAheadLogBufferSize() int64 {
+	size, err := GetInt64("WriteAheadLogBufferSize", SectionStorageLSM)
+	if err != nil {
+		size = DefaultWriteAheadLogBufferSize
+	}
+	return size
+}
+
+// Section:Eviction
 func GetAutoRecordExpiryFrequency() time.Duration {
 	frequency, err := GetInt64("AutoRecordExpiryFrequency", SectionEviction)
 	if err != nil {
@@ -128,7 +153,7 @@ func GetRecordAutoEvictionPolicy() string {
 	return policy
 }
 
-// Logging configs
+// Section:Logging
 func GetServerLogFilePath() string {
 	path, err := GetString("ServerLogFilePath", SectionLogging)
 	if err != nil {
@@ -147,7 +172,7 @@ func GetMinimumLogLevel() string {
 	return level
 }
 
-// Auth configs
+// Section:Auth
 func IsAuthenticationEnabled() bool {
 	enabled, err := GetBool("AuthenticationEnabled", SectionAuth)
 	if err != nil {
