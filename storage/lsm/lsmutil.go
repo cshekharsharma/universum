@@ -13,7 +13,7 @@ import (
 const SstFileExtension = ".sst"
 
 func getAllSSTableFiles() ([]string, error) {
-	dir := config.GetDataStorageDirectory()
+	dir := config.Store.Storage.LSM.DataStorageDirectory
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read SSTable directory: %v", err)
@@ -33,6 +33,6 @@ func generateSSTableFileName() string {
 	hasher.Write([]byte(fmt.Sprintf("%d", time.Now().UnixNano())))
 	hash := hasher.Sum64()
 
-	path := fmt.Sprintf("%s/%x.%s", config.GetDataStorageDirectory(), hash, SstFileExtension)
+	path := fmt.Sprintf("%s/%x.%s", config.Store.Storage.LSM.DataStorageDirectory, hash, SstFileExtension)
 	return filepath.Clean(path)
 }

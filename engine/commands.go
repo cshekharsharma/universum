@@ -242,7 +242,11 @@ func executeSNAPSHOT(command *entity.Command) string {
 		return resp3.EncodedRESP3Response(validityRes)
 	}
 
-	StartDataBaseSnapshot(getDataStore(config.GetStorageEngineType()))
+	err := StartDataBaseSnapshot(getDataStore(config.Store.Storage.StorageEngine))
+	if err != nil {
+		return resp3.EncodedRESP3Response([]interface{}{false, entity.CRC_SNAPSHOT_FAILED, err.Error()})
+	}
+
 	return resp3.EncodedRESP3Response([]interface{}{true, entity.CRC_SNAPSHOT_STARTED, ""})
 }
 

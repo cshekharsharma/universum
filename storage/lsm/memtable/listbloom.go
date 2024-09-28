@@ -89,7 +89,7 @@ func (m *ListBloomMemTable) Set(key string, value interface{}, ttl int64) (bool,
 		return false, entity.CRC_INVALID_DATATYPE
 	}
 
-	if !utils.IsWriteableDataSize(value, config.GetMaxRecordSizeInBytes()) {
+	if !utils.IsWriteableDataSize(value, config.Store.Storage.MaxRecordSizeInBytes) {
 		return false, entity.CRC_RECORD_TOO_BIG
 	}
 

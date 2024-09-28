@@ -3,6 +3,7 @@ package resp3
 import (
 	"bufio"
 	"fmt"
+	"universum/entity"
 
 	"github.com/cshekharsharma/resp-go/resp3"
 )
@@ -33,6 +34,10 @@ func EncodedRESP3Response(response interface{}) string {
 
 // Wrapper function for resp3.Encode
 func Encode(value interface{}) (string, error) {
+	if _, ok := value.(*entity.ScalarRecord); ok {
+		return resp3.Encode(value.(*entity.ScalarRecord).ToMap())
+	}
+
 	return resp3.Encode(value)
 }
 

@@ -31,7 +31,7 @@ func (w *recordExpiryWorker) expireDeletedRecords(expiryChan chan<- recordExpiry
 		expiryChan <- *w
 	}()
 
-	store := getDataStore(config.GetStorageEngineType())
+	store := getDataStore(config.Store.Storage.StorageEngine)
 
 	var totalDeleted int64 = 0
 	expiryJobLastExecutedAt = time.Now()

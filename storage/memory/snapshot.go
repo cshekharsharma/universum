@@ -2,11 +2,15 @@ package memory
 
 import (
 	"bufio"
+	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
+	"universum/compression"
 	"universum/config"
 	"universum/entity"
 	"universum/internal/logger"
@@ -16,9 +20,15 @@ import (
 	"universum/utils/filesys"
 )
 
-var snapshotMutex sync.Mutex
+var (
+	snapshotMutex        sync.Mutex
+	errSnapshotFileEmpty error = errors.New("snapshot file is empty")
+)
 
-const SnapshotFileName string = "snapshot.db"
+const (
+	SnapshotFileName   string = "snapshot.db"
+	MaxBlockBufferSize int    = 4 * 1024 * 1024 // 4MB
+)
 
 type MemoryStoreSnapshotService struct{}
 
@@ -26,18 +36,28 @@ func (ms *MemoryStoreSnapshotService) StartDatabaseSnapshot(store storage.DataSt
 	snapshotMutex.Lock()
 	defer snapshotMutex.Unlock()
 
+	snapshotStartedAt := time.Now().UnixMilli()
 	shards := store.(*MemoryStore).GetAllShards()
 
 	var masterRecordCount int64 = 0
 	var shardRecordCount int64 = 0
 
-	masterSnapshotFile := GetSnapshotFilePath()
-	tempSnapshotFile := fmt.Sprintf("%s/%s_qscRPQ6xHj", os.TempDir(), config.AppCodeName)
+	masterSnapshotFilePath := GetSnapshotFilePath()
 
-	tempFilePtr, _ := os.OpenFile(tempSnapshotFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
-	tempFilePtr.Close()
+	randomSuffix := utils.GetRandomString(10)
+	tempSnapshotFilePath := fmt.Sprintf("%s/%s_%s_snapshot", os.TempDir(), config.AppCodeName, randomSuffix)
 
-	translogBuff := storage.NewRecordTranslogBuffer()
+	tempFilePtr, err := os.OpenFile(tempSnapshotFilePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to create temporary snapshot file: %v", err)
+	}
+	defer tempFilePtr.Close()
+
+	var buffer bytes.Buffer
+	compressor := compression.GetCompressor(&compression.Options{
+		Writer:          tempFilePtr,
+		AutoCloseWriter: false,
+	})
 
 	logger.Get().Info("Starting periodic record snapshot for all shards 1-%d", len(shards))
 
@@ -47,7 +67,7 @@ func (ms *MemoryStoreSnapshotService) StartDatabaseSnapshot(store storage.DataSt
 		currentShard.GetData().Range(func(key interface{}, value interface{}) bool {
 			record := value.(*entity.ScalarRecord)
 
-			if record.Expiry <= utils.GetCurrentEPochTime() {
+			if record.Expiry < utils.GetCurrentEPochTime() {
 				return true // record already expired so skip
 			}
 
@@ -59,25 +79,35 @@ func (ms *MemoryStoreSnapshotService) StartDatabaseSnapshot(store storage.DataSt
 			})
 
 			if err != nil {
+				logger.Get().Warn("Failed to serialise record for snapshot (skipping); ERR=%v", err)
 				return true
 			}
 
-			done := translogBuff.AddToTranslogBuffer(serialisedRecord)
-			if done {
-				shardRecordCount++
+			_, err = buffer.Write([]byte(serialisedRecord))
+			if err != nil {
+				return true
+			}
+			shardRecordCount++
+
+			if buffer.Len() >= MaxBlockBufferSize {
+				if err := compressor.CompressAndWrite(buffer.Bytes()); err != nil {
+					logger.Get().Error("Failed to write compressed block during snapshot: %v", err)
+					return false // Stop on error
+				}
+				buffer.Reset()
 			}
 
 			return true
 		})
 
-		translogBuff.Flush(tempSnapshotFile)
 		logger.Get().Debug("[Shard #%d] Periodic snapshot completed. %d records synced.", shardIndex+1, shardRecordCount)
 
 		masterRecordCount += shardRecordCount
 		shardRecordCount = 0
 	}
 
-	copyError := filesys.AtomicCopyFileContent(tempSnapshotFile, masterSnapshotFile)
+	compressor.Close()
+	copyError := filesys.AtomicCopyFileContent(tempSnapshotFilePath, masterSnapshotFilePath)
 
 	if copyError != nil {
 		logger.Get().Error("Periodic DB snapshot creation failed for shard 1-%d; ERR=%v",
@@ -86,15 +116,16 @@ func (ms *MemoryStoreSnapshotService) StartDatabaseSnapshot(store storage.DataSt
 		return 0, 0, fmt.Errorf("snapshot failed: ERR=%v", copyError)
 	}
 
-	os.Remove(tempSnapshotFile)
+	os.Remove(tempSnapshotFilePath)
 
 	var snapshotSizeInBytes int64 = 0
-	if fi, err := os.Stat(masterSnapshotFile); err == nil {
+	if fi, err := os.Stat(masterSnapshotFilePath); err == nil {
 		snapshotSizeInBytes = fi.Size()
 	}
 
-	logger.Get().Info("Completed periodic DB snapshot for all shards 1-%d; Total Records=%d",
-		len(shards), masterRecordCount)
+	snapshotEndedAt := time.Now().UnixMilli()
+	logger.Get().Info("Periodic DB snapshot completed for all shards 1-%d; Total Records=%d; TimeTaken: %dms",
+		len(shards), masterRecordCount, (snapshotEndedAt - snapshotStartedAt))
 
 	return masterRecordCount, snapshotSizeInBytes, nil
 }
@@ -102,9 +133,30 @@ func (ms *MemoryStoreSnapshotService) StartDatabaseSnapshot(store storage.DataSt
 func (ms *MemoryStoreSnapshotService) ReplayDBRecordsFromSnapshot(datastore storage.DataStore) (int64, error) {
 	var keycount int64 = 0
 
-	buffer, err := ms.getRecordBuffer()
+	buffer, fileptr, err := ms.getRecordBuffer()
 	if err != nil {
-		return keycount, err
+		fileptr.Close()
+
+		if errors.Is(err, errSnapshotFileEmpty) {
+			return keycount, nil
+		} else {
+			return keycount, err
+		}
+	}
+
+	defer fileptr.Truncate(0)
+	defer fileptr.Close()
+
+	if compression.IsCompressionEnabled() {
+		c := compression.GetCompressor(&compression.Options{})
+		decodedStream, err := c.DecompressAndRead(int64(MaxBlockBufferSize))
+
+		if err != nil {
+			logger.Get().Error("failed to decompress the snapshot file, ERR=%v", err.Error())
+			return keycount, err
+		}
+
+		buffer = bufio.NewReader(bytes.NewReader(decodedStream))
 	}
 
 	for {
@@ -137,7 +189,8 @@ func (ms *MemoryStoreSnapshotService) ReplayDBRecordsFromSnapshot(datastore stor
 			continue // skip as the record has already expired
 		}
 
-		success, _ := datastore.Set(key, scalarRecord.Value, scalarRecord.Expiry)
+		ttl := scalarRecord.Expiry - utils.GetCurrentEPochTime()
+		success, _ := datastore.Set(key, scalarRecord.Value, ttl)
 
 		if !success {
 			logger.Get().Error("failed to replay a commands into the datastore, " +
@@ -146,31 +199,33 @@ func (ms *MemoryStoreSnapshotService) ReplayDBRecordsFromSnapshot(datastore stor
 			continue
 		}
 
-		logger.Get().Debug("message replayed for [%5d] %-8s %#v", keycount, "SET", "ARGS")
+		logger.Get().Debug("message replayed for [%5d] SET %s %v %v", keycount, key, scalarRecord.Value, ttl)
 		keycount++
 	}
 
 	return keycount, nil
 }
 
-func (ms *MemoryStoreSnapshotService) getRecordBuffer() (*bufio.Reader, error) {
+func (ms *MemoryStoreSnapshotService) getRecordBuffer() (*bufio.Reader, *os.File, error) {
 
 	filepath := GetSnapshotFilePath()
 	filePtr, _ := os.OpenFile(filepath, os.O_RDONLY|os.O_CREATE, 0777)
-	defer filePtr.Close()
 
 	snapshotSizeInBytes, err := filesys.GetFileSizeInBytes(filePtr)
 	if err != nil {
 		logger.Get().Error("failed to get the size of the snapshot file, ERR=%v", err.Error())
-		return nil, err
+		return nil, filePtr, err
+	}
+
+	if snapshotSizeInBytes == 0 {
+		return nil, filePtr, errSnapshotFileEmpty
 	}
 
 	buffer := bufio.NewReaderSize(filePtr, int(snapshotSizeInBytes))
-	filePtr.Truncate(0)
-	return buffer, nil
+	return buffer, filePtr, nil
 }
 
 func GetSnapshotFilePath() string {
-	masterSnapshotFile := fmt.Sprintf("%s/%s", config.GetSnapshotFileDirectory(), SnapshotFileName)
+	masterSnapshotFile := fmt.Sprintf("%s/%s", config.Store.Storage.Memory.SnapshotFileDirectory, SnapshotFileName)
 	return filepath.Clean(masterSnapshotFile)
 }

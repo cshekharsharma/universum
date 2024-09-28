@@ -37,14 +37,14 @@ func NewWAL(filedir string) (*WriteAheadLogger, error) {
 		return nil, fmt.Errorf("failed to open WAL file: %v", err)
 	}
 
-	walBufferSize := math.Min(float64(config.GetWriteAheadLogBufferSize()), maxBufferSize)
-	flushInterval := time.Duration(math.Min(float64(config.GetWriteAheadLogFrequency()), float64(maxFlushInterval)))
+	walBufferSize := math.Min(float64(config.Store.Storage.LSM.WriteAheadLogBufferSize), maxBufferSize)
+	flushInterval := time.Duration(math.Min(float64(config.Store.Storage.LSM.WriteAheadLogFrequency), float64(maxFlushInterval)))
 
 	wal := &WriteAheadLogger{
 		file:      file,
 		buffer:    bytes.NewBuffer(make([]byte, 0, int(walBufferSize))),
 		flusherCh: make(chan struct{}, 1),
-		ticker:    time.NewTicker(flushInterval),
+		ticker:    time.NewTicker(flushInterval * time.Second),
 	}
 
 	go wal.startFlusher()

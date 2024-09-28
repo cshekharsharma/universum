@@ -1,8 +1,10 @@
 package filesys
 
 import (
+	"errors"
 	"io"
 	"os"
+	"syscall"
 )
 
 func AtomicCopyFileContent(src string, dest string) error {
@@ -54,4 +56,27 @@ func GetFileSizeInBytes(filePtr *os.File) (int64, error) {
 	}
 
 	return fileInfo.Size(), nil
+}
+
+// IsDirectoryWritable checks if a directory is writable.
+// It takes the directory path as input and returns a boolean value.
+// If the directory is writable, it returns true; otherwise, it returns false.
+func IsDirectoryWritable(dirPath string) bool {
+	tempFile, err := os.CreateTemp(dirPath, "writetest")
+	if err != nil {
+		return false
+	}
+
+	tempFile.Close()
+	os.Remove(tempFile.Name())
+
+	return true
+}
+
+// isDiskFullError checks if the error is caused by a lack of disk space
+func IsDiskFullError(err error) bool {
+	if errno, ok := err.(*os.PathError); ok {
+		return errors.Is(errno.Err, syscall.ENOSPC)
+	}
+	return false
 }

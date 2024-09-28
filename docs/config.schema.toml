@@ -1,0 +1,36 @@
+[Server]
+ServerPort = 11191
+MaxConnections = 100
+ConnectionWriteTimeout = 10
+RequestExecutionTimeout = 10
+
+[Storage]
+StorageEngine = "MEMORY"
+MaxRecordSizeInBytes = 1048576
+
+[Storage.Memory]
+AllowedMemoryStorageLimit = 1073741824
+AutoSnapshotFrequency = 100
+SnapshotFileDirectory = "/opt/universum/snapshot"
+SnapshotCompressionAlgo = "LZ4"
+
+[Storage.LSM]
+MemtableStorageType = "LB"
+WriteBlockSize = 65536
+DataStorageDirectory = "/opt/universum/data"
+WriteAheadLogDirectory = "/opt/universum/wal"
+WriteAheadLogFrequency = 5
+WriteAheadLogBufferSize = 1048576
+
+[Logging]
+LogFileDirectory = "/var/log/universum"
+MinimumLogLevel = "INFO"
+
+[Eviction]
+AutoRecordExpiryFrequency = 2
+AutoEvictionPolicy = "LRU"
+
+[Auth]
+AuthenticationEnabled = true
+DbUserName = "admin"
+DbUserPassword = "admin"

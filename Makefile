@@ -109,7 +109,7 @@ build-prod:
 .PHONY: run
 run:
 	@printf "\n${YELLOW}LAUNCHING THE BINARY...${NC}\n\n"
-	./bin/$(BINARYNAME) -config=/etc/universum/config.ini
+	./bin/$(BINARYNAME) -config=/etc/universum/config.toml
 
 # Target: clean
 # Description: Clean the previous builds and remove the binary.

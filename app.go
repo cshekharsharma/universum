@@ -41,9 +41,9 @@ func main() {
 
 	// Configure command-line parameters and load the configuration file.
 	configureCommandLineParams()
-	configerr := config.Load(configfile)
+	configerr := config.Init(configfile)
 	if configerr != nil {
-		log.Fatalf("Cannot proceed without config: %v", configerr)
+		log.Fatalf("Config Error:: %v", configerr)
 	}
 
 	// Initialize server statistics.
@@ -73,6 +73,6 @@ func main() {
 // The configuration file path can be provided with the `-config` flag, and if not provided,
 // it defaults to the path returned by config.GetDefaultConfigPath().
 func configureCommandLineParams() {
-	flag.StringVar(&configfile, "config", config.GetDefaultConfigPath(), "db server config file name")
+	flag.StringVar(&configfile, "config", config.DefaultConfigFilePath, "db server config file name")
 	flag.Parse()
 }

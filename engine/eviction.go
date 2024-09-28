@@ -59,9 +59,9 @@ func EvictRecords() {
 	defer evictionMutex.Unlock()
 
 	currMemUsage := utils.GetMemoryUsedByCurrentPID()
-	allowedUsage := config.GetAllowedMemoryStorageLimit()
+	allowedUsage := config.Store.Storage.Memory.AllowedMemoryStorageLimit
 
-	policy := config.GetRecordAutoEvictionPolicy()
+	policy := config.Store.Eviction.AutoEvictionPolicy
 	if policy == EVICTION_POLICY_NONE || !isDbOverflown(currMemUsage, allowedUsage) {
 		return
 	}

@@ -45,8 +45,8 @@ func StartTCPServer(wg *sync.WaitGroup) {
 
 	atomic.StoreInt32(&entity.ServerState, entity.STATE_STARTING)
 
-	port := fmt.Sprintf(":%d", config.GetServerPort())
-	maxConnections := config.GetMaxClientConnections()
+	port := fmt.Sprintf(":%d", config.Store.Server.ServerPort)
+	maxConnections := config.Store.Server.MaxConnections
 
 	// Create a channel to manage a pool of connections
 	connectionQueue := make(chan *net.TCPConn, maxConnections)
@@ -156,8 +156,8 @@ func handleConnection(conn *net.TCPConn) {
 		closeTCPConnection(conn)
 	}()
 
-	reqTimeout := config.GetRequestExecutionTimeout()
-	writeTimeout := config.GetTCPConnectionWriteTimeout()
+	reqTimeout := time.Duration(config.Store.Server.RequestExecutionTimeout) * time.Second
+	writeTimeout := time.Duration(config.Store.Server.ConnectionWriteTimeout) * time.Second
 
 	for {
 		// Execute the client command with a request timeout

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"sync"
 	"universum/config"
 	"universum/utils"
@@ -28,11 +29,11 @@ const (
 	colorCyan   = "\033[36m"
 	colorWhite  = "\033[37m"
 
-	levelDebug string = "DEBUG"
-	levelInfo  string = "INFO"
-	levelWarn  string = "WARN"
-	levelError string = "ERROR"
-	levelFatal string = "FATAL"
+	levelDebug string = config.LogLevelDebug
+	levelInfo  string = config.LogLevelInfo
+	levelWarn  string = config.LogLevelWarn
+	levelError string = config.LogLevelError
+	levelFatal string = config.LogLevelFatal
 
 	levelCodeDebug int = 0
 	levelCodeInfo  int = 1
@@ -58,7 +59,9 @@ type Logger struct {
 // and used throughout the application, providing a centralized logging solution.
 func Get() *Logger {
 	once.Do(func() {
-		logFilePath := config.GetServerLogFilePath()
+		config.PopulateDefaultConfig()
+
+		logFilePath := filepath.Clean(config.Store.Logging.LogFileDirectory + "/" + config.DefaultServerLogFile)
 		file, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
 			log.Fatalf("Failed to open log file: %v\n", err)
@@ -79,7 +82,7 @@ func (l *Logger) log(level string, color, format string, v ...interface{}) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	if getLevelIdFromName(level) < getLevelIdFromName(config.GetMinimumLogLevel()) {
+	if getLevelIdFromName(level) < getLevelIdFromName(config.Store.Logging.MinimumLogLevel) {
 		return
 	}
 

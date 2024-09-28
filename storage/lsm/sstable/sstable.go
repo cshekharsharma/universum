@@ -64,7 +64,7 @@ func NewSSTable(filename string, writeMode bool, maxRecords uint64, falsePositiv
 		BloomFilter:  bloomFilter,
 		Metadata:     metadata,
 		DataSize:     0,
-		CurrentBlock: NewBlock(config.GetLSMWriteBlockSize()),
+		CurrentBlock: NewBlock(config.Store.Storage.LSM.WriteBlockSize),
 	}, nil
 }
 

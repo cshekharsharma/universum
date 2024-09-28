@@ -2,6 +2,7 @@ package engine
 
 import (
 	"os"
+	"time"
 	"universum/config"
 	"universum/entity"
 	"universum/internal/logger"
@@ -10,7 +11,7 @@ import (
 
 func Startup() {
 	// Initiaise the data store
-	datastore = getDataStore(config.GetStorageEngineType())
+	datastore = getDataStore(config.Store.Storage.StorageEngine)
 	err := datastore.Initialize()
 
 	if err != nil {
@@ -20,8 +21,8 @@ func Startup() {
 
 	ReplayDBRecordsFromSnapshot(datastore)
 
-	expiryJobExecutionFrequency = config.GetAutoRecordExpiryFrequency()
-	snapshotJobExecutionFrequency = config.GetAutoSnapshotFrequency()
+	expiryJobExecutionFrequency = time.Duration(config.Store.Eviction.AutoRecordExpiryFrequency) * time.Second
+	snapshotJobExecutionFrequency = time.Duration(config.Store.Storage.Memory.AutoSnapshotFrequency) * time.Second
 
 	// Trigger periodic jobs
 	triggerPeriodicExpiryJob()
@@ -40,7 +41,7 @@ func Shutdown(exitcode int) {
 	shouldSkipSnapshot, _ := utils.ExistsInList(exitcode, nonSnapshotErrs)
 
 	if !shouldSkipSnapshot {
-		StartDataBaseSnapshot(getDataStore(config.GetStorageEngineType()))
+		StartDataBaseSnapshot(getDataStore(config.Store.Storage.StorageEngine))
 	}
 
 	os.Exit(exitcode)

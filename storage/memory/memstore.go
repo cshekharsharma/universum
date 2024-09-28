@@ -103,7 +103,7 @@ func (ms *MemoryStore) Set(key string, value interface{}, ttl int64) (bool, uint
 		return false, entity.CRC_INVALID_DATATYPE
 	}
 
-	if !utils.IsWriteableDataSize(value, config.GetMaxRecordSizeInBytes()) {
+	if !utils.IsWriteableDataSize(value, int64(config.Store.Storage.MaxRecordSizeInBytes)) {
 		return false, entity.CRC_RECORD_TOO_BIG
 	}
 
@@ -202,7 +202,10 @@ func (ms *MemoryStore) MSet(kvMap map[string]interface{}) (map[string]interface{
 	responseMap := make(map[string]interface{})
 
 	for key, value := range kvMap {
-		didSet, _ := ms.Set(key, value, 0)
+		didSet, code := ms.Set(key, value, 0)
+		if code == entity.CRC_RECORD_TOO_BIG || code == entity.CRC_INVALID_DATATYPE {
+			fmt.Printf("Key %s failed due to %d\n", key, code)
+		}
 		responseMap[key] = didSet
 	}
 

@@ -50,9 +50,9 @@ func InitInfoStatistics() {
 		StatsGenerationTime: utils.GetCurrentEPochTime(),
 		Server: &entity.ServerStats{
 			BuildVersion: entity.SERVER_VERSION,
-			TCPPort:      config.GetServerPort(),
+			TCPPort:      config.Store.Server.ServerPort,
 			ClockTime:    utils.GetCurrentReadableTime(),
-			ConfigFile:   config.DefaultConfigName,
+			ConfigFile:   config.DefaultConfigFilePath,
 			OSName:       build.Default.GOOS,
 			ArchBits:     build.Default.GOARCH,
 			TimeZone:     timezone,
@@ -61,13 +61,13 @@ func InitInfoStatistics() {
 		},
 
 		Clients: &entity.ClientStats{
-			MaxAllowedConnections: config.GetMaxClientConnections(),
+			MaxAllowedConnections: int64(config.Store.Server.MaxConnections),
 			ConnectedClients:      0,
 		},
 
 		Persistence: &entity.PersistenceStats{
-			AutoSnapshotFrequency: config.GetAutoSnapshotFrequency().String(),
-			SnapshotFileDirectory: config.GetSnapshotFileDirectory(),
+			AutoSnapshotFrequency: time.Duration(config.Store.Storage.Memory.AutoSnapshotFrequency).String(),
+			SnapshotFileDirectory: config.Store.Storage.Memory.SnapshotFileDirectory,
 			LastSnapshotTakenAt:   snapshotJobLastExecutedAt.String(),
 		},
 
@@ -87,7 +87,7 @@ func InitInfoStatistics() {
 }
 
 func GetDatabaseInfoStatistics() *entity.InfoStats {
-	DatabaseInfoStats.Server.ConfigFile = config.ConfigPath()
+	DatabaseInfoStats.Server.ConfigFile = config.ConfigFilePath
 	DatabaseInfoStats.Server.ServerState = entity.GetServerStateAsString()
 	DatabaseInfoStats.Server.ClockTime = utils.GetCurrentReadableTime()
 
@@ -102,7 +102,7 @@ func GetDatabaseInfoStatistics() *entity.InfoStats {
 	if virtualMemory, err := mem.VirtualMemory(); err == nil {
 		DatabaseInfoStats.CpuInfo.TotalMemory = virtualMemory.Total
 		DatabaseInfoStats.CpuInfo.FreeMemory = virtualMemory.Total - virtualMemory.Used
-		DatabaseInfoStats.CpuInfo.AllowedMemoryStorageLimit = uint64(config.GetAllowedMemoryStorageLimit())
+		DatabaseInfoStats.CpuInfo.AllowedMemoryStorageLimit = uint64(config.Store.Storage.Memory.AllowedMemoryStorageLimit)
 		DatabaseInfoStats.CpuInfo.MemoryStorageConsumption = utils.GetMemoryUsedByCurrentPID()
 	}
 

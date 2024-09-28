@@ -45,7 +45,7 @@ func triggerPeriodicSnapshotJob() {
 }
 
 func triggerPeriodicEvictionJob() {
-	if config.GetRecordAutoEvictionPolicy() == EVICTION_POLICY_NONE {
+	if config.Store.Eviction.AutoEvictionPolicy == EVICTION_POLICY_NONE {
 		return
 	}
 

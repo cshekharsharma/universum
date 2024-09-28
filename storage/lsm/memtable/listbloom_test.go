@@ -8,15 +8,10 @@ import (
 )
 
 func SetUpTests() {
-	cfg := `
-[storage]
-StorageEngine="LSM"
-MaxRecordSizeInBytes=1048576
-
-[storage.lsm]
-MemtableStorageType="LB"
-`
-	config.LoadFromString(cfg)
+	config.Store = config.GetSkeleton()
+	config.Store.Storage.StorageEngine = "LSM"
+	config.Store.Storage.MaxRecordSizeInBytes = 1048576
+	config.Store.Storage.LSM.MemtableStorageType = "LB"
 }
 
 func TestListBloomMemTable_SetAndGet(t *testing.T) {

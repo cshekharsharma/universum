@@ -22,7 +22,7 @@ type LSMStore struct {
 }
 
 func CreateNewLSMStore(mtype string) *LSMStore {
-	memtable := memtable.CreateNewMemTable(config.GetMemtableStorageType())
+	memtable := memtable.CreateNewMemTable(config.Store.Storage.LSM.MemtableStorageType)
 
 	return &LSMStore{
 		memTable: memtable,
@@ -62,7 +62,7 @@ func (lsm *LSMStore) Initialize() error {
 		sstables[i] = sst
 	}
 
-	lsm.wal, err = NewWAL(config.GetWriteAheadLogDirectory())
+	lsm.wal, err = NewWAL(config.Store.Storage.LSM.WriteAheadLogDirectory)
 	if err != nil {
 		return fmt.Errorf("failed to initialize write ahead logger: %v", err)
 	}
@@ -195,6 +195,8 @@ func (lsm *LSMStore) MemtableBGFlusher() error {
 
 					if i == SSTableFlushRetryCount-1 {
 						// @TODO: handle error or consider shutting down the service if needed.
+						logger.Get().Error("BGFlusher: Failed to create new SSTable after %d retries: %v", i-1, err)
+						return
 					}
 					continue
 				}
@@ -209,6 +211,8 @@ func (lsm *LSMStore) MemtableBGFlusher() error {
 
 					if i == SSTableFlushRetryCount-1 {
 						// @TODO: handle error or consider shutting down the service if needed.
+						logger.Get().Error("BGFlusher: Failed to create new SSTable after %d retries: %v", i-1, err)
+						return
 					}
 					continue
 				}

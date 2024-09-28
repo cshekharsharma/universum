@@ -40,7 +40,7 @@ func (w *databaseSnapshotWorker) startDatabaseSnapshot(snapshotChan chan<- datab
 		nextScheduledTime := snapshotJobLastExecutedAt.Add(expiryJobExecutionFrequency)
 
 		if nextScheduledTime.Compare(time.Now()) < 1 {
-			StartDataBaseSnapshot(getDataStore(config.GetStorageEngineType()))
+			StartDataBaseSnapshot(getDataStore(config.Store.Storage.StorageEngine))
 			snapshotJobLastExecutedAt = time.Now()
 		}
 
@@ -54,7 +54,7 @@ func StartDataBaseSnapshot(store storage.DataStore) error {
 	var snapshotStartTime int64 = time.Now().UnixMilli()
 	var err error
 
-	snapshotservice := getSnapshotService(config.GetStorageEngineType())
+	snapshotservice := getSnapshotService(config.Store.Storage.StorageEngine)
 	recordCount, ssSizeInBytes, err = snapshotservice.StartDatabaseSnapshot(store.(*memory.MemoryStore))
 
 	DatabaseInfoStats.Persistence.LastSnapshotTakenAt = utils.GetCurrentReadableTime()
@@ -68,7 +68,7 @@ func StartDataBaseSnapshot(store storage.DataStore) error {
 func ReplayDBRecordsFromSnapshot(datastore storage.DataStore) {
 	replayStartTime := time.Now().UnixMilli()
 
-	snapshotservice := getSnapshotService(config.GetStorageEngineType())
+	snapshotservice := getSnapshotService(config.Store.Storage.StorageEngine)
 	keyCount, err := snapshotservice.ReplayDBRecordsFromSnapshot(datastore)
 
 	replayLatency := fmt.Sprintf("%d ms", time.Now().UnixMilli()-replayStartTime)
