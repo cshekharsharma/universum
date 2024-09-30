@@ -13,6 +13,7 @@ AllowedMemoryStorageLimit = 1073741824
 AutoSnapshotFrequency = 100
 SnapshotFileDirectory = "/opt/universum/snapshot"
 SnapshotCompressionAlgo = "LZ4"
+RestoreSnapshotOnStart = true
 
 [Storage.LSM]
 MemtableStorageType = "LB"

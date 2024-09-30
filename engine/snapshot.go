@@ -40,7 +40,7 @@ func (w *databaseSnapshotWorker) startDatabaseSnapshot(snapshotChan chan<- datab
 		nextScheduledTime := snapshotJobLastExecutedAt.Add(expiryJobExecutionFrequency)
 
 		if nextScheduledTime.Compare(time.Now()) < 1 {
-			StartDataBaseSnapshot(getDataStore(config.Store.Storage.StorageEngine))
+			StartDatabaseSnapshot(getDataStore(config.Store.Storage.StorageEngine))
 			snapshotJobLastExecutedAt = time.Now()
 		}
 
@@ -48,14 +48,14 @@ func (w *databaseSnapshotWorker) startDatabaseSnapshot(snapshotChan chan<- datab
 	}
 }
 
-func StartDataBaseSnapshot(store storage.DataStore) error {
+func StartDatabaseSnapshot(store storage.DataStore) error {
 	var recordCount int64 = 0
 	var ssSizeInBytes int64 = 0
 	var snapshotStartTime int64 = time.Now().UnixMilli()
 	var err error
 
 	snapshotservice := getSnapshotService(config.Store.Storage.StorageEngine)
-	recordCount, ssSizeInBytes, err = snapshotservice.StartDatabaseSnapshot(store.(*memory.MemoryStore))
+	recordCount, ssSizeInBytes, err = snapshotservice.Snapshot(store.(*memory.MemoryStore))
 
 	DatabaseInfoStats.Persistence.LastSnapshotTakenAt = utils.GetCurrentReadableTime()
 	DatabaseInfoStats.Persistence.LastSnapshotLatency = fmt.Sprintf("%dms", time.Now().UnixMilli()-snapshotStartTime)
@@ -65,11 +65,20 @@ func StartDataBaseSnapshot(store storage.DataStore) error {
 	return err
 }
 
-func ReplayDBRecordsFromSnapshot(datastore storage.DataStore) {
+func RestoreDatabaseSnapshot(datastore storage.DataStore) {
 	replayStartTime := time.Now().UnixMilli()
 
 	snapshotservice := getSnapshotService(config.Store.Storage.StorageEngine)
-	keyCount, err := snapshotservice.ReplayDBRecordsFromSnapshot(datastore)
+	if ok, err := snapshotservice.ShouldRestore(); !ok {
+		if err != nil {
+			logger.Get().Info("Snapshot did not pass the restore check. Err=%v", err.Error())
+		} else {
+			logger.Get().Info("Snapshot restore is disabled. Skipping snapshot restore.")
+		}
+		return
+	}
+
+	keyCount, err := snapshotservice.Restore(datastore)
 
 	replayLatency := fmt.Sprintf("%d ms", time.Now().UnixMilli()-replayStartTime)
 
@@ -78,9 +87,9 @@ func ReplayDBRecordsFromSnapshot(datastore storage.DataStore) {
 	DatabaseInfoStats.Persistence.LastSnapshotReplayedAt = utils.GetCurrentReadableTime()
 
 	if err != nil {
-		logger.Get().Error("Snapshot replay failed, KeyOffset=%d, Err=%v", keyCount+1, err.Error())
+		logger.Get().Error("Snapshot restore failed, KeyOffset=%d, Err=%v", keyCount+1, err.Error())
 		Shutdown(entity.ExitCodeStartupFailure)
 	} else {
-		logger.Get().Info("Snapshot replay done. Total %d keys replayed into DB", keyCount)
+		logger.Get().Info("Snapshot restore done. Total %d keys replayed into DB", keyCount)
 	}
 }

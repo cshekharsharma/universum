@@ -33,7 +33,7 @@ func GetCompressor(opts *Options) Compressor {
 		return c
 
 	case config.CompressionAlgoNone:
-		c := &NilCompressor{}
+		c := &NoCompressor{}
 		c.Init(opts)
 		return c
 

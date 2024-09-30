@@ -27,12 +27,12 @@ var (
 
 const (
 	SnapshotFileName   string = "snapshot.db"
-	MaxBlockBufferSize int    = 4 * 1024 * 1024 // 4MB
+	MaxBlockBufferSize int64  = 1024 // 4MB
 )
 
 type MemoryStoreSnapshotService struct{}
 
-func (ms *MemoryStoreSnapshotService) StartDatabaseSnapshot(store storage.DataStore) (int64, int64, error) {
+func (ms *MemoryStoreSnapshotService) Snapshot(store storage.DataStore) (int64, int64, error) {
 	snapshotMutex.Lock()
 	defer snapshotMutex.Unlock()
 
@@ -42,7 +42,7 @@ func (ms *MemoryStoreSnapshotService) StartDatabaseSnapshot(store storage.DataSt
 	var masterRecordCount int64 = 0
 	var shardRecordCount int64 = 0
 
-	masterSnapshotFilePath := GetSnapshotFilePath()
+	masterSnapshotFilePath := getSnapshotFilePath()
 
 	randomSuffix := utils.GetRandomString(10)
 	tempSnapshotFilePath := fmt.Sprintf("%s/%s_%s_snapshot", os.TempDir(), config.AppCodeName, randomSuffix)
@@ -89,7 +89,7 @@ func (ms *MemoryStoreSnapshotService) StartDatabaseSnapshot(store storage.DataSt
 			}
 			shardRecordCount++
 
-			if buffer.Len() >= MaxBlockBufferSize {
+			if buffer.Len() >= int(MaxBlockBufferSize) {
 				if err := compressor.CompressAndWrite(buffer.Bytes()); err != nil {
 					logger.Get().Error("Failed to write compressed block during snapshot: %v", err)
 					return false // Stop on error
@@ -104,6 +104,14 @@ func (ms *MemoryStoreSnapshotService) StartDatabaseSnapshot(store storage.DataSt
 
 		masterRecordCount += shardRecordCount
 		shardRecordCount = 0
+	}
+
+	if buffer.Len() > 0 {
+		if err := compressor.CompressAndWrite(buffer.Bytes()); err != nil {
+			logger.Get().Error("Failed to write remaining compressed block during snapshot: %v", err)
+			return 0, 0, err
+		}
+		buffer.Reset()
 	}
 
 	compressor.Close()
@@ -130,12 +138,13 @@ func (ms *MemoryStoreSnapshotService) StartDatabaseSnapshot(store storage.DataSt
 	return masterRecordCount, snapshotSizeInBytes, nil
 }
 
-func (ms *MemoryStoreSnapshotService) ReplayDBRecordsFromSnapshot(datastore storage.DataStore) (int64, error) {
+func (ms *MemoryStoreSnapshotService) Restore(datastore storage.DataStore) (int64, error) {
 	var keycount int64 = 0
+	snapshotFilePath := getSnapshotFilePath()
 
-	buffer, fileptr, err := ms.getRecordBuffer()
+	filePtr, err := ms.getSnapshotFilePtr(snapshotFilePath)
 	if err != nil {
-		fileptr.Close()
+		filePtr.Close()
 
 		if errors.Is(err, errSnapshotFileEmpty) {
 			return keycount, nil
@@ -144,88 +153,111 @@ func (ms *MemoryStoreSnapshotService) ReplayDBRecordsFromSnapshot(datastore stor
 		}
 	}
 
-	defer fileptr.Truncate(0)
-	defer fileptr.Close()
+	defer filePtr.Close()
 
-	if compression.IsCompressionEnabled() {
-		c := compression.GetCompressor(&compression.Options{})
-		decodedStream, err := c.DecompressAndRead(int64(MaxBlockBufferSize))
+	c := compression.GetCompressor(&compression.Options{
+		Reader: filePtr,
+	})
 
+	var partialBuffer []byte     // Holds unprocessed raw bytes for the next chunk
+	var backupChunkBuffer []byte // Duplicate buffer to track raw bytes
+
+	for {
+		chunkBuffer, err := c.DecompressAndRead(int64(MaxBlockBufferSize))
 		if err != nil {
-			logger.Get().Error("failed to decompress the snapshot file, ERR=%v", err.Error())
+			if err == io.EOF {
+				break // End of file reached
+			}
+			logger.Get().Error("Failed to decompress the snapshot file, ERR=%v", err.Error())
 			return keycount, err
 		}
 
-		buffer = bufio.NewReader(bytes.NewReader(decodedStream))
-	}
+		chunkBuffer = append(partialBuffer, chunkBuffer...)
+		partialBuffer = nil
 
-	for {
-		decoded, err := resp3.Decode(buffer)
+		backupChunkBuffer = make([]byte, len(chunkBuffer))
+		copy(backupChunkBuffer, chunkBuffer)
+		lastSuccessfulOffset := 0
 
-		if err != nil {
-			if err == io.EOF {
-				break
+		buffer := bufio.NewReaderSize(bytes.NewReader(chunkBuffer), len(chunkBuffer))
+
+		for {
+			decoded, err := resp3.Decode(buffer)
+			currentOffset := len(backupChunkBuffer) - buffer.Buffered()
+
+			if err != nil {
+				if (err == io.EOF) || (err == io.ErrUnexpectedEOF) || (err == io.ErrShortBuffer) {
+					logger.Get().Warn("Potentially incomplete message read. Will retry with autofix [%v]", err.Error())
+
+					// Calculating the remaining bytes based on the last successfully processed message
+					// and storing remaining bytes to prepend with the next chunk in the next iteration
+					remainingBytes := backupChunkBuffer[lastSuccessfulOffset:]
+					partialBuffer = append([]byte{}, remainingBytes...)
+
+					break
+				} else {
+					logger.Get().Error("Failed to replay a commands into the datastore, "+
+						"potentially erroneous record. [ERR=%v]", err.Error())
+
+					return keycount, err
+				}
+			}
+
+			lastSuccessfulOffset = currentOffset // updated last successful offset
+
+			if decodedMap, ok := decoded.(map[string]interface{}); ok {
+				key, record := getRecordFromSerializedMap(decodedMap)
+				scalarRecord, _ := record.(*entity.ScalarRecord)
+
+				if scalarRecord.Expiry <= utils.GetCurrentEPochTime() {
+					continue
+				}
+
+				ttl := scalarRecord.Expiry - utils.GetCurrentEPochTime()
+				success, statuscode := datastore.Set(key, scalarRecord.Value, ttl)
+
+				if success {
+					logger.Get().Debug("Replayed [%5d] SET %s %v %v", keycount+1, key, scalarRecord.Value, ttl)
+					keycount++
+				} else {
+					logger.Get().Warn("Failed to restore the record [code=%d], skipping.", statuscode)
+				}
 			} else {
-				logger.Get().Error("failed to replay a commands into the datastore, "+
-					"potentially errornous translog. Please fix to proceed: [%v]", err.Error())
-
-				return keycount, err
+				logger.Get().Warn("Failed to decode a command from RESP to map[string]interface{}, " +
+					"potentially erroneous translog record found.")
 			}
 		}
-
-		decodedMap, ok := decoded.(map[string]interface{})
-
-		if !ok {
-			logger.Get().Warn("failed to decode a command from RESP to map[string]interface, " +
-				"potentially errornous translog record found.")
-
-			continue
-		}
-
-		key, record := getRecordFromSerializedMap(decodedMap)
-		scalarRecord, _ := record.(*entity.ScalarRecord)
-
-		if scalarRecord.Expiry <= utils.GetCurrentEPochTime() {
-			continue // skip as the record has already expired
-		}
-
-		ttl := scalarRecord.Expiry - utils.GetCurrentEPochTime()
-		success, _ := datastore.Set(key, scalarRecord.Value, ttl)
-
-		if !success {
-			logger.Get().Error("failed to replay a commands into the datastore, " +
-				"potentially errornous translog or intermittent write failure, skipping.")
-
-			continue
-		}
-
-		logger.Get().Debug("message replayed for [%5d] SET %s %v %v", keycount, key, scalarRecord.Value, ttl)
-		keycount++
 	}
 
 	return keycount, nil
 }
 
-func (ms *MemoryStoreSnapshotService) getRecordBuffer() (*bufio.Reader, *os.File, error) {
+func (ms *MemoryStoreSnapshotService) ShouldRestore() (bool, error) {
+	return config.Store.Storage.Memory.RestoreSnapshotOnStart, nil
+}
 
-	filepath := GetSnapshotFilePath()
-	filePtr, _ := os.OpenFile(filepath, os.O_RDONLY|os.O_CREATE, 0777)
+func (ms *MemoryStoreSnapshotService) getSnapshotFilePtr(filepath string) (*os.File, error) {
+	filePtr, err := os.OpenFile(filepath, os.O_RDONLY|os.O_CREATE, 0777)
+	if err != nil {
+		logger.Get().Error("failed to open the snapshot file, ERR=%v", err.Error())
+		return nil, err
+	}
 
 	snapshotSizeInBytes, err := filesys.GetFileSizeInBytes(filePtr)
 	if err != nil {
 		logger.Get().Error("failed to get the size of the snapshot file, ERR=%v", err.Error())
-		return nil, filePtr, err
+		return filePtr, err
 	}
 
 	if snapshotSizeInBytes == 0 {
-		return nil, filePtr, errSnapshotFileEmpty
+		return filePtr, errSnapshotFileEmpty
 	}
 
-	buffer := bufio.NewReaderSize(filePtr, int(snapshotSizeInBytes))
-	return buffer, filePtr, nil
+	return filePtr, nil
 }
 
-func GetSnapshotFilePath() string {
-	masterSnapshotFile := fmt.Sprintf("%s/%s", config.Store.Storage.Memory.SnapshotFileDirectory, SnapshotFileName)
+func getSnapshotFilePath() string {
+	directory := config.Store.Storage.Memory.SnapshotFileDirectory
+	masterSnapshotFile := fmt.Sprintf("%s/%s", directory, SnapshotFileName)
 	return filepath.Clean(masterSnapshotFile)
 }

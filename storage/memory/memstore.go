@@ -38,11 +38,11 @@ func CreateNewMemoryStore() *MemoryStore {
 }
 
 func (ms *MemoryStore) Initialize() error {
-	aofFile := GetSnapshotFilePath()
-	if _, err := os.Stat(aofFile); os.IsNotExist(err) {
-		_, err := os.Create(aofFile)
+	snapshotFilePath := getSnapshotFilePath()
+	if _, err := os.Stat(snapshotFilePath); os.IsNotExist(err) {
+		_, err := os.Create(snapshotFilePath)
 		if err != nil {
-			return fmt.Errorf("error creating translog file, shutting down: %v", err)
+			return fmt.Errorf("error creating snapshot file, shutting down: %v", err)
 		}
 	}
 	return nil

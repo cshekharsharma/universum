@@ -19,7 +19,7 @@ func Startup() {
 		Shutdown(entity.ExitCodeStartupFailure)
 	}
 
-	ReplayDBRecordsFromSnapshot(datastore)
+	RestoreDatabaseSnapshot(datastore)
 
 	expiryJobExecutionFrequency = time.Duration(config.Store.Eviction.AutoRecordExpiryFrequency) * time.Second
 	snapshotJobExecutionFrequency = time.Duration(config.Store.Storage.Memory.AutoSnapshotFrequency) * time.Second
@@ -41,7 +41,7 @@ func Shutdown(exitcode int) {
 	shouldSkipSnapshot, _ := utils.ExistsInList(exitcode, nonSnapshotErrs)
 
 	if !shouldSkipSnapshot {
-		StartDataBaseSnapshot(getDataStore(config.Store.Storage.StorageEngine))
+		StartDatabaseSnapshot(getDataStore(config.Store.Storage.StorageEngine))
 	}
 
 	os.Exit(exitcode)

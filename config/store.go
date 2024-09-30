@@ -28,6 +28,7 @@ type Memory struct {
 	AutoSnapshotFrequency     int64  `toml:"AutoSnapshotFrequency"`
 	SnapshotFileDirectory     string `toml:"SnapshotFileDirectory"`
 	SnapshotCompressionAlgo   string `toml:"SnapshotCompressionAlgo"`
+	RestoreSnapshotOnStart    bool   `toml:"RestoreSnapshotOnStart"`
 }
 
 type LSM struct {

@@ -60,29 +60,28 @@ func (c *LZ4Compressor) CompressAndWrite(data []byte) error {
 	return nil
 }
 
+// DecompressAndRead reads the compressed data from the io.Reader and decompresses it
+// if no io.Reader is set, it will return an error
+// it will return the decompressed data as byte array
 func (c *LZ4Compressor) DecompressAndRead(chunkSize int64) ([]byte, error) {
 	if c.lzReader == nil {
 		return nil, errors.New("no source io.reader provided for decompression")
 	}
 
-	var decompressedData bytes.Buffer
 	buf := make([]byte, chunkSize)
 
-	for {
-		n, err := c.lzReader.Read(buf)
-		if err != nil {
-			if err == io.EOF {
-				break // End of file reached
+	n, err := c.lzReader.Read(buf)
+	if err != nil {
+		if err == io.EOF {
+			if n > 0 {
+				return buf[:n], nil
 			}
-			return nil, fmt.Errorf("error reading compressed file: %v", err)
+			return nil, io.EOF // End of file reached
 		}
-
-		if _, err := decompressedData.Write(buf[:n]); err != nil {
-			return nil, fmt.Errorf("error writing decompressed data to buffer: %v", err)
-		}
+		return nil, fmt.Errorf("error reading compressed data: %v", err)
 	}
 
-	return decompressedData.Bytes(), nil
+	return buf[:n], nil
 }
 
 // Compress is a stateless compression function that compresses data using LZ4

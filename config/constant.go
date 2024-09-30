@@ -44,9 +44,10 @@ const (
 	DefaultMaxRecordSizeInBytes int64  = 1024 * 1024 // 1 MB
 
 	// Storage.Memory
-	AllowedMemoryStorageLimit    int64  = 1024 * 1024 * 1024 // 1 GB
-	DefaultAutoSnapshotFrequency int64  = 10                 // 10 seconds
-	DefaultSnapshotFileDirectory string = "/opt/universum/snapshot"
+	AllowedMemoryStorageLimit     int64  = 1024 * 1024 * 1024 // 1 GB
+	DefaultAutoSnapshotFrequency  int64  = 10                 // 10 seconds
+	DefaultSnapshotFileDirectory  string = "/opt/universum/snapshot"
+	DefaultRestoreSnapshotOnStart bool   = true
 
 	CompressionAlgoNone            string = "NONE" // no compression
 	CompressionAlgoLZ4             string = "LZ4"
