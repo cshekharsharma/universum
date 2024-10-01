@@ -27,7 +27,7 @@ var (
 
 const (
 	SnapshotFileName   string = "snapshot.db"
-	MaxBlockBufferSize int64  = 1024 // 4MB
+	MaxBlockBufferSize int64  = 4 * 1024 * 1024 // 4MB
 )
 
 type MemoryStoreSnapshotService struct{}
@@ -203,9 +203,14 @@ func (ms *MemoryStoreSnapshotService) Restore(datastore storage.DataStore) (int6
 				}
 			}
 
-			lastSuccessfulOffset = currentOffset // updated last successful offset
-
 			if decodedMap, ok := decoded.(map[string]interface{}); ok {
+				if len(decodedMap) < 4 {
+					remainingBytes := backupChunkBuffer[lastSuccessfulOffset:]
+					partialBuffer = append([]byte{}, remainingBytes...)
+					break
+				}
+
+				lastSuccessfulOffset = currentOffset // updated last successful offset
 				key, record := getRecordFromSerializedMap(decodedMap)
 				scalarRecord, _ := record.(*entity.ScalarRecord)
 

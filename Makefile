@@ -49,7 +49,7 @@ help:
 	@printf "  ${GREEN}lint${NC}           - Run static code analysis\n"
 	@printf "  ${GREEN}docker-build${NC}   - Build the Docker image\n"
 	@printf "  ${GREEN}docker-run${NC}     - Run the Docker container\n"
-	@printf "  ${GREEN}all-dev${NC}        - Configure, test, build, and run the application for DEV\n\n"
+	@printf "  ${GREEN}all-dev${NC}        - Configure, test, build, and run the application for DEV\n"
 	@printf "  ${GREEN}all-prod${NC}       - Configure, test, build, and run the application for PROD\n\n"
 
 # Target: configure

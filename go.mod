@@ -3,7 +3,7 @@ module universum
 go 1.22.5
 
 require (
-	github.com/cshekharsharma/resp-go v1.5.0
+	github.com/cshekharsharma/resp-go v1.6.0
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/shirou/gopsutil/v3 v3.24.3
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0

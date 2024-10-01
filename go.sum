@@ -1,6 +1,6 @@
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
-github.com/cshekharsharma/resp-go v1.5.0 h1:k2ez3lVi2ah4h3+p73IVAS00cgEkoKFuzc929yCk3lI=
-github.com/cshekharsharma/resp-go v1.5.0/go.mod h1:y8QlvdiApF7vSUEhrkV5Nfk1vKjJbzyOjh9rYM5R3b0=
+github.com/cshekharsharma/resp-go v1.6.0 h1:5h/Pdi8iDYOhYCH0/9nNNELD8LralTTOFG/LZKvuuoY=
+github.com/cshekharsharma/resp-go v1.6.0/go.mod h1:y8QlvdiApF7vSUEhrkV5Nfk1vKjJbzyOjh9rYM5R3b0=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
