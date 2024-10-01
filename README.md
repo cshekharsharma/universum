@@ -44,7 +44,7 @@
 
 ## Configuration
 
-Sample configuration file that can be put in /etc/universum/config.ini
+Sample configuration file that can be put in /etc/universum/config.toml
 
 ```toml
 [Server]
