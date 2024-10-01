@@ -1,6 +1,7 @@
 package sstable
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -10,11 +11,10 @@ import (
 	"universum/entity"
 	"universum/internal/logger"
 	"universum/resp3"
-	"universum/utils"
 )
 
 type Block struct {
-	records     map[string]interface{}
+	records     map[string]string
 	index       map[string]int64
 	currentSize int64
 	maxSize     int64
@@ -26,7 +26,7 @@ type Block struct {
 
 func NewBlock(blockSize int64) *Block {
 	return &Block{
-		records:     make(map[string]interface{}),
+		records:     make(map[string]string),
 		index:       make(map[string]int64),
 		currentSize: 0,
 		maxSize:     blockSize,
@@ -34,9 +34,14 @@ func NewBlock(blockSize int64) *Block {
 }
 
 func (b *Block) GetRecord(key string) (entity.Record, error) {
-	value, ok := b.records[key]
+	serialisedValue, ok := b.records[key]
 	if !ok {
 		return nil, errors.New("record not found")
+	}
+
+	value, err := resp3.Decode(bufio.NewReader(bytes.NewReader([]byte(serialisedValue))))
+	if err != nil {
+		return nil, fmt.Errorf("record found, but unable to decode: err=%v", err)
 	}
 
 	if _, ok := value.(*map[interface{}]interface{}); !ok {
@@ -52,20 +57,21 @@ func (b *Block) GetRecord(key string) (entity.Record, error) {
 	}, nil
 }
 
-func (b *Block) AddRecord(key string, value interface{}, bloom *dslib.BloomFilter) error {
-	size, err := utils.GetSizeInBytes(value)
+func (b *Block) AddRecord(key string, value map[string]interface{}, bloom *dslib.BloomFilter) error {
+	serialisedValue, err := resp3.Encode(value)
 	if err != nil {
-		logger.Get().Warn("failed to calculate size of possibly invalid record, wont write to disk [KEY=%s]", key)
+		logger.Get().Warn("failed to encode record value: %v", err)
 		return nil // ignore the record and move on.
 	}
 
-	recordSize := int64(len(key) + int(size) + 2*entity.Int64SizeInBytes)
+	valueSize := len(serialisedValue)
+	recordSize := int64(len(key) + int(valueSize) + 2*entity.Int64SizeInBytes)
 
 	if b.currentSize+recordSize > b.maxSize {
 		return fmt.Errorf("Block is full, cannot add more records [size=%d, maxSize=%d]", b.currentSize, b.maxSize)
 	}
 
-	b.records[key] = value
+	b.records[key] = serialisedValue
 
 	if len(b.records) == 1 {
 		b.startKey = key
@@ -83,10 +89,7 @@ func (b *Block) SerializeBlock() ([]byte, error) {
 
 	for key, value := range b.records {
 		keyBytes := []byte(key)
-		valueBytes, err := resp3.Encode(value)
-		if err != nil {
-			return nil, err
-		}
+		valueBytes := []byte(value)
 
 		keyLen := int64(len(keyBytes))
 		valueLen := int64(len(valueBytes))

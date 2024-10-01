@@ -15,11 +15,11 @@ func IsDarwin() bool {
 	return runtime.GOOS == "darwin"
 }
 
-func GetSizeInBytes(v interface{}) (int64, error) {
+func GetInMemorySizeInBytes(v interface{}) (int64, error) {
 	val := reflect.ValueOf(v)
 	var stringHeader int64 = 16
 	var sliceHeader int64 = 24
-	var mapHeader int64 = 48 // Overhead for a map structure
+	var mapHeader int64 = 48
 
 	switch val.Kind() {
 	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
@@ -34,7 +34,7 @@ func GetSizeInBytes(v interface{}) (int64, error) {
 		totalSize := sliceHeader
 		for i := 0; i < val.Len(); i++ {
 			elem := val.Index(i).Interface()
-			elemSize, err := GetSizeInBytes(elem)
+			elemSize, err := GetInMemorySizeInBytes(elem)
 			if err != nil {
 				return 0, err
 			}
@@ -47,13 +47,13 @@ func GetSizeInBytes(v interface{}) (int64, error) {
 		keys := val.MapKeys()
 
 		for _, key := range keys {
-			keySize, err := GetSizeInBytes(key.Interface())
+			keySize, err := GetInMemorySizeInBytes(key.Interface())
 			if err != nil {
 				return 0, err
 			}
 
 			value := val.MapIndex(key).Interface()
-			valueSize, err := GetSizeInBytes(value)
+			valueSize, err := GetInMemorySizeInBytes(value)
 			if err != nil {
 				return 0, err
 			}
@@ -66,11 +66,9 @@ func GetSizeInBytes(v interface{}) (int64, error) {
 		if val.IsNil() {
 			return 0, nil // Size is 0 for nil pointers
 		}
-		// Get the size of the pointer itself
 		ptrSize := int64(unsafe.Sizeof(v))
 
-		// Dereference the pointer and get the size of the underlying value
-		elemSize, err := GetSizeInBytes(val.Elem().Interface())
+		elemSize, err := GetInMemorySizeInBytes(val.Elem().Interface())
 		if err != nil {
 			return 0, err
 		}
@@ -78,7 +76,7 @@ func GetSizeInBytes(v interface{}) (int64, error) {
 
 	case reflect.Struct:
 		var structSize int64
-		structSize = int64(val.Type().Size()) // Account for struct size, including padding
+		structSize = int64(val.Type().Size())
 		return structSize, nil
 
 	default:

@@ -56,7 +56,7 @@ func (w *recordExpiryWorker) expireDeletedRecords(expiryChan chan<- recordExpiry
 
 func (w *recordExpiryWorker) expireRandomSample(store storage.DataStore) int64 {
 	switch store.GetStoreType() {
-	case config.StorageTypeMemory:
+	case config.StorageEngineMemory:
 		shards := store.(*memory.MemoryStore).GetAllShards()
 		return memory.ExpireRandomSample(store.(*memory.MemoryStore), shards)
 

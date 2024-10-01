@@ -32,17 +32,15 @@ func TestBlock_AddRecord(t *testing.T) {
 		Expiry: utils.GetCurrentEPochTime() + 1000,
 	}
 
-	err := block.AddRecord("testKey", record, bloom)
+	err := block.AddRecord("testKey", record.ToMap(), bloom)
 	if err != nil {
 		t.Fatalf("failed to add record: %v", err)
 	}
 
-	// Ensure the record was added
 	if block.startKey != "testKey" {
 		t.Fatalf("expected startKey to be testKey, got %s", block.startKey)
 	}
 
-	// Ensure Bloom filter was updated
 	if !bloom.Exists("testKey") {
 		t.Fatal("expected bloom filter to contain the added key")
 	}
@@ -59,7 +57,7 @@ func TestBlock_SerializeBlock(t *testing.T) {
 		Expiry: utils.GetCurrentEPochTime() + 1000,
 	}
 
-	block.AddRecord("testKey", record, bloom)
+	block.AddRecord("testKey", record.ToMap(), bloom)
 	serialized, err := block.SerializeBlock()
 	if err != nil {
 		t.Fatalf("failed to serialize block: %v", err)
@@ -85,13 +83,12 @@ func TestBlock_ReadRecordAtOffset(t *testing.T) {
 		Expiry: utils.GetCurrentEPochTime() + 1000,
 	}
 
-	block.AddRecord("testKey", record, bloom)
+	block.AddRecord("testKey", record.ToMap(), bloom)
 	serialized, err := block.SerializeBlock()
 	if err != nil {
 		t.Fatalf("failed to serialize block: %v", err)
 	}
 
-	// Manually read the record from the serialized block
 	block.data = serialized
 	key, value, err := block.ReadRecordAtOffset(0)
 	if err != nil {
@@ -134,7 +131,7 @@ func TestBlock_RemainingSpace(t *testing.T) {
 	}
 
 	bloom := dslib.NewBloomFilter(1000, 5)
-	block.AddRecord("testKey", record, bloom)
+	block.AddRecord("testKey", record.ToMap(), bloom)
 	if block.RemainingSpace() >= remainingSpace {
 		t.Fatalf("expected remaining space to decrease after adding a record")
 	}
@@ -151,13 +148,12 @@ func TestBlock_ValidateBlock(t *testing.T) {
 		Expiry: utils.GetCurrentEPochTime() + 1000,
 	}
 
-	block.AddRecord("testKey", record, bloom)
+	block.AddRecord("testKey", record.ToMap(), bloom)
 	serialized, err := block.SerializeBlock()
 	if err != nil {
 		t.Fatalf("failed to serialize block: %v", err)
 	}
 
-	// Tamper with the block to break the checksum
 	serialized[0] = 0xFF
 	block.data = serialized
 
@@ -165,7 +161,6 @@ func TestBlock_ValidateBlock(t *testing.T) {
 		t.Fatal("expected block validation to fail with tampered data")
 	}
 
-	// Fix the block and validate again
 	block.checksum = crc32.ChecksumIEEE(block.data)
 	if !block.ValidateBlock() {
 		t.Fatal("expected block validation to succeed after fixing checksum")

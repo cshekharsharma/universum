@@ -40,7 +40,7 @@ func TestGetSizeInBytes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actualSize, err := GetSizeInBytes(tc.input)
+			actualSize, err := GetInMemorySizeInBytes(tc.input)
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 			}

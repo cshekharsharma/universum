@@ -25,13 +25,14 @@ type MemTable interface {
 	GetSize() int64
 	IsFull() bool
 	GetRecordCount() int64
-	GetAllRecords() map[string]interface{}
+	GetAllRecords() map[string]entity.Record
 }
 
 func CreateNewMemTable(tabletype string) MemTable {
 	switch tabletype {
 	case config.MemtableStorageTypeLB: // implementated with `skiplist + bloom filter`
-		return &ListBloomMemTable{}
+		lsmCnf := config.Store.Storage.LSM
+		return NewListBloomMemTable(lsmCnf.MaxMemtableRecords, lsmCnf.BloomFalsePositiveRate)
 
 	case config.MemtableStorageTypeLM: // implemented with `map + sorted list`
 		return &ListMapMemTable{}

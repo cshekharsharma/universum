@@ -18,10 +18,12 @@ const (
 	DefaultServerLogFile       string = "universum.log"
 
 	// Constants for valid field values
-	StorageTypeMemory     string = "MEMORY"
-	StorageTypeLSM        string = "LSM"
-	MemtableStorageTypeLB string = "LB" // skip list + bloom filter
-	MemtableStorageTypeLM string = "LM" // sorted list + sync.Map
+	StorageEngineMemory   string = "MEMORY"
+	StorageEngineLSM      string = "LSM"
+	MemtableStorageTypeLB string = "LB"   // skip list + bloom filter
+	MemtableStorageTypeLM string = "LM"   // sorted list + sync.Map
+	CompressionAlgoNone   string = "NONE" // no compression
+	CompressionAlgoLZ4    string = "LZ4"  // LZ4 compression
 
 	// Config section names
 	SectionServer        string = "server"
@@ -44,22 +46,22 @@ const (
 	DefaultMaxRecordSizeInBytes int64  = 1024 * 1024 // 1 MB
 
 	// Storage.Memory
-	AllowedMemoryStorageLimit     int64  = 1024 * 1024 * 1024 // 1 GB
-	DefaultAutoSnapshotFrequency  int64  = 10                 // 10 seconds
-	DefaultSnapshotFileDirectory  string = "/opt/universum/snapshot"
-	DefaultRestoreSnapshotOnStart bool   = true
-
-	CompressionAlgoNone            string = "NONE" // no compression
-	CompressionAlgoLZ4             string = "LZ4"
+	AllowedMemoryStorageLimit      int64  = 1024 * 1024 * 1024 // 1 GB
+	DefaultAutoSnapshotFrequency   int64  = 10                 // 10 seconds
+	DefaultSnapshotFileDirectory   string = "/opt/universum/snapshot"
+	DefaultRestoreSnapshotOnStart  bool   = true
 	DefaultSnapshotCompressionAlgo string = "LZ4"
 
 	// Storage.LSM
-	DefaultMemtableStorageType     string = MemtableStorageTypeLB
-	DefaultWriteBlockSize          int64  = 65536 // 64 KB
-	DefaultDataStorageDirectory    string = "/opt/universum/data"
-	DefaultWriteAheadLogDirectory  string = "/opt/universum/wal"
-	DefaultWriteAheadLogBufferSize int64  = 1024 * 1024 // 1 MB
-	DefaultWriteAheadLogFrequency  int64  = 5           // 5 seconds
+	DefaultMemtableStorageType     string  = MemtableStorageTypeLB
+	DefaultMaxMemtableRecords      int64   = 1000000 // 1 million
+	DefaultBloomFalsePositiveRate  float64 = 0.01    // 1%
+	DefaultWriteBlockSize          int64   = 65536   // 64 KB
+	DefaultBlockCompressionAlgo    string  = CompressionAlgoLZ4
+	DefaultDataStorageDirectory    string  = "/opt/universum/data"
+	DefaultWriteAheadLogDirectory  string  = "/opt/universum/wal"
+	DefaultWriteAheadLogBufferSize int64   = 1024 * 1024 // 1 MB
+	DefaultWriteAheadLogFrequency  int64   = 5           // 5 seconds
 
 	// Section:Logging
 	LogLevelDebug string = "DEBUG"

@@ -3,6 +3,7 @@ package dslib
 import (
 	"math/rand"
 	"time"
+	"universum/entity"
 )
 
 const MaxLevel = 16
@@ -150,12 +151,15 @@ func (sl *SkipList) Remove(key string) bool {
 }
 
 // GetAllRecords returns all records in the skip list
-func (sl *SkipList) GetAllRecords() map[string]interface{} {
-	records := make(map[string]interface{})
+func (sl *SkipList) GetAllRecords() map[string]entity.Record {
+	records := make(map[string]entity.Record)
 	current := sl.head.next[0]
 
 	for current != nil {
-		records[current.key] = current.value
+		records[current.key] = &entity.ScalarRecord{
+			Value:  current.value,
+			Expiry: current.expiry,
+		}
 		current = current.next[0]
 	}
 

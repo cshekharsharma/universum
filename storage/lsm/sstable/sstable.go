@@ -1,17 +1,16 @@
 package sstable
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
 	"hash/crc32"
 	"io"
 	"os"
+	"path/filepath"
 	"universum/config"
 	"universum/dslib"
 	"universum/entity"
-	"universum/resp3"
 	"universum/storage/lsm/memtable"
 	"universum/utils"
 )
@@ -30,17 +29,20 @@ type SSTable struct {
 	Metadata    *Metadata
 }
 
-func NewSSTable(filename string, writeMode bool, maxRecords uint64, falsePositiveRate float64) (*SSTable, error) {
+func NewSSTable(filename string, writeMode bool, maxRecords int64, falsePositiveRate float64) (*SSTable, error) {
 	var file *os.File
 	var err error
 
+	datadir := config.Store.Storage.LSM.DataStorageDirectory
+	sstFullPath := filepath.Clean(fmt.Sprintf("%s/%s", datadir, filename))
+
 	if writeMode {
-		file, err = os.Create(filename)
+		file, err = os.Create(sstFullPath)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		file, err = os.Open(filename)
+		file, err = os.Open(sstFullPath)
 		if err != nil {
 			return nil, err
 		}
@@ -52,8 +54,9 @@ func NewSSTable(filename string, writeMode bool, maxRecords uint64, falsePositiv
 	bloomFilter := dslib.NewBloomFilter(bfSize, bfHashCount)
 
 	metadata := &Metadata{
-		Version:   1,
-		Timestamp: utils.GetCurrentEPochTime(),
+		Version:     1,
+		Timestamp:   utils.GetCurrentEPochTime(),
+		Compression: config.Store.Storage.LSM.BlockCompressionAlgo,
 	}
 
 	return &SSTable{
@@ -65,6 +68,7 @@ func NewSSTable(filename string, writeMode bool, maxRecords uint64, falsePositiv
 		Metadata:     metadata,
 		DataSize:     0,
 		CurrentBlock: NewBlock(config.Store.Storage.LSM.WriteBlockSize),
+		RecordCount:  0,
 	}, nil
 }
 
@@ -100,7 +104,7 @@ func (sst *SSTable) ReadBlock(blockOffset int64) (*Block, error) {
 	}
 
 	block := &Block{
-		records:  make(map[string]interface{}),
+		records:  make(map[string]string),
 		index:    make(map[string]int64),
 		data:     blockData,
 		checksum: storedChecksum,
@@ -110,40 +114,31 @@ func (sst *SSTable) ReadBlock(blockOffset int64) (*Block, error) {
 	var currentOffset int64 = 0
 
 	for currentOffset < blockSize {
-		// Read key length
 		var keyLen int64
 		err := binary.Read(buf, binary.BigEndian, &keyLen)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read key length: %v", err)
 		}
 
-		// Read the key
 		key := make([]byte, keyLen)
 		_, err = buf.Read(key)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read key: %v", err)
 		}
 
-		// Read value length
 		var valueLen int64
 		err = binary.Read(buf, binary.BigEndian, &valueLen)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read value length: %v", err)
 		}
 
-		// Read the value
 		value := make([]byte, valueLen)
 		_, err = buf.Read(value)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read value: %v", err)
 		}
 
-		decodedValue, err := resp3.Decode(bufio.NewReader(bytes.NewReader(value)))
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode value: %v", err)
-		}
-
-		block.records[string(key)] = decodedValue
+		block.records[string(key)] = string(value)
 		block.index[string(key)] = currentOffset
 
 		currentOffset += int64(binary.Size(keyLen)) + keyLen + int64(binary.Size(valueLen)) + valueLen
@@ -265,7 +260,7 @@ func (sst *SSTable) FlushMemTableToSSTable(mem memtable.MemTable) error {
 	records := mem.GetAllRecords()
 
 	for key, value := range records {
-		err := sst.CurrentBlock.AddRecord(key, value, sst.BloomFilter)
+		err := sst.CurrentBlock.AddRecord(key, value.ToMap(), sst.BloomFilter)
 		if err == nil {
 			continue // Successfully added record, continue
 		}
@@ -277,7 +272,7 @@ func (sst *SSTable) FlushMemTableToSSTable(mem memtable.MemTable) error {
 		}
 
 		// Add the record to the next block
-		err = sst.CurrentBlock.AddRecord(key, value, sst.BloomFilter)
+		err = sst.CurrentBlock.AddRecord(key, value.ToMap(), sst.BloomFilter)
 		if err != nil {
 			return fmt.Errorf("failed to add record to new block after flushing: %v", err)
 		}

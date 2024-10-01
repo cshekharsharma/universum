@@ -32,12 +32,15 @@ type Memory struct {
 }
 
 type LSM struct {
-	MemtableStorageType     string `toml:"MemtableStorageType"`
-	WriteBlockSize          int64  `toml:"WriteBlockSize"`
-	DataStorageDirectory    string `toml:"DataStorageDirectory"`
-	WriteAheadLogDirectory  string `toml:"WriteAheadLogDirectory"`
-	WriteAheadLogFrequency  int64  `toml:"WriteAheadLogFrequency"`
-	WriteAheadLogBufferSize int64  `toml:"WriteAheadLogBufferSize"`
+	MemtableStorageType     string  `toml:"MemtableStorageType"`
+	MaxMemtableRecords      int64   `toml:"MaxMemtableRecords"`
+	BloomFalsePositiveRate  float64 `toml:"BloomFalsePositiveRate"`
+	WriteBlockSize          int64   `toml:"WriteBlockSize"`
+	BlockCompressionAlgo    string  `toml:"BlockCompressionAlgo"`
+	DataStorageDirectory    string  `toml:"DataStorageDirectory"`
+	WriteAheadLogDirectory  string  `toml:"WriteAheadLogDirectory"`
+	WriteAheadLogFrequency  int64   `toml:"WriteAheadLogFrequency"`
+	WriteAheadLogBufferSize int64   `toml:"WriteAheadLogBufferSize"`
 }
 
 type Storage struct {

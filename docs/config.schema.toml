@@ -17,7 +17,10 @@ RestoreSnapshotOnStart = true
 
 [Storage.LSM]
 MemtableStorageType = "LB"
+MaxMemtableRecords = 100000
+BloomFalsePositiveRate = 0.01
 WriteBlockSize = 65536
+BlockCompressionAlgo = "NONE"
 DataStorageDirectory = "/opt/universum/data"
 WriteAheadLogDirectory = "/opt/universum/wal"
 WriteAheadLogFrequency = 5

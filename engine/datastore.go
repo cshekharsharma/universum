@@ -18,17 +18,17 @@ func getDataStore(id string) storage.DataStore {
 	id = strings.ToUpper(id) // to avoid casing typos
 
 	switch id {
-	case config.StorageTypeMemory:
+	case config.StorageEngineMemory:
 		if _, ok := _allStores[id]; !ok {
-			_allStores[config.StorageTypeMemory] = memory.CreateNewMemoryStore()
+			_allStores[config.StorageEngineMemory] = memory.CreateNewMemoryStore()
 		}
-		return _allStores[config.StorageTypeMemory]
+		return _allStores[config.StorageEngineMemory]
 
-	case config.StorageTypeLSM:
+	case config.StorageEngineLSM:
 		if _, ok := _allStores[id]; !ok {
-			_allStores[config.StorageTypeMemory] = lsm.CreateNewLSMStore(config.Store.Storage.LSM.MemtableStorageType)
+			_allStores[config.StorageEngineMemory] = lsm.CreateNewLSMStore(config.Store.Storage.LSM.MemtableStorageType)
 		}
-		return _allStores[config.StorageTypeMemory]
+		return _allStores[config.StorageEngineMemory]
 
 	default:
 		logger.Get().Error("GetDataStore: unknown storage engine `%s` requested, shutting down.", id)
@@ -41,7 +41,7 @@ func getSnapshotService(id string) storage.SnapshotService {
 	id = strings.ToUpper(id) // to avoid casing typos
 
 	switch id {
-	case config.StorageTypeMemory:
+	case config.StorageEngineMemory:
 		return new(memory.MemoryStoreSnapshotService)
 
 	default:

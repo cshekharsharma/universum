@@ -91,7 +91,7 @@ func TestConfigValidator_Validate(t *testing.T) {
 
 	t.Run("ValidateStorageSectionWithLSMEngine", func(t *testing.T) {
 		cfg := GetSkeleton()
-		cfg.Storage.StorageEngine = StorageTypeLSM
+		cfg.Storage.StorageEngine = StorageEngineLSM
 
 		cfg.Storage.LSM = &LSM{
 			WriteBlockSize:          0,
@@ -134,7 +134,7 @@ func TestConfigValidator_Validate(t *testing.T) {
 
 	t.Run("ValidateStorageSectionWithMemoryEngine", func(t *testing.T) {
 		cfg := GetSkeleton()
-		cfg.Storage.StorageEngine = StorageTypeMemory
+		cfg.Storage.StorageEngine = StorageEngineMemory
 
 		cfg.Storage.Memory = &Memory{
 			AllowedMemoryStorageLimit: 0,

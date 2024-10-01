@@ -16,7 +16,7 @@ const SSTableFlushRetryCount = 3
 
 type LSMStore struct {
 	memTable memtable.MemTable
-	sstables []*sstable.SSTable // or another suitable data structure
+	sstables []*sstable.SSTable
 	mutex    sync.Mutex
 	wal      *WriteAheadLogger
 }
@@ -74,7 +74,7 @@ func (lsm *LSMStore) Initialize() error {
 }
 
 func (lsm *LSMStore) GetStoreType() string {
-	return config.StorageTypeLSM
+	return config.StorageEngineLSM
 }
 
 func (lsm *LSMStore) Exists(key string) (bool, uint32) {

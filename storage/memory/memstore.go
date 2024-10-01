@@ -49,7 +49,7 @@ func (ms *MemoryStore) Initialize() error {
 }
 
 func (ms *MemoryStore) GetStoreType() string {
-	return config.StorageTypeMemory
+	return config.StorageEngineMemory
 }
 
 func (ms *MemoryStore) GetAllShards() [ShardCount]*Shard {

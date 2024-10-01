@@ -20,7 +20,7 @@ type ListBloomMemTable struct {
 	bfHashCount uint8
 }
 
-func NewListBloomMemTable(maxRecords uint64, falsePositiveRate float64) *ListBloomMemTable {
+func NewListBloomMemTable(maxRecords int64, falsePositiveRate float64) *ListBloomMemTable {
 	bfSize, bfHashCount := dslib.OptimalBloomFilterSize(maxRecords, falsePositiveRate)
 	return &ListBloomMemTable{
 		skipList:    dslib.NewSkipList(),
@@ -259,7 +259,7 @@ func (m *ListBloomMemTable) GetRecordCount() int64 {
 
 func (m *ListBloomMemTable) updateMemtableSize(key string, val interface{}) {
 	var expiryValSize int64 = 1 << 3 // 8 bytes for expiry info
-	newSize, err := utils.GetSizeInBytes(val)
+	newSize, err := utils.GetInMemorySizeInBytes(val)
 	newSize += int64(len(key)) + expiryValSize
 
 	delta := newSize
@@ -290,7 +290,7 @@ func (m *ListBloomMemTable) reduceMemtableSize(key string) {
 	}
 }
 
-func (m *ListBloomMemTable) GetAllRecords() map[string]interface{} {
+func (m *ListBloomMemTable) GetAllRecords() map[string]entity.Record {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 

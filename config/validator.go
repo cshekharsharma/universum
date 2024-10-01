@@ -82,7 +82,7 @@ func (v *ConfigValidator) validateStorageSection(config *Config) error {
 		config.Storage.StorageEngine = DefaultStorageEngine
 	}
 
-	allowedStorageEngines := []string{StorageTypeLSM, StorageTypeMemory}
+	allowedStorageEngines := []string{StorageEngineLSM, StorageEngineMemory}
 	config.Storage.StorageEngine = strings.ToUpper(config.Storage.StorageEngine)
 
 	if exists, _ := utils.ExistsInList(config.Storage.StorageEngine, allowedStorageEngines); !exists {
@@ -93,14 +93,14 @@ func (v *ConfigValidator) validateStorageSection(config *Config) error {
 		config.Storage.MaxRecordSizeInBytes = DefaultMaxRecordSizeInBytes
 	}
 
-	if config.Storage.StorageEngine == StorageTypeLSM {
+	if config.Storage.StorageEngine == StorageEngineLSM {
 		err := v.validateStorageEngineLSM(config)
 		if err != nil {
 			return err
 		}
 	}
 
-	if config.Storage.StorageEngine == StorageTypeMemory {
+	if config.Storage.StorageEngine == StorageEngineMemory {
 		err := v.validateStorageEngineMemory(config)
 		if err != nil {
 			return err
@@ -115,14 +115,6 @@ func (v *ConfigValidator) validateStorageEngineLSM(config *Config) error {
 		return errors.New("LSM section cannot be empty for LSM storage engine")
 	}
 
-	if config.Storage.LSM.WriteBlockSize == 0 {
-		config.Storage.LSM.WriteBlockSize = DefaultWriteBlockSize
-	}
-
-	if config.Storage.LSM.WriteAheadLogBufferSize == 0 {
-		config.Storage.LSM.WriteAheadLogBufferSize = DefaultWriteAheadLogBufferSize
-	}
-
 	if config.Storage.LSM.MemtableStorageType == "" {
 		config.Storage.LSM.MemtableStorageType = DefaultMemtableStorageType
 	}
@@ -134,12 +126,37 @@ func (v *ConfigValidator) validateStorageEngineLSM(config *Config) error {
 		return fmt.Errorf("invalid memtable storage type %s set in config", config.Storage.LSM.MemtableStorageType)
 	}
 
-	if config.Storage.LSM.WriteAheadLogFrequency == 0 {
-		config.Storage.LSM.WriteAheadLogFrequency = DefaultWriteAheadLogFrequency
+	if config.Storage.LSM.MaxMemtableRecords == 0 {
+		config.Storage.LSM.MaxMemtableRecords = DefaultMaxMemtableRecords
+	}
+
+	if config.Storage.LSM.BloomFalsePositiveRate == 0 {
+		config.Storage.LSM.BloomFalsePositiveRate = DefaultBloomFalsePositiveRate
+	}
+
+	if config.Storage.LSM.WriteBlockSize == 0 {
+		config.Storage.LSM.WriteBlockSize = DefaultWriteBlockSize
+	}
+
+	if config.Storage.LSM.BlockCompressionAlgo == "" {
+		config.Storage.LSM.BlockCompressionAlgo = DefaultBlockCompressionAlgo
+	}
+
+	config.Storage.LSM.BlockCompressionAlgo = strings.ToUpper(config.Storage.LSM.BlockCompressionAlgo)
+	if exists, _ := utils.ExistsInList(config.Storage.LSM.BlockCompressionAlgo, AllowedCompressionAlgos); !exists {
+		return fmt.Errorf("invalid block compression algo %s set in config", config.Storage.LSM.BlockCompressionAlgo)
 	}
 
 	if config.Storage.LSM.DataStorageDirectory == "" {
 		config.Storage.LSM.DataStorageDirectory = DefaultDataStorageDirectory
+	}
+
+	if config.Storage.LSM.WriteAheadLogBufferSize == 0 {
+		config.Storage.LSM.WriteAheadLogBufferSize = DefaultWriteAheadLogBufferSize
+	}
+
+	if config.Storage.LSM.WriteAheadLogFrequency == 0 {
+		config.Storage.LSM.WriteAheadLogFrequency = DefaultWriteAheadLogFrequency
 	}
 
 	if config.Storage.LSM.WriteAheadLogDirectory == "" {
@@ -191,7 +208,7 @@ func (v *ConfigValidator) validateStorageEngineMemory(config *Config) error {
 
 	config.Storage.Memory.SnapshotCompressionAlgo = strings.ToUpper(config.Storage.Memory.SnapshotCompressionAlgo)
 	if exists, _ := utils.ExistsInList(config.Storage.Memory.SnapshotCompressionAlgo, AllowedCompressionAlgos); !exists {
-		return fmt.Errorf("invalid compression algo %s set in config", config.Storage.Memory.SnapshotCompressionAlgo)
+		return fmt.Errorf("invalid snapshotcompression algo %s set in config", config.Storage.Memory.SnapshotCompressionAlgo)
 	}
 
 	return nil

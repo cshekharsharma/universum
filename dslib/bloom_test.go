@@ -114,7 +114,7 @@ func TestBloomFilterMerge(t *testing.T) {
 }
 
 func TestOptimalBloomFilterSize(t *testing.T) {
-	numKeys := uint64(1000)
+	numKeys := int64(1000)
 	falsePositiveRate := 0.01
 
 	size, hashCount := OptimalBloomFilterSize(numKeys, falsePositiveRate)

@@ -7,15 +7,16 @@ import (
 	"universum/entity"
 )
 
-func SetUpTests() {
+func SetUpLBTests() {
 	config.Store = config.GetSkeleton()
-	config.Store.Storage.StorageEngine = "LSM"
+	config.Store.Storage.StorageEngine = config.StorageEngineLSM
 	config.Store.Storage.MaxRecordSizeInBytes = 1048576
-	config.Store.Storage.LSM.MemtableStorageType = "LB"
+	config.Store.Storage.LSM.MemtableStorageType = config.MemtableStorageTypeLB
+
 }
 
 func TestListBloomMemTable_SetAndGet(t *testing.T) {
-	SetUpTests()
+	SetUpLBTests()
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
@@ -39,7 +40,7 @@ func TestListBloomMemTable_SetAndGet(t *testing.T) {
 }
 
 func TestListBloomMemTable_Exists(t *testing.T) {
-	SetUpTests()
+	SetUpLBTests()
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
@@ -66,7 +67,7 @@ func TestListBloomMemTable_Exists(t *testing.T) {
 }
 
 func TestListBloomMemTable_Delete(t *testing.T) {
-	SetUpTests()
+	SetUpLBTests()
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
@@ -86,7 +87,7 @@ func TestListBloomMemTable_Delete(t *testing.T) {
 }
 
 func TestListBloomMemTable_SizeManagement(t *testing.T) {
-	SetUpTests()
+	SetUpLBTests()
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
@@ -108,7 +109,7 @@ func TestListBloomMemTable_SizeManagement(t *testing.T) {
 }
 
 func TestListBloomMemTable_KeyExpired(t *testing.T) {
-	SetUpTests()
+	SetUpLBTests()
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
@@ -131,7 +132,7 @@ func TestListBloomMemTable_KeyExpired(t *testing.T) {
 }
 
 func TestListBloomMemTable_Expire(t *testing.T) {
-	SetUpTests()
+	SetUpLBTests()
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
@@ -152,7 +153,7 @@ func TestListBloomMemTable_Expire(t *testing.T) {
 }
 
 func TestListBloomMemTable_IncrDecr(t *testing.T) {
-	SetUpTests()
+	SetUpLBTests()
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
@@ -172,7 +173,7 @@ func TestListBloomMemTable_IncrDecr(t *testing.T) {
 }
 
 func TestListBloomMemTable_Append(t *testing.T) {
-	SetUpTests()
+	SetUpLBTests()
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
@@ -195,7 +196,7 @@ func TestListBloomMemTable_Append(t *testing.T) {
 }
 
 func TestListBloomMemTable_TTL(t *testing.T) {
-	SetUpTests()
+	SetUpLBTests()
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
@@ -218,7 +219,7 @@ func TestListBloomMemTable_TTL(t *testing.T) {
 }
 
 func TestIsFull(t *testing.T) {
-	SetUpTests()
+	SetUpLBTests()
 
 	mt := NewListBloomMemTable(100, 0.01)
 	isfull := mt.IsFull()
@@ -229,7 +230,7 @@ func TestIsFull(t *testing.T) {
 }
 
 func TestGetRecordCount(t *testing.T) {
-	SetUpTests()
+	SetUpLBTests()
 
 	mt := NewListBloomMemTable(100, 0.01)
 	count := mt.GetRecordCount()
