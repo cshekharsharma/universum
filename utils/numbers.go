@@ -100,3 +100,24 @@ func MaxUint8(a, b uint8) uint8 {
 	}
 	return b
 }
+
+func PackNumbers(num1 int32, num2 int32) int64 {
+	return (int64(int32(num1)) << 32) | int64(uint32(num2))
+}
+
+// Unpack both numbers from the packed uint64
+func UnpackNumbers(packed int64) (int32, int32) {
+	num1 := int32(packed >> 32)
+	num2 := int32(packed & 0xFFFFFFFF)
+	return num1, num2
+}
+
+// Get only the first number from the packed uint64
+func UnpackFirstNumber(packed int64) int32 {
+	return int32(packed >> 32)
+}
+
+// Get only the second number from the packed uint64
+func UnpackSecondNumber(packed int64) int32 {
+	return int32(packed & 0xFFFFFFFF)
+}

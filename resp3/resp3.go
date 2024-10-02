@@ -2,6 +2,7 @@ package resp3
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"universum/entity"
 
@@ -44,4 +45,22 @@ func Encode(value interface{}) (string, error) {
 // Wrapper function for resp3.Decode
 func Decode(reader *bufio.Reader) (interface{}, error) {
 	return resp3.Decode(reader)
+}
+
+func GetScalarRecordFromResp(raw string) (entity.Record, error) {
+	decodedRecord, err := resp3.Decode(bufio.NewReader(bytes.NewReader([]byte(raw))))
+	if err != nil {
+		return nil, fmt.Errorf("record could not be decoded: %v", err)
+	}
+
+	if record, ok := decodedRecord.(map[string]interface{}); ok {
+		return &entity.ScalarRecord{
+			Value:  record["Value"],
+			Type:   uint8(record["Type"].(int64)),
+			LAT:    int64(record["LAT"].(int64)),
+			Expiry: int64(record["Expiry"].(int64)),
+		}, nil
+	}
+
+	return nil, fmt.Errorf("record is not in the correct format: %v", decodedRecord)
 }

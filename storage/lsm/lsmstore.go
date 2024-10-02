@@ -7,8 +7,10 @@ import (
 	"universum/config"
 	"universum/entity"
 	"universum/internal/logger"
+	"universum/resp3"
 	"universum/storage/lsm/memtable"
 	"universum/storage/lsm/sstable"
+	"universum/utils"
 )
 
 const FlusherChanSize = 10
@@ -88,29 +90,35 @@ func (lsm *LSMStore) Get(key string) (entity.Record, uint32) {
 		return record, code
 	}
 
-	// @TODO: Implement block cache
-	// val, found = lsm.blockCache.Get(key)
-	// if found {
-	// 	return val, nil
-	// }
+	// @TODO: Implement block cache to avoid reading from disk every time.
 
 	for _, sst := range lsm.sstables {
 		if sst.BloomFilter != nil && !sst.BloomFilter.Exists(key) {
 			continue // move to next SST if bloom filter says no
 		}
 
-		blockOffset, ok := sst.Index[key]
-		if ok && blockOffset != 0 {
-			block, err := sst.ReadBlock(blockOffset)
+		blockIdxMeta, ok := sst.Index[key]
+		if ok {
+			blockOffset, blockSize := utils.UnpackNumbers(blockIdxMeta)
+			block, err := sst.ReadBlock(int64(blockOffset), int64(blockSize))
 			if err != nil {
 				return nil, entity.CRC_DATA_READ_ERROR
 			}
 
-			record, err := block.GetRecord(key)
+			keyExists, recordOffset, err := block.GetKeyInfoFromIndex(key)
+			if err != nil || !keyExists {
+				return nil, entity.CRC_RECORD_NOT_FOUND
+			}
+
+			_, encodedRecord, err := block.ReadRecordAtOffset(recordOffset)
 			if err != nil {
 				return nil, entity.CRC_RECORD_NOT_FOUND
 			}
 
+			record, err := resp3.GetScalarRecordFromResp(string(encodedRecord))
+			if err != nil {
+				return nil, entity.CRC_RECORD_NOT_FOUND
+			}
 			return record, entity.CRC_RECORD_FOUND
 		}
 	}

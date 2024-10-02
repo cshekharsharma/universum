@@ -125,3 +125,36 @@ func TestMaxUint64(t *testing.T) {
 		})
 	}
 }
+
+func TestPackAndUnpackNumbers(t *testing.T) {
+	tests := []struct {
+		num1 int32
+		num2 int32
+	}{
+		{123456789, 987654321},
+		{-123456789, 987654321},
+		{123456789, -987654321},
+		{-123456789, -987654321},
+		{0, 0},
+		{1, -1},
+	}
+
+	for _, test := range tests {
+		packed := PackNumbers(test.num1, test.num2)
+
+		unpackedNum1, unpackedNum2 := UnpackNumbers(packed)
+		if unpackedNum1 != test.num1 || unpackedNum2 != test.num2 {
+			t.Errorf("UnpackNumbers(%d, %d) = %d, %d; want %d, %d", test.num1, test.num2, unpackedNum1, unpackedNum2, test.num1, test.num2)
+		}
+
+		firstNum := UnpackFirstNumber(packed)
+		if firstNum != test.num1 {
+			t.Errorf("UnpackFirstNumber(%d, %d) = %d; want %d", test.num1, test.num2, firstNum, test.num1)
+		}
+
+		secondNum := UnpackSecondNumber(packed)
+		if secondNum != test.num2 {
+			t.Errorf("UnpackSecondNumber(%d, %d) = %d; want %d", test.num1, test.num2, secondNum, test.num2)
+		}
+	}
+}

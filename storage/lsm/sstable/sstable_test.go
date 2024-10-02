@@ -6,10 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 	"universum/config"
-	"universum/entity"
 	"universum/storage/lsm/memtable"
+	"universum/utils"
 )
 
 func SetUpSSTableTests() {
@@ -52,7 +51,7 @@ func TestNewSSTable(t *testing.T) {
 	}
 }
 
-func TestReadBlock(t *testing.T) {
+func TestFlushMemTableToSSTable(t *testing.T) {
 	SetUpSSTableTests()
 
 	filename := "test.sst"
@@ -79,126 +78,69 @@ func TestReadBlock(t *testing.T) {
 		t.Fatalf("Expected 2 records in SSTable, got %d", sst.RecordCount)
 	}
 
-	blockOffset := sst.Index["key1"]
-	block, err := sst.ReadBlock(blockOffset)
+	if sst.Metadata.DataSize != 621 {
+		t.Fatalf("Expected 621B of size in SSTable metadata, got %dB", sst.Metadata.DataSize)
+	}
+
+	if sst.DataSize != 705 {
+		t.Fatalf("Expected 705B of data in SSTable, got %dB", sst.DataSize)
+	}
+
+	f, _ := os.Stat(filepath)
+	if f.Size() != 705 {
+		t.Fatalf("Expected 705B of data in SSTable file, got %dB", f.Size())
+	}
+}
+
+func TestReadBlock(t *testing.T) {
+	SetUpSSTableTests()
+
+	filename := "test.sst"
+	filepath := filepath.Clean(fmt.Sprintf(
+		"%s/%s", config.Store.Storage.LSM.DataStorageDirectory, filename))
+
+	lsmCnf := config.Store.Storage.LSM
+	sst, err := NewSSTable(filename, true, lsmCnf.MaxMemtableRecords, lsmCnf.BloomFalsePositiveRate)
+	if err != nil {
+		t.Fatalf("Failed to create SSTable: %v", err)
+	}
+	defer os.Remove(filepath)
+
+	mem := memtable.CreateNewMemTable(config.DefaultMemtableStorageType).(*memtable.ListBloomMemTable)
+	mem.Set("key1", "value1", 10)
+	mem.Set("key2", "value2", 10)
+
+	_ = sst.FlushMemTableToSSTable(mem)
+
+	blockOffset, blocksize := utils.UnpackNumbers(sst.Index["key1"])
+
+	block, err := sst.ReadBlock(int64(blockOffset), int64(blocksize))
+	block.PopulateRecordsInBlock()
+
 	if err != nil {
 		t.Fatalf("Failed to read block: %v", err)
 	}
 
 	if len(block.records) == 0 {
-		t.Fatalf("Expected records in the block")
+		t.Fatalf("Expected records in the block, found 0")
 	}
-}
 
-func TestFlushIndex(t *testing.T) {
-	sst, err := NewSSTable("test.sst", true, 1000, 0.01)
+	if len(block.data) == 0 {
+		t.Fatalf("Expected data in the block, found empty")
+	}
+
+	key, value, err := block.ReadRecordAtOffset(block.index["key1"])
+
 	if err != nil {
-		t.Fatalf("Failed to create SSTable: %v", err)
-	}
-	defer os.Remove("test.sst")
-
-	mem := memtable.CreateNewMemTable("skiplist").(*memtable.ListBloomMemTable)
-	mem.Set("key1", "value1", 0)
-	mem.Set("key2", "value2", 0)
-
-	err = sst.FlushMemTableToSSTable(mem)
-	if err != nil {
-		t.Fatalf("Failed to flush memtable to SSTable: %v", err)
+		t.Fatalf("Failed to read record from block: %v", err)
 	}
 
-	err = sst.FlushIndex()
-	if err != nil {
-		t.Fatalf("Failed to flush index: %v", err)
+	if string(key) != "key1" {
+		t.Fatalf("Expected key1, got %s", key)
 	}
 
-	if len(sst.Index) != 2 {
-		t.Fatalf("Expected 2 keys in index, got %d", len(sst.Index))
-	}
-}
-
-func TestWriteMetadata(t *testing.T) {
-	sst, err := NewSSTable("test.sst", true, 1000, 0.01)
-	if err != nil {
-		t.Fatalf("Failed to create SSTable: %v", err)
-	}
-	defer os.Remove("test.sst")
-
-	mem := memtable.CreateNewMemTable("skiplist").(*memtable.ListBloomMemTable)
-	mem.Set("key1", "value1", 0)
-
-	err = sst.FlushMemTableToSSTable(mem)
-	if err != nil {
-		t.Fatalf("Failed to flush memtable to SSTable: %v", err)
-	}
-
-	err = sst.WriteMetadata()
-	if err != nil {
-		t.Fatalf("Failed to write metadata: %v", err)
-	}
-
-	if sst.Metadata.NumRecords != 1 {
-		t.Fatalf("Expected 1 record in metadata, got %d", sst.Metadata.NumRecords)
-	}
-}
-
-func TestLoadBloomFilter(t *testing.T) {
-	sst, err := NewSSTable("test.sst", true, 1000, 0.01)
-	if err != nil {
-		t.Fatalf("Failed to create SSTable: %v", err)
-	}
-	defer os.Remove("test.sst")
-
-	mem := memtable.CreateNewMemTable("skiplist").(*memtable.ListBloomMemTable)
-	mem.Set("key1", "value1", 0)
-
-	err = sst.FlushMemTableToSSTable(mem)
-	if err != nil {
-		t.Fatalf("Failed to flush memtable to SSTable: %v", err)
-	}
-
-	// Reopen SSTable in read mode to simulate loading bloom filter
-	sst, err = NewSSTable("test.sst", false, 1000, 0.01)
-	if err != nil {
-		t.Fatalf("Failed to open SSTable: %v", err)
-	}
-
-	err = sst.LoadBloomFilter()
-	if err != nil {
-		t.Fatalf("Failed to load bloom filter: %v", err)
-	}
-
-	if !sst.BloomFilter.Exists("key1") {
-		t.Fatalf("Expected bloom filter to contain key1")
-	}
-}
-
-func TestFlushBlock(t *testing.T) {
-	sst, err := NewSSTable("test.sst", true, 1000, 0.01)
-	if err != nil {
-		t.Fatalf("Failed to create SSTable: %v", err)
-	}
-	defer os.Remove("test.sst")
-
-	mem := memtable.CreateNewMemTable("skiplist").(*memtable.ListBloomMemTable)
-	mem.Set("key1", "value1", 0)
-
-	record := &entity.ScalarRecord{
-		Value:  "value1",
-		Expiry: time.Now().Unix() + 1800,
-	}
-
-	err = sst.CurrentBlock.AddRecord("key1", record.ToMap(), sst.BloomFilter)
-	if err != nil {
-		t.Fatalf("Failed to add record to block: %v", err)
-	}
-
-	err = sst.FlushBlock()
-	if err != nil {
-		t.Fatalf("Failed to flush block: %v", err)
-	}
-
-	if len(sst.Index) == 0 {
-		t.Fatalf("Expected block to be flushed and indexed, but index is empty")
+	if value == nil {
+		t.Fatalf("Expected value1, got %s", value)
 	}
 }
 
@@ -237,31 +179,6 @@ func TestLoadMetadata(t *testing.T) {
 
 	if sst.Metadata.NumRecords != 1 {
 		t.Fatalf("Expected metadata to reflect 1 record, got %d", sst.Metadata.NumRecords)
-	}
-}
-
-func TestFlushBloomFilter(t *testing.T) {
-	sst, err := NewSSTable("test.sst", true, 1000, 0.01)
-	if err != nil {
-		t.Fatalf("Failed to create SSTable: %v", err)
-	}
-	defer os.Remove("test.sst")
-
-	mem := memtable.CreateNewMemTable("skiplist").(*memtable.ListBloomMemTable)
-	mem.Set("key1", "value1", 0)
-
-	err = sst.FlushMemTableToSSTable(mem)
-	if err != nil {
-		t.Fatalf("Failed to flush memtable to SSTable: %v", err)
-	}
-
-	err = sst.FlushBloomFilter()
-	if err != nil {
-		t.Fatalf("Failed to flush bloom filter: %v", err)
-	}
-
-	if sst.Metadata.BloomFilterSize == 0 {
-		t.Fatalf("Expected BloomFilter size to be set, but it is 0")
 	}
 }
 

@@ -74,16 +74,10 @@ func NewSSTable(filename string, writeMode bool, maxRecords int64, falsePositive
 
 /////////////////////// Loader functions //////////////////////////
 
-func (sst *SSTable) ReadBlock(blockOffset int64) (*Block, error) {
+func (sst *SSTable) ReadBlock(blockOffset int64, blockSize int64) (*Block, error) {
 	_, err := sst.fileptr.Seek(blockOffset, io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("failed to seek to block at offset %d: %v", blockOffset, err)
-	}
-
-	var blockSize int64
-	err = binary.Read(sst.fileptr, binary.BigEndian, &blockSize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read block size: %v", err)
 	}
 
 	blockData := make([]byte, blockSize)
@@ -92,59 +86,8 @@ func (sst *SSTable) ReadBlock(blockOffset int64) (*Block, error) {
 		return nil, fmt.Errorf("failed to read block data: %v", err)
 	}
 
-	var storedChecksum uint32
-	err = binary.Read(sst.fileptr, binary.BigEndian, &storedChecksum)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read block checksum: %v", err)
-	}
-
-	calculatedChecksum := crc32.ChecksumIEEE(blockData)
-	if storedChecksum != calculatedChecksum {
-		return nil, fmt.Errorf("block checksum validation failed")
-	}
-
-	block := &Block{
-		records:  make(map[string]string),
-		index:    make(map[string]int64),
-		data:     blockData,
-		checksum: storedChecksum,
-	}
-
-	buf := bytes.NewReader(blockData)
-	var currentOffset int64 = 0
-
-	for currentOffset < blockSize {
-		var keyLen int64
-		err := binary.Read(buf, binary.BigEndian, &keyLen)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read key length: %v", err)
-		}
-
-		key := make([]byte, keyLen)
-		_, err = buf.Read(key)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read key: %v", err)
-		}
-
-		var valueLen int64
-		err = binary.Read(buf, binary.BigEndian, &valueLen)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read value length: %v", err)
-		}
-
-		value := make([]byte, valueLen)
-		_, err = buf.Read(value)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read value: %v", err)
-		}
-
-		block.records[string(key)] = string(value)
-		block.index[string(key)] = currentOffset
-
-		currentOffset += int64(binary.Size(keyLen)) + keyLen + int64(binary.Size(valueLen)) + valueLen
-	}
-
-	return block, nil
+	b := NewBlock(config.Store.Storage.LSM.WriteBlockSize)
+	return b.DeserializeBlock(blockData, blockSize)
 }
 
 func (sst *SSTable) LoadIndex() error {
@@ -332,23 +275,26 @@ func (sst *SSTable) FlushBlock() error {
 		return fmt.Errorf("failed to write block to SSTable file: %v", err)
 	}
 
-	// update SST index to keep start offset of block for each key
-	sst.Index[sst.CurrentBlock.startKey] = blockStartOffset
-
+	flushedBlockSize := int64(len(serializedBlock))
 	sst.RecordCount += int64(len(sst.CurrentBlock.records))
-	sst.DataSize += int64(len(serializedBlock))
+	sst.Metadata.DataSize += flushedBlockSize
+
+	// Update the index with the block start offset and size by packing into single number
+	// assumption is that neither the offset nor the block will ever cross 2G limit, hence
+	// int32 number is safe to hold both of them respectively.
+	sst.Index[sst.CurrentBlock.startKey] = utils.PackNumbers(int32(blockStartOffset), int32(flushedBlockSize))
 
 	sst.CurrentBlock = NewBlock(sst.CurrentBlock.maxSize)
 	return nil
 }
 
 func (sst *SSTable) FlushIndex() error {
-	_, err := sst.fileptr.Seek(0, io.SeekEnd)
+	indexStartOffset, err := sst.fileptr.Seek(0, io.SeekEnd)
 	if err != nil {
 		return fmt.Errorf("failed to seek to the end of SSTable file: %v", err)
 	}
 
-	buf := bytes.NewBuffer(make([]byte, 0))
+	buf := bytes.NewBuffer(make([]byte, sst.RecordCount))
 
 	for key, offset := range sst.Index {
 		keyBytes := []byte(key)
@@ -364,13 +310,23 @@ func (sst *SSTable) FlushIndex() error {
 		}
 	}
 
-	indexdata := buf.Bytes()
-	_, err = sst.fileptr.Write(indexdata)
-	if err != nil {
-		return fmt.Errorf("failed to write SSTable index: %v", err)
+	indexData := buf.Bytes()
+	indexChecksum := crc32.ChecksumIEEE(indexData)
+
+	if err := binary.Write(buf, binary.BigEndian, indexChecksum); err != nil {
+		return fmt.Errorf("failed to append index checksum: %v", err)
 	}
 
-	sst.Metadata.IndexChecksum = crc32.ChecksumIEEE(indexdata)
+	_, err = sst.fileptr.Write(buf.Bytes())
+	if err != nil {
+		return fmt.Errorf("failed to write SSTable index and checksum: %v", err)
+	}
+
+	sst.Metadata.IndexChecksum = indexChecksum
+	sst.Metadata.IndexOffset = indexStartOffset
+	sst.Metadata.IndexSize = int64(len(indexData) + binary.Size(indexChecksum))
+
+	sst.Metadata.DataSize += sst.Metadata.IndexSize
 	return nil
 }
 
@@ -389,20 +345,26 @@ func (sst *SSTable) FlushBloomFilter() error {
 		return fmt.Errorf("failed to serialize bloom filter: %v", err)
 	}
 
+	bloomFilterSize := int64(len(serializedBloomFilter))
+	err = binary.Write(sst.fileptr, binary.BigEndian, bloomFilterSize)
+	if err != nil {
+		return fmt.Errorf("failed to write bloom filter size: %v", err)
+	}
+
 	_, err = sst.fileptr.Write(serializedBloomFilter)
 	if err != nil {
 		return fmt.Errorf("failed to write bloom filter to SSTable file: %v", err)
 	}
 
 	sst.Metadata.BloomFilterOffset = bloomFilterOffset
-	sst.Metadata.BloomFilterSize = int64(len(serializedBloomFilter))
+	sst.Metadata.BloomFilterSize = (bloomFilterSize + int64(binary.Size(bloomFilterSize)))
 
+	sst.Metadata.DataSize += sst.Metadata.BloomFilterSize
 	return nil
 }
 
 func (sst *SSTable) WriteMetadata() error {
 	sst.Metadata.NumRecords = sst.RecordCount
-	sst.Metadata.DataSize = sst.DataSize
 	sst.Metadata.Timestamp = utils.GetCurrentEPochTime()
 
 	metadataBytes, err := sst.Metadata.Serialize()
@@ -425,6 +387,9 @@ func (sst *SSTable) WriteMetadata() error {
 	if err != nil {
 		return fmt.Errorf("failed to write metadata size to SSTable: %v", err)
 	}
+
+	sst.DataSize = sst.Metadata.DataSize
+	sst.DataSize += int64(len(metadataBytes) + binary.Size(metadataSize))
 
 	return nil
 }
