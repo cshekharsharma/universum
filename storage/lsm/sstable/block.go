@@ -189,6 +189,7 @@ func (b *Block) DeserializeBlock(blockData []byte, blockSize int64) (*Block, err
 	blockChecksumOffset := blockSize - int64(entity.Int32SizeInBytes)
 	storedChecksum := binary.BigEndian.Uint32(blockData[blockChecksumOffset:])
 	calculatedChecksum := crc32.ChecksumIEEE(blockData[:blockChecksumOffset])
+
 	if storedChecksum != calculatedChecksum {
 		return nil, fmt.Errorf("block checksum validation failed")
 	}

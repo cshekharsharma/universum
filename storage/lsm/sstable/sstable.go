@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"universum/compression"
 	"universum/config"
 	"universum/dslib"
 	"universum/entity"
@@ -74,6 +75,26 @@ func NewSSTable(filename string, writeMode bool, maxRecords int64, falsePositive
 
 /////////////////////// Loader functions //////////////////////////
 
+func (sst *SSTable) LoadSSTableFromDisk() error {
+
+	err := sst.LoadMetadata()
+	if err != nil {
+		return fmt.Errorf("failed to load metadata for SSTable %s: %v", sst.filename, err)
+	}
+
+	err = sst.LoadBloomFilter()
+	if err != nil {
+		return fmt.Errorf("failed to load Bloom filter for SSTable %s: %v", sst.filename, err)
+	}
+
+	err = sst.LoadIndex()
+	if err != nil {
+		return fmt.Errorf("failed to load index for SSTable %s: %v", sst.filename, err)
+	}
+
+	return nil
+}
+
 func (sst *SSTable) ReadBlock(blockOffset int64, blockSize int64) (*Block, error) {
 	_, err := sst.fileptr.Seek(blockOffset, io.SeekStart)
 	if err != nil {
@@ -86,8 +107,17 @@ func (sst *SSTable) ReadBlock(blockOffset int64, blockSize int64) (*Block, error
 		return nil, fmt.Errorf("failed to read block data: %v", err)
 	}
 
+	compressor := compression.GetCompressor(&compression.Options{
+		CompressionAlgo: compression.CompressionAlgo(sst.Metadata.Compression),
+	})
+
+	blockData, err = compressor.Decompress(blockData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decompress block data: %v", err)
+	}
+
 	b := NewBlock(config.Store.Storage.LSM.WriteBlockSize)
-	return b.DeserializeBlock(blockData, blockSize)
+	return b.DeserializeBlock(blockData, int64(len(blockData)))
 }
 
 func (sst *SSTable) LoadIndex() error {
@@ -270,6 +300,17 @@ func (sst *SSTable) FlushBlock() error {
 		return fmt.Errorf("failed to serialize block: %v", err)
 	}
 
+	compressor := compression.GetCompressor(&compression.Options{
+		CompressionAlgo: compression.CompressionAlgo(sst.Metadata.Compression),
+		Writer:          sst.fileptr,
+		AutoCloseWriter: true,
+	})
+
+	serializedBlock, err = compressor.Compress(serializedBlock)
+	if err != nil {
+		return fmt.Errorf("failed to compress block: %v", err)
+	}
+
 	_, err = sst.fileptr.Write(serializedBlock)
 	if err != nil {
 		return fmt.Errorf("failed to write block to SSTable file: %v", err)
@@ -281,7 +322,7 @@ func (sst *SSTable) FlushBlock() error {
 
 	// Update the index with the block start offset and size by packing into single number
 	// assumption is that neither the offset nor the block will ever cross 2G limit, hence
-	// int32 number is safe to hold both of them respectively.
+	// int32 number is safe enough to hold both of them respectively.
 	sst.Index[sst.CurrentBlock.startKey] = utils.PackNumbers(int32(blockStartOffset), int32(flushedBlockSize))
 
 	sst.CurrentBlock = NewBlock(sst.CurrentBlock.maxSize)

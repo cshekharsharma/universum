@@ -41,24 +41,17 @@ func (lsm *LSMStore) Initialize() error {
 	sstables := make([]*sstable.SSTable, len(sstableFiles))
 
 	for i, filename := range sstableFiles {
-		sst, err := sstable.NewSSTable(filename, false, 0, 0)
+		maxRecords := config.Store.Storage.LSM.MaxMemtableRecords
+		fpRate := config.Store.Storage.LSM.BloomFalsePositiveRate
+
+		sst, err := sstable.NewSSTable(filename, false, maxRecords, fpRate)
 		if err != nil {
-			return fmt.Errorf("failed to load SSTable file %s: %v", filename, err)
+			return fmt.Errorf("failed to load SSTable %s:  %v", filename, err)
 		}
 
-		err = sst.LoadMetadata()
+		err = sst.LoadSSTableFromDisk()
 		if err != nil {
-			return fmt.Errorf("failed to load metadata for SSTable %s: %v", filename, err)
-		}
-
-		err = sst.LoadBloomFilter()
-		if err != nil {
-			return fmt.Errorf("failed to load Bloom filter for SSTable %s: %v", filename, err)
-		}
-
-		err = sst.LoadIndex()
-		if err != nil {
-			return fmt.Errorf("failed to load index for SSTable %s: %v", filename, err)
+			return fmt.Errorf("failed to load SSTable %s: %v", filename, err)
 		}
 
 		sstables[i] = sst
@@ -215,7 +208,7 @@ func (lsm *LSMStore) MemtableBGFlusher() error {
 				err = sst.FlushMemTableToSSTable(memtable)
 				if err != nil {
 					logger.Get().Error("[#%d] BGFlusher: Failed to flush SSTable to disk: %v", i, err)
-					time.Sleep(10 * time.Millisecond)
+					time.Sleep(10 * time.Millisecond) // sleep for a while before retrying
 
 					if i == SSTableFlushRetryCount-1 {
 						// @TODO: handle error or consider shutting down the service if needed.

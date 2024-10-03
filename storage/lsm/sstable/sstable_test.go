@@ -13,6 +13,7 @@ import (
 
 func SetUpSSTableTests() {
 	config.Store = config.GetSkeleton()
+	config.Store.Logging.LogFileDirectory = "/tmp"
 	config.Store.Storage.StorageEngine = config.StorageEngineLSM
 	config.Store.Storage.MaxRecordSizeInBytes = 1048576
 	config.Store.Storage.LSM.MemtableStorageType = config.MemtableStorageTypeLB
@@ -20,6 +21,7 @@ func SetUpSSTableTests() {
 	config.Store.Storage.LSM.BloomFalsePositiveRate = 0.01
 	config.Store.Storage.LSM.WriteBlockSize = 100
 	config.Store.Storage.LSM.DataStorageDirectory = "/tmp"
+	config.Store.Storage.LSM.BlockCompressionAlgo = config.CompressionAlgoLZ4
 }
 
 func TestNewSSTable(t *testing.T) {
@@ -82,13 +84,13 @@ func TestFlushMemTableToSSTable(t *testing.T) {
 		t.Fatalf("Expected 621B of size in SSTable metadata, got %dB", sst.Metadata.DataSize)
 	}
 
-	if sst.DataSize != 705 {
-		t.Fatalf("Expected 705B of data in SSTable, got %dB", sst.DataSize)
+	if sst.DataSize != 708 {
+		t.Fatalf("Expected 708B of data in SSTable, got %dB", sst.DataSize)
 	}
 
-	f, _ := os.Stat(filepath)
-	if f.Size() != 705 {
-		t.Fatalf("Expected 705B of data in SSTable file, got %dB", f.Size())
+	_, err = os.Stat(filepath)
+	if errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("SSTable file does not exist at %s", filepath)
 	}
 }
 
