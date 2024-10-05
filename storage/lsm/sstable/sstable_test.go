@@ -53,6 +53,52 @@ func TestNewSSTable(t *testing.T) {
 	}
 }
 
+func TestLoadSSTableFromDisk(t *testing.T) {
+	SetUpSSTableTests()
+
+	fileName := "test1.sst"
+	cnf := config.Store.Storage.LSM
+
+	sst, err := NewSSTable(fileName, true, 100, 0.01)
+	if err != nil {
+		t.Fatalf("Failed to create SSTable: %v", err)
+	}
+	defer os.Remove(filepath.Clean(fmt.Sprintf("%s/%s", cnf.DataStorageDirectory, fileName)))
+
+	mem := memtable.CreateNewMemTable(config.DefaultMemtableStorageType).(*memtable.ListBloomMemTable)
+	for i := 0; i < 100; i++ {
+		key := fmt.Sprintf("key%d", i)
+		val := fmt.Sprintf("value%d", i)
+		mem.Set(key, val, int64(i))
+	}
+
+	err = sst.FlushMemTableToSSTable(mem)
+	if err != nil {
+		t.Fatalf("Failed to flush memtable to SSTable: %v", err)
+	}
+
+	// reset sst instance to populate again
+	sst, _ = NewSSTable(fileName, false, 100, 0.01)
+
+	err = sst.LoadSSTableFromDisk()
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if (sst.RecordCount != 100) || (sst.RecordCount != sst.Metadata.NumRecords) {
+		t.Fatalf("expected 100 records, got %d", sst.RecordCount)
+	}
+
+	if len(sst.Index) != 100 {
+		t.Fatalf("expected 100 index entries, got %d", len(sst.Index))
+	}
+
+	if sst.BloomFilter.Size < 1 {
+		t.Fatalf("expected non-zero bloom filter size, got %d", sst.BloomFilter.Size)
+	}
+}
+
 func TestFlushMemTableToSSTable(t *testing.T) {
 	SetUpSSTableTests()
 
@@ -80,12 +126,12 @@ func TestFlushMemTableToSSTable(t *testing.T) {
 		t.Fatalf("Expected 2 records in SSTable, got %d", sst.RecordCount)
 	}
 
-	if sst.Metadata.DataSize != 621 {
-		t.Fatalf("Expected 621B of size in SSTable metadata, got %dB", sst.Metadata.DataSize)
+	if sst.Metadata.DataSize != 617 {
+		t.Fatalf("Expected 617B of size in SSTable metadata, got %dB", sst.Metadata.DataSize)
 	}
 
-	if sst.DataSize != 708 {
-		t.Fatalf("Expected 708B of data in SSTable, got %dB", sst.DataSize)
+	if sst.DataSize != 700 {
+		t.Fatalf("Expected 700B of data in SSTable, got %dB", sst.DataSize)
 	}
 
 	_, err = os.Stat(filepath)
@@ -94,7 +140,7 @@ func TestFlushMemTableToSSTable(t *testing.T) {
 	}
 }
 
-func TestReadBlock(t *testing.T) {
+func TestLoadBlock(t *testing.T) {
 	SetUpSSTableTests()
 
 	filename := "test.sst"
@@ -116,7 +162,7 @@ func TestReadBlock(t *testing.T) {
 
 	blockOffset, blocksize := utils.UnpackNumbers(sst.Index["key1"])
 
-	block, err := sst.ReadBlock(int64(blockOffset), int64(blocksize))
+	block, err := sst.LoadBlock(int64(blockOffset), int64(blocksize))
 	block.PopulateRecordsInBlock()
 
 	if err != nil {
@@ -143,77 +189,5 @@ func TestReadBlock(t *testing.T) {
 
 	if value == nil {
 		t.Fatalf("Expected value1, got %s", value)
-	}
-}
-
-func TestLoadMetadata(t *testing.T) {
-	sst, err := NewSSTable("test.sst", true, 1000, 0.01)
-	if err != nil {
-		t.Fatalf("Failed to create SSTable: %v", err)
-	}
-	defer os.Remove("test.sst")
-
-	mem := memtable.CreateNewMemTable("skiplist").(*memtable.ListBloomMemTable)
-	mem.Set("key1", "value1", 0)
-
-	err = sst.FlushMemTableToSSTable(mem)
-	if err != nil {
-		t.Fatalf("Failed to flush memtable to SSTable: %v", err)
-	}
-
-	err = sst.WriteMetadata()
-	if err != nil {
-		t.Fatalf("Failed to write metadata: %v", err)
-	}
-
-	sst.fileptr.Close()
-
-	// Reopen the file in read mode to test loading metadata
-	sst, err = NewSSTable("test.sst", false, 1000, 0.01)
-	if err != nil {
-		t.Fatalf("Failed to open SSTable: %v", err)
-	}
-
-	err = sst.LoadMetadata()
-	if err != nil {
-		t.Fatalf("Failed to load metadata: %v", err)
-	}
-
-	if sst.Metadata.NumRecords != 1 {
-		t.Fatalf("Expected metadata to reflect 1 record, got %d", sst.Metadata.NumRecords)
-	}
-}
-
-func TestLoadIndex(t *testing.T) {
-	sst, err := NewSSTable("test.sst", true, 1000, 0.01)
-	if err != nil {
-		t.Fatalf("Failed to create SSTable: %v", err)
-	}
-	defer os.Remove("test.sst")
-
-	mem := memtable.CreateNewMemTable("skiplist").(*memtable.ListBloomMemTable)
-	mem.Set("key1", "value1", 0)
-	mem.Set("key2", "value2", 0)
-
-	err = sst.FlushMemTableToSSTable(mem)
-	if err != nil {
-		t.Fatalf("Failed to flush memtable to SSTable: %v", err)
-	}
-
-	sst.fileptr.Close()
-
-	// Reopen the file in read mode to test loading index
-	sst, err = NewSSTable("test.sst", false, 1000, 0.01)
-	if err != nil {
-		t.Fatalf("Failed to open SSTable: %v", err)
-	}
-
-	err = sst.LoadIndex()
-	if err != nil {
-		t.Fatalf("Failed to load index: %v", err)
-	}
-
-	if len(sst.Index) != 2 {
-		t.Fatalf("Expected 2 keys in index, got %d", len(sst.Index))
 	}
 }

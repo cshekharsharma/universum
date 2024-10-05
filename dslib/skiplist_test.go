@@ -103,4 +103,18 @@ func TestSkipList(t *testing.T) {
 			t.Errorf("Expected updated expiry '40', but got %v", expiry)
 		}
 	})
+
+	t.Run("GetAllRecords", func(t *testing.T) {
+		recordList := sl.GetAllRecords()
+
+		if len(recordList) != 4 {
+			t.Errorf("Expected 4 keys, got %d", len(recordList))
+		}
+
+		for i := 0; i < 4; i++ {
+			if recordList[i] == nil {
+				t.Errorf("expected record to not be nil, but nil found at index %d", i)
+			}
+		}
+	})
 }

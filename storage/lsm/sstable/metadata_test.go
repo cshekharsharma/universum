@@ -18,7 +18,6 @@ func TestMetadataSerialization(t *testing.T) {
 		BloomFilterSize:   256,
 		Timestamp:         1638307200,
 		Compression:       "gzip",
-		Checksum:          1234567890,
 		IndexChecksum:     987654321,
 	}
 
@@ -99,7 +98,6 @@ func TestMetadataSerializationDifferentEndianness(t *testing.T) {
 		BloomFilterSize:   256,
 		Timestamp:         1638307200,
 		Compression:       "gzip",
-		Checksum:          1234567890,
 		IndexChecksum:     987654321,
 	}
 
@@ -113,7 +111,6 @@ func TestMetadataSerializationDifferentEndianness(t *testing.T) {
 		original.BloomFilterOffset,
 		original.BloomFilterSize,
 		original.Timestamp,
-		original.Checksum,
 		original.IndexChecksum,
 	}
 

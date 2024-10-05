@@ -11,7 +11,6 @@ import (
 	"universum/compression"
 	"universum/config"
 	"universum/dslib"
-	"universum/entity"
 	"universum/storage/lsm/memtable"
 	"universum/utils"
 )
@@ -92,10 +91,14 @@ func (sst *SSTable) LoadSSTableFromDisk() error {
 		return fmt.Errorf("failed to load index for SSTable %s: %v", sst.filename, err)
 	}
 
+	sst.DataSize = sst.Metadata.DataSize
+	sst.RecordCount = sst.Metadata.NumRecords
+	sst.CurrentBlock = NewBlock(config.Store.Storage.LSM.WriteBlockSize)
+
 	return nil
 }
 
-func (sst *SSTable) ReadBlock(blockOffset int64, blockSize int64) (*Block, error) {
+func (sst *SSTable) LoadBlock(blockOffset int64, blockSize int64) (*Block, error) {
 	_, err := sst.fileptr.Seek(blockOffset, io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("failed to seek to block at offset %d: %v", blockOffset, err)
@@ -134,6 +137,11 @@ func (sst *SSTable) LoadIndex() error {
 	_, err = sst.fileptr.Read(indexBytes)
 	if err != nil {
 		return fmt.Errorf("failed to read index data: %v", err)
+	}
+
+	calculatedChecksum := crc32.ChecksumIEEE(indexBytes)
+	if calculatedChecksum != sst.Metadata.IndexChecksum {
+		return fmt.Errorf("SST index checksum mismatch, possibly corrupt file")
 	}
 
 	buf := bytes.NewBuffer(indexBytes)
@@ -193,7 +201,8 @@ func (sst *SSTable) LoadMetadata() error {
 
 	fileSize := fileInfo.Size()
 
-	metadataSizeOffset := fileSize - int64(binary.Size(entity.Int64SizeInBytes))
+	metadataSizeLength := int64(binary.Size(int64(0)))
+	metadataSizeOffset := fileSize - metadataSizeLength
 	_, err = sst.fileptr.Seek(metadataSizeOffset, io.SeekStart)
 	if err != nil {
 		return fmt.Errorf("failed to seek to metadata size position: %v", err)
@@ -230,10 +239,11 @@ func (sst *SSTable) LoadMetadata() error {
 /////////////////////// Writer functions /////////////////////////
 
 func (sst *SSTable) FlushMemTableToSSTable(mem memtable.MemTable) error {
-	records := mem.GetAllRecords()
+	recordList := mem.GetAllRecords()
 
-	for key, value := range records {
-		err := sst.CurrentBlock.AddRecord(key, value.ToMap(), sst.BloomFilter)
+	for i := 0; i < len(recordList); i++ {
+		key := recordList[i].Key
+		err := sst.CurrentBlock.AddRecord(key, recordList[i].Record.ToMap(), sst.BloomFilter)
 		if err == nil {
 			continue // Successfully added record, continue
 		}
@@ -245,7 +255,7 @@ func (sst *SSTable) FlushMemTableToSSTable(mem memtable.MemTable) error {
 		}
 
 		// Add the record to the next block
-		err = sst.CurrentBlock.AddRecord(key, value.ToMap(), sst.BloomFilter)
+		err = sst.CurrentBlock.AddRecord(key, recordList[i].Record.ToMap(), sst.BloomFilter)
 		if err != nil {
 			return fmt.Errorf("failed to add record to new block after flushing: %v", err)
 		}
@@ -269,7 +279,7 @@ func (sst *SSTable) FlushMemTableToSSTable(mem memtable.MemTable) error {
 		return fmt.Errorf("failed to write bloom filter to SSTable %v", err)
 	}
 
-	err = sst.WriteMetadata()
+	err = sst.FlushMetadata()
 	if err != nil {
 		return fmt.Errorf("failed to write SSTable metadata: %v", err)
 	}
@@ -319,6 +329,7 @@ func (sst *SSTable) FlushBlock() error {
 	flushedBlockSize := int64(len(serializedBlock))
 	sst.RecordCount += int64(len(sst.CurrentBlock.records))
 	sst.Metadata.DataSize += flushedBlockSize
+	sst.Metadata.NumRecords += int64(len(sst.CurrentBlock.records))
 
 	// Update the index with the block start offset and size by packing into single number
 	// assumption is that neither the offset nor the block will ever cross 2G limit, hence
@@ -335,7 +346,7 @@ func (sst *SSTable) FlushIndex() error {
 		return fmt.Errorf("failed to seek to the end of SSTable file: %v", err)
 	}
 
-	buf := bytes.NewBuffer(make([]byte, sst.RecordCount))
+	buf := bytes.NewBuffer(make([]byte, 0, sst.RecordCount*16))
 
 	for key, offset := range sst.Index {
 		keyBytes := []byte(key)
@@ -354,10 +365,6 @@ func (sst *SSTable) FlushIndex() error {
 	indexData := buf.Bytes()
 	indexChecksum := crc32.ChecksumIEEE(indexData)
 
-	if err := binary.Write(buf, binary.BigEndian, indexChecksum); err != nil {
-		return fmt.Errorf("failed to append index checksum: %v", err)
-	}
-
 	_, err = sst.fileptr.Write(buf.Bytes())
 	if err != nil {
 		return fmt.Errorf("failed to write SSTable index and checksum: %v", err)
@@ -365,7 +372,7 @@ func (sst *SSTable) FlushIndex() error {
 
 	sst.Metadata.IndexChecksum = indexChecksum
 	sst.Metadata.IndexOffset = indexStartOffset
-	sst.Metadata.IndexSize = int64(len(indexData) + binary.Size(indexChecksum))
+	sst.Metadata.IndexSize = int64(len(indexData))
 
 	sst.Metadata.DataSize += sst.Metadata.IndexSize
 	return nil
@@ -387,10 +394,6 @@ func (sst *SSTable) FlushBloomFilter() error {
 	}
 
 	bloomFilterSize := int64(len(serializedBloomFilter))
-	err = binary.Write(sst.fileptr, binary.BigEndian, bloomFilterSize)
-	if err != nil {
-		return fmt.Errorf("failed to write bloom filter size: %v", err)
-	}
 
 	_, err = sst.fileptr.Write(serializedBloomFilter)
 	if err != nil {
@@ -398,13 +401,13 @@ func (sst *SSTable) FlushBloomFilter() error {
 	}
 
 	sst.Metadata.BloomFilterOffset = bloomFilterOffset
-	sst.Metadata.BloomFilterSize = (bloomFilterSize + int64(binary.Size(bloomFilterSize)))
+	sst.Metadata.BloomFilterSize = bloomFilterSize
 
 	sst.Metadata.DataSize += sst.Metadata.BloomFilterSize
 	return nil
 }
 
-func (sst *SSTable) WriteMetadata() error {
+func (sst *SSTable) FlushMetadata() error {
 	sst.Metadata.NumRecords = sst.RecordCount
 	sst.Metadata.Timestamp = utils.GetCurrentEPochTime()
 

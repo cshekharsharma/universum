@@ -151,17 +151,20 @@ func (sl *SkipList) Remove(key string) bool {
 }
 
 // GetAllRecords returns all records in the skip list
-func (sl *SkipList) GetAllRecords() map[string]entity.Record {
-	records := make(map[string]entity.Record)
+func (sl *SkipList) GetAllRecords() []*entity.RecordKV {
+	recordList := make([]*entity.RecordKV, 0, sl.size)
 	current := sl.head.next[0]
 
 	for current != nil {
-		records[current.key] = &entity.ScalarRecord{
-			Value:  current.value,
-			Expiry: current.expiry,
-		}
+		recordList = append(recordList, &entity.RecordKV{
+			Key: current.key,
+			Record: &entity.ScalarRecord{
+				Value:  current.value,
+				Expiry: current.expiry,
+			},
+		})
 		current = current.next[0]
 	}
 
-	return records
+	return recordList
 }

@@ -27,7 +27,8 @@ func IncrementActiveTCPConnection() {
 func DecrementActiveTCPConnection() {
 	atomic.AddInt64(&activeTCPConnections, -1)
 }
-func AddConnection(key *net.TCPConn) {
+
+func AddActiveConnection(key *net.TCPConn) {
 	remoteAddr := key.RemoteAddr().String()
 	connection := &Connection{
 		Conn:       key,
@@ -37,7 +38,7 @@ func AddConnection(key *net.TCPConn) {
 	activeConnections.Store(key, connection)
 }
 
-func RemoveConnection(key *net.TCPConn) {
+func RemoveActiveConnection(key *net.TCPConn) {
 	if conn, ok := activeConnections.Load(key); ok {
 		conn.(*Connection).Conn.Close()
 		activeConnections.Delete(key)

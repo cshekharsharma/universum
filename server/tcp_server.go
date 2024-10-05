@@ -91,7 +91,7 @@ func StartTCPServer(wg *sync.WaitGroup) {
 		}
 
 		// Add connection tracking and increase the active connection count
-		entity.AddConnection(tcpConn)
+		entity.AddActiveConnection(tcpConn)
 		entity.IncrementActiveTCPConnection()
 
 		// Set NoDelay to prevent Nagle's algorithm, ensuring faster response
@@ -252,6 +252,6 @@ func WaitForSignal(wg *sync.WaitGroup, sigs chan os.Signal) {
 // - conn net.Conn: The TCP connection to be closed.
 func closeTCPConnection(conn net.Conn) {
 	conn.Close()
-	entity.RemoveConnection(conn.(*net.TCPConn))
+	entity.RemoveActiveConnection(conn.(*net.TCPConn))
 	entity.DecrementActiveTCPConnection()
 }

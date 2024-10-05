@@ -1,7 +1,6 @@
 package sstable
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -15,7 +14,8 @@ import (
 )
 
 type Block struct {
-	records     map[string]string
+	keys        []string
+	records     []string
 	index       map[string]int64
 	currentSize int64
 	maxSize     int64
@@ -27,7 +27,8 @@ type Block struct {
 
 func NewBlock(maxSize int64) *Block {
 	return &Block{
-		records:     make(map[string]string),
+		keys:        make([]string, 0),
+		records:     make([]string, 0),
 		index:       make(map[string]int64),
 		currentSize: 0,
 		maxSize:     maxSize,
@@ -47,33 +48,28 @@ func (b *Block) GetKeyInfoFromIndex(key string) (bool, int64, error) {
 }
 
 func (b *Block) GetRecord(key string) (entity.Record, error) {
-	serialisedValue, ok := b.records[key]
-	if !ok {
-		return nil, errors.New("record not found")
+	keyExists, recordOffset, err := b.GetKeyInfoFromIndex(key)
+	if err != nil || !keyExists {
+		return nil, nil
 	}
 
-	value, err := resp3.Decode(bufio.NewReader(bytes.NewReader([]byte(serialisedValue))))
+	_, encodedRecord, err := b.ReadRecordAtOffset(recordOffset)
 	if err != nil {
-		return nil, fmt.Errorf("record found, but unable to decode: err=%v", err)
+		return nil, fmt.Errorf("error in reading record for key '%s': %v", key, err)
 	}
 
-	if _, ok := value.(*map[interface{}]interface{}); !ok {
-		return nil, errors.New("record found, but not in the correct format")
+	record, err := resp3.GetScalarRecordFromResp(string(encodedRecord))
+	if err != nil {
+		return nil, fmt.Errorf("record for '%s' found in invalid format", key)
 	}
 
-	record := value.(map[interface{}]interface{})
-	return &entity.ScalarRecord{
-		Value:  record["Value"],
-		Type:   record["Type"].(uint8),
-		LAT:    record["LAT"].(int64),
-		Expiry: record["Expiry"].(int64),
-	}, nil
+	return record, nil
 }
 
 func (b *Block) AddRecord(key string, value map[string]interface{}, bloom *dslib.BloomFilter) error {
 	serialisedValue, err := resp3.Encode(value)
 	if err != nil {
-		logger.Get().Warn("failed to encode record value: %v", err)
+		logger.Get().Warn("failed to encode record value for key=%s: %v", key, err)
 		return nil // ignore the record and move on.
 	}
 
@@ -84,7 +80,8 @@ func (b *Block) AddRecord(key string, value map[string]interface{}, bloom *dslib
 		return fmt.Errorf("Block is full, cannot add more records [size=%d, maxSize=%d]", b.currentSize, b.maxSize)
 	}
 
-	b.records[key] = serialisedValue
+	b.keys = append(b.keys, key)
+	b.records = append(b.records, serialisedValue)
 
 	if len(b.records) == 1 {
 		b.startKey = key
@@ -100,9 +97,9 @@ func (b *Block) SerializeBlock() ([]byte, error) {
 	var currentOffset int64 = 0
 	buf := bytes.NewBuffer(make([]byte, 0, b.maxSize)) // preset approx size
 
-	for key, value := range b.records {
-		keyBytes := []byte(key)
-		valueBytes := []byte(value)
+	for i := 0; i < len(b.records); i++ {
+		keyBytes := []byte(b.keys[i])
+		valueBytes := []byte(b.records[i])
 
 		keyLen := int64(len(keyBytes))
 		valueLen := int64(len(valueBytes))
@@ -117,7 +114,7 @@ func (b *Block) SerializeBlock() ([]byte, error) {
 		}
 		buf.Write([]byte(valueBytes))
 
-		b.index[key] = currentOffset
+		b.index[b.keys[i]] = currentOffset
 		currentOffset += int64(entity.Int64SizeInBytes + keyLen + entity.Int64SizeInBytes + valueLen)
 	}
 
@@ -245,7 +242,8 @@ func (b *Block) PopulateRecordsInBlock() (*Block, error) {
 			return nil, err
 		}
 
-		b.records[string(keyBytes)] = string(value)
+		b.keys = append(b.keys, string(keyBytes))
+		b.records = append(b.records, string(value))
 	}
 
 	return b, nil

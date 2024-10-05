@@ -7,7 +7,6 @@ import (
 	"universum/config"
 	"universum/entity"
 	"universum/internal/logger"
-	"universum/resp3"
 	"universum/storage/lsm/memtable"
 	"universum/storage/lsm/sstable"
 	"universum/utils"
@@ -73,8 +72,25 @@ func (lsm *LSMStore) GetStoreType() string {
 }
 
 func (lsm *LSMStore) Exists(key string) (bool, uint32) {
-	// Implementation here
-	return false, 0
+	exists, code := lsm.memTable.Exists(key)
+	if code == entity.CRC_RECORD_FOUND {
+		return exists, code
+	}
+
+	// @TODO: Implement block cache to avoid reading from disk every time.
+
+	for _, sst := range lsm.sstables {
+		if sst.BloomFilter != nil && !sst.BloomFilter.Exists(key) {
+			continue // move to next SST if bloom filter says no
+		}
+
+		_, ok := sst.Index[key]
+		if !ok {
+			return false, entity.CRC_RECORD_NOT_FOUND
+		}
+		return ok, entity.CRC_RECORD_FOUND
+	}
+	return false, entity.CRC_RECORD_NOT_FOUND
 }
 
 func (lsm *LSMStore) Get(key string) (entity.Record, uint32) {
@@ -93,25 +109,25 @@ func (lsm *LSMStore) Get(key string) (entity.Record, uint32) {
 		blockIdxMeta, ok := sst.Index[key]
 		if ok {
 			blockOffset, blockSize := utils.UnpackNumbers(blockIdxMeta)
-			block, err := sst.ReadBlock(int64(blockOffset), int64(blockSize))
+			block, err := sst.LoadBlock(int64(blockOffset), int64(blockSize))
+
 			if err != nil {
 				return nil, entity.CRC_DATA_READ_ERROR
 			}
 
-			keyExists, recordOffset, err := block.GetKeyInfoFromIndex(key)
-			if err != nil || !keyExists {
-				return nil, entity.CRC_RECORD_NOT_FOUND
+			record, err := block.GetRecord(key)
+			if record == nil && err != nil {
+				continue // block index says no, check next SSTable
 			}
 
-			_, encodedRecord, err := block.ReadRecordAtOffset(recordOffset)
 			if err != nil {
-				return nil, entity.CRC_RECORD_NOT_FOUND
+				return record, entity.CRC_DATA_READ_ERROR
 			}
 
-			record, err := resp3.GetScalarRecordFromResp(string(encodedRecord))
-			if err != nil {
-				return nil, entity.CRC_RECORD_NOT_FOUND
+			if record.IsExpired() {
+				return record, entity.CRC_RECORD_NOT_FOUND
 			}
+
 			return record, entity.CRC_RECORD_FOUND
 		}
 	}

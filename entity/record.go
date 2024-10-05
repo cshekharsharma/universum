@@ -41,3 +41,8 @@ func (sr *ScalarRecord) ToMap() map[string]interface{} {
 		"Expiry": sr.Expiry,
 	}
 }
+
+type RecordKV struct {
+	Key    string
+	Record Record
+}

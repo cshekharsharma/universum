@@ -1,6 +1,7 @@
 package memtable
 
 import (
+	"fmt"
 	"testing"
 	"time"
 	"universum/config"
@@ -12,7 +13,7 @@ func SetUpLBTests() {
 	config.Store.Storage.StorageEngine = config.StorageEngineLSM
 	config.Store.Storage.MaxRecordSizeInBytes = 1048576
 	config.Store.Storage.LSM.MemtableStorageType = config.MemtableStorageTypeLB
-
+	config.Store.Storage.MaxRecordSizeInBytes = 1048576
 }
 
 func TestListBloomMemTable_SetAndGet(t *testing.T) {
@@ -195,6 +196,78 @@ func TestListBloomMemTable_Append(t *testing.T) {
 	}
 }
 
+func TestListBloomMemTable_MSet(t *testing.T) {
+	SetUpLBTests()
+	lbMem := NewListBloomMemTable(100, 0.01)
+
+	kvMap := map[string]interface{}{
+		"key1": "value1",
+		"key2": "value2",
+		"key3": "value3",
+	}
+
+	result, code := lbMem.MSet(kvMap)
+	if code != entity.CRC_MSET_COMPLETED {
+		t.Errorf("MSet: expected %d, got %d", entity.CRC_MSET_COMPLETED, code)
+	}
+
+	for k, v := range result {
+		if !v.(bool) {
+			t.Errorf("MSet: expected %s key to be set, got %v", k, v)
+		}
+	}
+}
+
+func TestListBloomMemTable_MGet(t *testing.T) {
+	SetUpLBTests()
+	lbMem := NewListBloomMemTable(100, 0.01)
+
+	kvMap := map[string]interface{}{
+		"key1": "value1",
+		"key2": "value2",
+	}
+
+	lbMem.MSet(kvMap)
+	result, code := lbMem.MGet([]string{"key1", "key2", "key3"})
+
+	if code != entity.CRC_MGET_COMPLETED {
+		t.Errorf("MGet: expected %d, got %d", entity.CRC_MGET_COMPLETED, code)
+	}
+
+	r1 := result["key1"]
+	r3 := result["key3"]
+
+	if r1v, ok := r1.(map[string]interface{}); ok && r1v["Value"] != "value1" {
+		t.Errorf("MGet: expected value1 for key1, got %v", r1v)
+	}
+
+	if r3v, ok := r3.(map[string]interface{}); ok && r3v["Value"] != nil {
+		t.Errorf("MGet: expected nil for key3, got %v", r3v["Value"])
+	}
+}
+
+func TestListBloomMemTable_MDelete(t *testing.T) {
+	SetUpLBTests()
+	lbMem := NewListBloomMemTable(100, 0.01)
+
+	kvMap := map[string]interface{}{
+		"key1": "value1",
+		"key2": "value2",
+	}
+
+	lbMem.MSet(kvMap)
+	result, code := lbMem.MDelete([]string{"key1", "key2"})
+	if code != entity.CRC_MDEL_COMPLETED {
+		t.Errorf("MDel: expected %d, got %d", entity.CRC_MDEL_COMPLETED, code)
+	}
+
+	for k, v := range result {
+		if !v.(bool) {
+			t.Errorf("MDel: expected %s key to be true, got %v", k, v)
+		}
+	}
+}
+
 func TestListBloomMemTable_TTL(t *testing.T) {
 	SetUpLBTests()
 
@@ -244,5 +317,87 @@ func TestGetRecordCount(t *testing.T) {
 
 	if count != 1 {
 		t.Errorf("expected count to be 1, got %d", count)
+	}
+}
+
+func TestTruncateMemtable(t *testing.T) {
+	SetUpLBTests()
+
+	FlusherChan = make(chan MemTable, 1)
+	lbMem := NewListBloomMemTable(100, 0.01)
+
+	kvMap := map[string]interface{}{
+		"key1": "value1",
+		"key2": "value2",
+		"key3": "value3",
+	}
+
+	lbMem.MSet(kvMap)
+	lbMem.TruncateMemtable()
+
+	if lbMem.GetRecordCount() != 0 {
+		t.Error("Expected memtable to be empty after truncation")
+	}
+
+	if lbMem.skipList.Size() != 0 {
+		t.Error("Expected skip list to be empty after truncation")
+	}
+
+	lbMem.sizeMap.Range(func(key, string interface{}) bool {
+		t.Error("Expected size map to be empty after truncation")
+		return false
+	})
+
+	select {
+	case item := <-FlusherChan:
+		var backupMemtable *ListBloomMemTable
+		backupMemtable = item.(*ListBloomMemTable)
+
+		if backupMemtable.GetRecordCount() != 3 {
+			t.Error("Expected flushed memtable to have 3 records")
+		}
+
+		if backupMemtable.skipList.Size() != 3 {
+			t.Error("Expected flushed memtable to have 3 records")
+		}
+	default:
+		t.Error("Expected an entry in FlusherChan for table flushing")
+	}
+}
+
+func TestGetAllRecords(t *testing.T) {
+	SetUpLBTests()
+
+	FlusherChan = make(chan MemTable, 1)
+	lbMem := NewListBloomMemTable(100, 0.01)
+
+	kvMap := map[string]interface{}{
+		"key1": "value1",
+		"key2": "value2",
+		"key3": "value3",
+	}
+
+	lbMem.MSet(kvMap)
+	allRecords := lbMem.GetAllRecords()
+
+	if len(allRecords) != 3 {
+		t.Errorf("Expected 3 records to be returned, got %d", len(allRecords))
+	}
+
+	for i := 0; i < 3; i++ {
+		recordKV := allRecords[i]
+		key := recordKV.Key
+		record, ok := recordKV.Record.(*entity.ScalarRecord)
+		if !ok {
+			t.Errorf("Expected record to be of type ScalarRecord, got %v", allRecords[i])
+		}
+
+		if key != fmt.Sprintf("key%d", i+1) {
+			t.Errorf("Expected value %v, got %v", fmt.Sprintf("key%d", i+1), key)
+		}
+
+		if record.Value != kvMap[fmt.Sprintf("key%d", i+1)] {
+			t.Errorf("Expected value %v, got %v", kvMap[fmt.Sprintf("key%d", i+1)], record.Value)
+		}
 	}
 }

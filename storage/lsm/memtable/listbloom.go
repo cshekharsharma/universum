@@ -14,6 +14,7 @@ type ListBloomMemTable struct {
 	lock        sync.RWMutex
 	size        int64
 	sizeMap     sync.Map
+	maxSize     int64
 
 	// bloom filter size and hash count
 	bfSize      uint64
@@ -26,6 +27,7 @@ func NewListBloomMemTable(maxRecords int64, falsePositiveRate float64) *ListBloo
 		skipList:    dslib.NewSkipList(),
 		bloomFilter: dslib.NewBloomFilter(bfSize, bfHashCount),
 		size:        0,
+		maxSize:     DefaultMemTableSize,
 		bfSize:      bfSize,
 		bfHashCount: bfHashCount,
 	}
@@ -250,7 +252,7 @@ func (m *ListBloomMemTable) GetSize() int64 {
 }
 
 func (m *ListBloomMemTable) IsFull() bool {
-	return m.size >= DefaultMemTableSize
+	return m.size >= m.maxSize
 }
 
 func (m *ListBloomMemTable) GetRecordCount() int64 {
@@ -265,7 +267,7 @@ func (m *ListBloomMemTable) updateMemtableSize(key string, val interface{}) {
 	delta := newSize
 
 	if err != nil {
-		return // lets not anything if we dont know the size
+		return // lets not do anything if we dont know the size
 	}
 
 	prevSize, ok := m.sizeMap.Load(key)
@@ -290,7 +292,7 @@ func (m *ListBloomMemTable) reduceMemtableSize(key string) {
 	}
 }
 
-func (m *ListBloomMemTable) GetAllRecords() map[string]entity.Record {
+func (m *ListBloomMemTable) GetAllRecords() []*entity.RecordKV {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 

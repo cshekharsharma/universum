@@ -18,9 +18,7 @@ type Metadata struct {
 	BloomFilterOffset int64  // Offset for the bloom filter block (if used)
 	BloomFilterSize   int64  // Size of the bloom filter block
 	Timestamp         int64  // Timestamp when this SSTable was created
-	Checksum          uint32 // Optional checksum for data validation
-
-	Compression string // Compression algorithm used (if any)
+	Compression       string // Compression algorithm used (if any)
 }
 
 // Serialize converts the Metadata struct into a byte slice using binary encoding.
@@ -38,7 +36,6 @@ func (m *Metadata) Serialize() ([]byte, error) {
 		m.BloomFilterOffset,
 		m.BloomFilterSize,
 		m.Timestamp,
-		m.Checksum,
 	}
 
 	for _, field := range fixedFields {
@@ -67,14 +64,13 @@ func (m *Metadata) Deserialize(data []byte) error {
 	fixedFields := []interface{}{
 		&m.Version,
 		&m.NumRecords,
-		&m.IndexOffset,
 		&m.DataSize,
+		&m.IndexOffset,
 		&m.IndexSize,
+		&m.IndexChecksum,
 		&m.BloomFilterOffset,
 		&m.BloomFilterSize,
 		&m.Timestamp,
-		&m.Checksum,
-		&m.IndexChecksum,
 	}
 
 	for _, field := range fixedFields {

@@ -49,6 +49,6 @@ func (lm *ListMapMemTable) GetRecordCount() int64 {
 	return 0
 }
 
-func (lb *ListMapMemTable) GetAllRecords() map[string]entity.Record {
+func (lb *ListMapMemTable) GetAllRecords() []*entity.RecordKV {
 	return nil
 }
