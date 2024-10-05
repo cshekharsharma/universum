@@ -113,7 +113,7 @@ func TestListMapMemTable_IsFull(t *testing.T) {
 
 func TestListMapMemTable_GetRecordCount(t *testing.T) {
 	lm := &ListMapMemTable{}
-	count := lm.GetRecordCount()
+	count := lm.GetCount()
 	if count != 0 {
 		t.Errorf("Expected record count 0, got %v", count)
 	}
@@ -121,7 +121,7 @@ func TestListMapMemTable_GetRecordCount(t *testing.T) {
 
 func TestListMapMemTable_GetAllRecords(t *testing.T) {
 	lm := &ListMapMemTable{}
-	recordsList := lm.GetAllRecords()
+	recordsList := lm.GetAll()
 
 	if recordsList != nil {
 		t.Errorf("Expected nil, got %v", recordsList)

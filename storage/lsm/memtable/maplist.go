@@ -45,10 +45,10 @@ func (lm *ListMapMemTable) IsFull() bool {
 	return false
 }
 
-func (lm *ListMapMemTable) GetRecordCount() int64 {
+func (lm *ListMapMemTable) GetCount() int64 {
 	return 0
 }
 
-func (lb *ListMapMemTable) GetAllRecords() []*entity.RecordKV {
+func (lb *ListMapMemTable) GetAll() []*entity.RecordKV {
 	return nil
 }

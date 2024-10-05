@@ -255,7 +255,7 @@ func (m *ListBloomMemTable) IsFull() bool {
 	return m.size >= m.maxSize
 }
 
-func (m *ListBloomMemTable) GetRecordCount() int64 {
+func (m *ListBloomMemTable) GetCount() int64 {
 	return int64(m.skipList.Size())
 }
 
@@ -292,7 +292,7 @@ func (m *ListBloomMemTable) reduceMemtableSize(key string) {
 	}
 }
 
-func (m *ListBloomMemTable) GetAllRecords() []*entity.RecordKV {
+func (m *ListBloomMemTable) GetAll() []*entity.RecordKV {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 

@@ -306,14 +306,14 @@ func TestGetRecordCount(t *testing.T) {
 	SetUpLBTests()
 
 	mt := NewListBloomMemTable(100, 0.01)
-	count := mt.GetRecordCount()
+	count := mt.GetCount()
 
 	if count != 0 {
 		t.Errorf("expected count to be 0, got %d", count)
 	}
 
 	mt.Set("key1", "value1", 0)
-	count = mt.GetRecordCount()
+	count = mt.GetCount()
 
 	if count != 1 {
 		t.Errorf("expected count to be 1, got %d", count)
@@ -335,7 +335,7 @@ func TestTruncateMemtable(t *testing.T) {
 	lbMem.MSet(kvMap)
 	lbMem.TruncateMemtable()
 
-	if lbMem.GetRecordCount() != 0 {
+	if lbMem.GetCount() != 0 {
 		t.Error("Expected memtable to be empty after truncation")
 	}
 
@@ -353,7 +353,7 @@ func TestTruncateMemtable(t *testing.T) {
 		var backupMemtable *ListBloomMemTable
 		backupMemtable = item.(*ListBloomMemTable)
 
-		if backupMemtable.GetRecordCount() != 3 {
+		if backupMemtable.GetCount() != 3 {
 			t.Error("Expected flushed memtable to have 3 records")
 		}
 
@@ -378,7 +378,7 @@ func TestGetAllRecords(t *testing.T) {
 	}
 
 	lbMem.MSet(kvMap)
-	allRecords := lbMem.GetAllRecords()
+	allRecords := lbMem.GetAll()
 
 	if len(allRecords) != 3 {
 		t.Errorf("Expected 3 records to be returned, got %d", len(allRecords))

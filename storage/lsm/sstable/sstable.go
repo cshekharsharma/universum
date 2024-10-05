@@ -239,7 +239,7 @@ func (sst *SSTable) LoadMetadata() error {
 /////////////////////// Writer functions /////////////////////////
 
 func (sst *SSTable) FlushMemTableToSSTable(mem memtable.MemTable) error {
-	recordList := mem.GetAllRecords()
+	recordList := mem.GetAll()
 
 	for i := 0; i < len(recordList); i++ {
 		key := recordList[i].Key

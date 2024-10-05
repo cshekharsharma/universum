@@ -24,8 +24,8 @@ type MemTable interface {
 	Expire(key string, ttl int64) (bool, uint32)
 	GetSize() int64
 	IsFull() bool
-	GetRecordCount() int64
-	GetAllRecords() []*entity.RecordKV
+	GetCount() int64
+	GetAll() []*entity.RecordKV
 }
 
 func CreateNewMemTable(tabletype string) MemTable {
