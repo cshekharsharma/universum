@@ -56,7 +56,6 @@ func GetScalarRecordFromResp(raw string) (entity.Record, error) {
 	if record, ok := decodedRecord.(map[string]interface{}); ok {
 		return &entity.ScalarRecord{
 			Value:  record["Value"],
-			Type:   uint8(record["Type"].(int64)),
 			LAT:    int64(record["LAT"].(int64)),
 			Expiry: int64(record["Expiry"].(int64)),
 		}, nil

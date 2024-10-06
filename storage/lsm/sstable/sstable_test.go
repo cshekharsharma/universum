@@ -126,12 +126,12 @@ func TestFlushMemTableToSSTable(t *testing.T) {
 		t.Fatalf("Expected 2 records in SSTable, got %d", sst.RecordCount)
 	}
 
-	if sst.Metadata.DataSize != 617 {
-		t.Fatalf("Expected 617B of size in SSTable metadata, got %dB", sst.Metadata.DataSize)
+	if sst.Metadata.DataSize != 603 {
+		t.Fatalf("Expected 603B of size in SSTable metadata, got %dB", sst.Metadata.DataSize)
 	}
 
-	if sst.DataSize != 700 {
-		t.Fatalf("Expected 700B of data in SSTable, got %dB", sst.DataSize)
+	if sst.DataSize != 686 {
+		t.Fatalf("Expected 686B of data in SSTable, got %dB", sst.DataSize)
 	}
 
 	_, err = os.Stat(filepath)

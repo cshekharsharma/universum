@@ -7,7 +7,6 @@ import (
 
 const (
 	DefaultMemTableSize int64 = 64 * 1024 * 1024 // 64 MB
-	infiniteExpiryTime  int64 = 4102444800
 )
 
 type MemTable interface {

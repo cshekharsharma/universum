@@ -23,6 +23,7 @@ WriteBlockSize = 65536
 BlockCompressionAlgo = "NONE"
 DataStorageDirectory = "/opt/universum/data"
 WriteAheadLogDirectory = "/opt/universum/wal"
+WriteAheadLogAsyncFlush = true
 WriteAheadLogFrequency = 5
 WriteAheadLogBufferSize = 1048576
 

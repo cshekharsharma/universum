@@ -8,6 +8,10 @@ const InvalidNumericValue = -99999999
 // used when a date or time-related key is not found or improperly formatted.
 const InvalidEpochValue = 0
 
+// InfiniteExpiryTime is a constant representing an infinite expiry time
+// for a record in the database.
+const InfiniteExpiryTime int64 = 4102444800
+
 type Config struct {
 	Server   *Server   `toml:"Server"`
 	Storage  *Storage  `toml:"Storage"`
@@ -39,6 +43,7 @@ type LSM struct {
 	BlockCompressionAlgo    string  `toml:"BlockCompressionAlgo"`
 	DataStorageDirectory    string  `toml:"DataStorageDirectory"`
 	WriteAheadLogDirectory  string  `toml:"WriteAheadLogDirectory"`
+	WriteAheadLogAsyncFlush bool    `toml:"WriteAheadLogAsyncFlush"`
 	WriteAheadLogFrequency  int64   `toml:"WriteAheadLogFrequency"`
 	WriteAheadLogBufferSize int64   `toml:"WriteAheadLogBufferSize"`
 }

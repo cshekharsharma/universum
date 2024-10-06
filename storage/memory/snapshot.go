@@ -211,8 +211,9 @@ func (ms *MemoryStoreSnapshotService) Restore(datastore storage.DataStore) (int6
 				}
 
 				lastSuccessfulOffset = currentOffset // updated last successful offset
-				key, record := getRecordFromSerializedMap(decodedMap)
-				scalarRecord, _ := record.(*entity.ScalarRecord)
+				scalarRecord := &entity.ScalarRecord{}
+				key, record := scalarRecord.FromMap(decodedMap)
+				scalarRecord, _ = record.(*entity.ScalarRecord)
 
 				if scalarRecord.Expiry <= utils.GetCurrentEPochTime() {
 					continue

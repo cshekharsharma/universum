@@ -27,7 +27,6 @@ func TestBlock_AddRecord(t *testing.T) {
 
 	record := &entity.ScalarRecord{
 		Value:  "testValue",
-		Type:   1,
 		LAT:    utils.GetCurrentEPochTime(),
 		Expiry: utils.GetCurrentEPochTime() + 1000,
 	}
@@ -52,7 +51,6 @@ func TestBlock_SerializeBlock(t *testing.T) {
 
 	record := &entity.ScalarRecord{
 		Value:  "testValue",
-		Type:   1,
 		LAT:    utils.GetCurrentEPochTime(),
 		Expiry: utils.GetCurrentEPochTime() + 1000,
 	}
@@ -78,7 +76,6 @@ func TestBlock_ReadRecordAtOffset(t *testing.T) {
 
 	record := &entity.ScalarRecord{
 		Value:  "testValue",
-		Type:   1,
 		LAT:    utils.GetCurrentEPochTime(),
 		Expiry: utils.GetCurrentEPochTime() + 1000,
 	}
@@ -125,7 +122,6 @@ func TestBlock_RemainingSpace(t *testing.T) {
 
 	record := &entity.ScalarRecord{
 		Value:  "testValue",
-		Type:   1,
 		LAT:    utils.GetCurrentEPochTime(),
 		Expiry: utils.GetCurrentEPochTime() + 1000,
 	}
@@ -143,7 +139,6 @@ func TestBlock_ValidateBlock(t *testing.T) {
 
 	record := &entity.ScalarRecord{
 		Value:  "testValue",
-		Type:   1,
 		LAT:    utils.GetCurrentEPochTime(),
 		Expiry: utils.GetCurrentEPochTime() + 1000,
 	}

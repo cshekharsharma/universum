@@ -26,7 +26,8 @@ func getDataStore(id string) storage.DataStore {
 
 	case config.StorageEngineLSM:
 		if _, ok := _allStores[id]; !ok {
-			_allStores[config.StorageEngineMemory] = lsm.CreateNewLSMStore(config.Store.Storage.LSM.MemtableStorageType)
+			memtableType := config.Store.Storage.LSM.MemtableStorageType
+			_allStores[config.StorageEngineMemory] = lsm.CreateNewLSMStore(memtableType)
 		}
 		return _allStores[config.StorageEngineMemory]
 

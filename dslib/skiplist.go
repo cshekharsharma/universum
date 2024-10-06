@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"time"
 	"universum/entity"
+	"universum/utils"
 )
 
 const MaxLevel = 16
@@ -156,6 +157,11 @@ func (sl *SkipList) GetAllRecords() []*entity.RecordKV {
 	current := sl.head.next[0]
 
 	for current != nil {
+		if current.expiry < utils.GetCurrentEPochTime() {
+			current = current.next[0]
+			continue // skip expired records
+		}
+
 		recordList = append(recordList, &entity.RecordKV{
 			Key: current.key,
 			Record: &entity.ScalarRecord{

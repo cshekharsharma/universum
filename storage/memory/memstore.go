@@ -11,8 +11,7 @@ import (
 )
 
 const (
-	ShardCount         uint32 = 32
-	infiniteExpiryTime int64  = 4102444800
+	ShardCount uint32 = 32
 )
 
 type MemoryStore struct {
@@ -94,9 +93,8 @@ func (ms *MemoryStore) Get(key string) (entity.Record, uint32) {
 func (ms *MemoryStore) Set(key string, value interface{}, ttl int64) (bool, uint32) {
 	record := &entity.ScalarRecord{
 		Value:  value,
-		Type:   utils.GetTypeEncoding(value),
 		LAT:    utils.GetCurrentEPochTime(),
-		Expiry: infiniteExpiryTime,
+		Expiry: config.InfiniteExpiryTime,
 	}
 
 	if !utils.IsWriteableDatatype(value) {
@@ -161,7 +159,7 @@ func (ms *MemoryStore) Append(key string, value string) (int64, uint32) {
 	}
 
 	record := val.(*entity.ScalarRecord)
-	if record.Type != utils.TYPE_ENCODING_STRING {
+	if !utils.IsString(record.Value) {
 		return config.InvalidNumericValue, entity.CRC_INCR_INVALID_TYPE
 	}
 
@@ -253,4 +251,8 @@ func (ms *MemoryStore) getShardByKey(key string) *Shard {
 
 	shardIndex := hasher.Sum32() % ShardCount
 	return ms.shards[shardIndex]
+}
+
+func (ms *MemoryStore) Close() error {
+	return nil
 }

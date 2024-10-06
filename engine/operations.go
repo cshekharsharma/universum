@@ -38,10 +38,10 @@ func Shutdown(exitcode int) {
 		entity.ExitCodeSocketError,
 	}
 
-	shouldSkipSnapshot, _ := utils.ExistsInList(exitcode, nonSnapshotErrs)
+	if skip, _ := utils.ExistsInList(exitcode, nonSnapshotErrs); !skip {
 
-	if !shouldSkipSnapshot {
 		StartDatabaseSnapshot(getDataStore(config.Store.Storage.StorageEngine))
+		datastore.Close()
 	}
 
 	os.Exit(exitcode)

@@ -60,6 +60,7 @@ const (
 	DefaultBlockCompressionAlgo    string  = CompressionAlgoLZ4
 	DefaultDataStorageDirectory    string  = "/opt/universum/data"
 	DefaultWriteAheadLogDirectory  string  = "/opt/universum/wal"
+	DefaultWriteAheadLogAsyncFlush bool    = false
 	DefaultWriteAheadLogBufferSize int64   = 1024 * 1024 // 1 MB
 	DefaultWriteAheadLogFrequency  int64   = 5           // 5 seconds
 

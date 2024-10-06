@@ -2,6 +2,7 @@ package memtable
 
 import (
 	"sync"
+	"time"
 	"universum/config"
 	"universum/dslib"
 	"universum/entity"
@@ -71,7 +72,6 @@ func (m *ListBloomMemTable) Get(key string) (entity.Record, uint32) {
 
 	record := &entity.ScalarRecord{
 		Value:  val,
-		Type:   utils.GetTypeEncoding(val),
 		LAT:    utils.GetCurrentEPochTime(),
 		Expiry: expiry,
 	}
@@ -95,7 +95,7 @@ func (m *ListBloomMemTable) Set(key string, value interface{}, ttl int64) (bool,
 		return false, entity.CRC_RECORD_TOO_BIG
 	}
 
-	expiry := infiniteExpiryTime
+	expiry := config.InfiniteExpiryTime
 
 	if ttl > 0 {
 		expiry = utils.GetCurrentEPochTime() + ttl
@@ -164,7 +164,8 @@ func (m *ListBloomMemTable) Append(key string, value string) (int64, uint32) {
 	}
 
 	record := val.(*entity.ScalarRecord)
-	if record.Type != utils.TYPE_ENCODING_STRING {
+
+	if !utils.IsString(record.Value) {
 		return config.InvalidNumericValue, entity.CRC_INCR_INVALID_TYPE
 	}
 
@@ -313,4 +314,5 @@ func (m *ListBloomMemTable) TruncateMemtable() {
 	m.sizeMap = sync.Map{}
 
 	FlusherChan <- backupMemtable
+	WALRotaterChan <- time.Now().UnixNano()
 }

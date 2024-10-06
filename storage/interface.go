@@ -7,6 +7,7 @@ import (
 type DataStore interface {
 	Initialize() error
 	GetStoreType() string
+	Close() error
 
 	Exists(key string) (bool, uint32)
 	Get(key string) (entity.Record, uint32)

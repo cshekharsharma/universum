@@ -2,15 +2,17 @@ package dslib
 
 import (
 	"testing"
+	"time"
 )
 
 func TestSkipList(t *testing.T) {
 	sl := NewSkipList()
+	currTime := time.Now().Unix()
 
-	sl.Insert("a", "Value a", 10)
-	sl.Insert("b", "Value b", 11)
-	sl.Insert("c", "Value c", 12)
-	sl.Insert("d", "Value d", 13)
+	sl.Insert("a", "Value a", currTime+10)
+	sl.Insert("b", "Value b", currTime+11)
+	sl.Insert("c", "Value c", currTime+12)
+	sl.Insert("d", "Value d", currTime+13)
 
 	tests := []struct {
 		key      string
@@ -18,10 +20,10 @@ func TestSkipList(t *testing.T) {
 		expiry   int64
 		found    bool
 	}{
-		{"a", "Value a", 10, true},
-		{"b", "Value b", 11, true},
-		{"c", "Value c", 12, true},
-		{"d", "Value d", 13, true},
+		{"a", "Value a", currTime + 10, true},
+		{"b", "Value b", currTime + 11, true},
+		{"c", "Value c", currTime + 12, true},
+		{"d", "Value d", currTime + 13, true},
 		{"e", "", 0, false}, // Not found case
 	}
 
@@ -50,7 +52,7 @@ func TestSkipList(t *testing.T) {
 	}
 
 	t.Run("UpdateExistingKey", func(t *testing.T) {
-		sl.Insert("b", "Updated Value b", 20)
+		sl.Insert("b", "Updated Value b", currTime+20)
 		found, value, expiry := sl.Search("b")
 		if !found {
 			t.Errorf("Expected to find key b after updating, but it wasn't found")
@@ -59,7 +61,7 @@ func TestSkipList(t *testing.T) {
 			t.Errorf("Expected updated value 'Updated Value b', but got %v", value)
 		}
 
-		if expiry != 20 {
+		if expiry != currTime+20 {
 			t.Errorf("Expected updated expiry '20', but got %v", expiry)
 		}
 	})
@@ -90,7 +92,7 @@ func TestSkipList(t *testing.T) {
 	})
 
 	t.Run("InsertAndSearchNewElement", func(t *testing.T) {
-		sl.Insert("bc", "Value bc", 40)
+		sl.Insert("bc", "Value bc", currTime+40)
 		found, value, expiry := sl.Search("bc")
 		if !found {
 			t.Errorf("Expected to find key bc, but it wasn't found")
@@ -99,12 +101,14 @@ func TestSkipList(t *testing.T) {
 			t.Errorf("Expected value 'Value bc', but got %v", value)
 		}
 
-		if expiry != 40 {
+		if expiry != currTime+40 {
 			t.Errorf("Expected updated expiry '40', but got %v", expiry)
 		}
 	})
 
 	t.Run("GetAllRecords", func(t *testing.T) {
+		sl.Insert("z", "Value z", currTime)
+		time.Sleep(1000 * time.Millisecond)
 		recordList := sl.GetAllRecords()
 
 		if len(recordList) != 4 {

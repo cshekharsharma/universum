@@ -13,7 +13,7 @@ func SetUpLBTests() {
 	config.Store.Storage.StorageEngine = config.StorageEngineLSM
 	config.Store.Storage.MaxRecordSizeInBytes = 1048576
 	config.Store.Storage.LSM.MemtableStorageType = config.MemtableStorageTypeLB
-	config.Store.Storage.MaxRecordSizeInBytes = 1048576
+	config.Store.Storage.MaxRecordSizeInBytes = 1048575
 }
 
 func TestListBloomMemTable_SetAndGet(t *testing.T) {
@@ -291,7 +291,7 @@ func TestListBloomMemTable_TTL(t *testing.T) {
 	}
 }
 
-func TestIsFull(t *testing.T) {
+func TestListBloomMemTable_IsFull(t *testing.T) {
 	SetUpLBTests()
 
 	mt := NewListBloomMemTable(100, 0.01)
@@ -302,7 +302,7 @@ func TestIsFull(t *testing.T) {
 	}
 }
 
-func TestGetRecordCount(t *testing.T) {
+func TestListBloomMemTable_GetCount(t *testing.T) {
 	SetUpLBTests()
 
 	mt := NewListBloomMemTable(100, 0.01)
@@ -320,10 +320,12 @@ func TestGetRecordCount(t *testing.T) {
 	}
 }
 
-func TestTruncateMemtable(t *testing.T) {
+func TestListBloomMemTable_Truncate(t *testing.T) {
 	SetUpLBTests()
 
 	FlusherChan = make(chan MemTable, 1)
+	WALRotaterChan = make(chan int64, 1)
+
 	lbMem := NewListBloomMemTable(100, 0.01)
 
 	kvMap := map[string]interface{}{
@@ -365,7 +367,7 @@ func TestTruncateMemtable(t *testing.T) {
 	}
 }
 
-func TestGetAllRecords(t *testing.T) {
+func TestListBloomMemTable_GetAll(t *testing.T) {
 	SetUpLBTests()
 
 	FlusherChan = make(chan MemTable, 1)

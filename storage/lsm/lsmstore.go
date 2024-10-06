@@ -9,17 +9,19 @@ import (
 	"universum/internal/logger"
 	"universum/storage/lsm/memtable"
 	"universum/storage/lsm/sstable"
+	"universum/storage/lsm/wal"
 	"universum/utils"
 )
 
 const FlusherChanSize = 10
+const WALRotaterChanSize = 10
 const SSTableFlushRetryCount = 3
 
 type LSMStore struct {
-	memTable memtable.MemTable
-	sstables []*sstable.SSTable
-	mutex    sync.Mutex
-	wal      *WriteAheadLogger
+	memTable  memtable.MemTable
+	sstables  []*sstable.SSTable
+	mutex     sync.Mutex
+	walWriter *wal.WALWriter
 }
 
 func CreateNewLSMStore(mtype string) *LSMStore {
@@ -56,12 +58,13 @@ func (lsm *LSMStore) Initialize() error {
 		sstables[i] = sst
 	}
 
-	lsm.wal, err = NewWAL(config.Store.Storage.LSM.WriteAheadLogDirectory)
+	lsm.walWriter, err = wal.NewWriter(config.Store.Storage.LSM.WriteAheadLogDirectory)
 	if err != nil {
 		return fmt.Errorf("failed to initialize write ahead logger: %v", err)
 	}
 
 	memtable.FlusherChan = make(chan memtable.MemTable, FlusherChanSize)
+	memtable.WALRotaterChan = make(chan int64, WALRotaterChanSize)
 	go lsm.MemtableBGFlusher() // start the background flusher job
 
 	return nil
@@ -141,9 +144,9 @@ func (lsm *LSMStore) Set(key string, value interface{}, ttl int64) (bool, uint32
 		return false, statusCode
 	}
 
-	err := lsm.wal.AddToWALBuffer(key, value, ttl)
+	err := lsm.walWriter.AddToWALBuffer(wal.OperationTypeSET, key, value, ttl)
 	if err != nil {
-		return false, entity.CRC_AOF_WRITE_FAILED
+		return false, entity.CRC_WAL_WRITE_FAILED
 	}
 
 	return true, entity.CRC_RECORD_UPDATED
@@ -242,5 +245,11 @@ func (lsm *LSMStore) MemtableBGFlusher() error {
 
 		}(memtable)
 	}
+	return nil
+}
+
+func (lsm *LSMStore) Close() error {
+	// @TODO handle more resource closures
+	lsm.walWriter.Close()
 	return nil
 }
