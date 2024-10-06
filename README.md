@@ -54,7 +54,7 @@ ConnectionWriteTimeout = 10
 RequestExecutionTimeout = 10
 
 [Storage]
-StorageEngine = "MEMORY"
+StorageEngine = "LSM"
 MaxRecordSizeInBytes = 1048576
 
 [Storage.Memory]
@@ -66,9 +66,13 @@ RestoreSnapshotOnStart = true
 
 [Storage.LSM]
 MemtableStorageType = "LB"
+MaxMemtableRecords = 100000
+BloomFalsePositiveRate = 0.01
 WriteBlockSize = 65536
+BlockCompressionAlgo = "NONE"
 DataStorageDirectory = "/opt/universum/data"
 WriteAheadLogDirectory = "/opt/universum/wal"
+WriteAheadLogAsyncFlush = true
 WriteAheadLogFrequency = 5
 WriteAheadLogBufferSize = 1048576
 

@@ -79,34 +79,44 @@ func (wr *WALReader) readEntries() ([]*WALRecord, error) {
 	return entries, nil
 }
 
-func (wr *WALReader) RestoreFromWAL(memTable memtable.MemTable) error {
+func (wr *WALReader) RestoreFromWAL(memTable memtable.MemTable) (int64, error) {
+	var keycount int64 = 0
 	entries, err := wr.readEntries()
+
 	if err != nil {
-		return err
+		return keycount, err
 	}
 
 	for _, entry := range entries {
 		switch entry.Operation {
 		case OperationTypeSET:
 			entry.TTL = entry.TTL - utils.GetCurrentEPochTime()
+			if entry.TTL < 0 {
+				continue
+			}
 
 			didSet, code := memTable.Set(entry.Key, entry.Value, entry.TTL)
 			if !didSet && code != entity.CRC_RECORD_UPDATED {
 				logger.Get().Warn("failed to restore record key=%s from WAL: %v", entry.Key, code)
+				continue
 			}
+			keycount++
 
 		case OperationTypeDELETE:
 			deleted, code := memTable.Delete(entry.Key)
 			if !deleted && code != entity.CRC_RECORD_DELETED {
 				logger.Get().Warn("failed to restore record key=%s from WAL: %v", entry.Key, code)
+				continue
 			}
+			keycount++
 
 		default:
-			return fmt.Errorf("unknown operation type in WAL entry: %s", entry.Operation)
+			return keycount, fmt.Errorf("unknown operation type in WAL entry: %s", entry.Operation)
 		}
 	}
 
-	return nil
+	logger.Get().Info("LSM:WAL:: Restored %d keys from write ahead logs", keycount)
+	return keycount, nil
 }
 
 func (wr *WALReader) Close() {

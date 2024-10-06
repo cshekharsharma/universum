@@ -113,7 +113,11 @@ func TestRestoreFromWAL(t *testing.T) {
 
 	memTable := memtable.CreateNewMemTable(config.MemtableStorageTypeLB)
 
-	err = reader.RestoreFromWAL(memTable)
+	keycount, err := reader.RestoreFromWAL(memTable)
+	if keycount != int64(len(entries)) {
+		t.Errorf("Expected %d keys to be restored, got %d", len(entries), keycount)
+	}
+
 	if err != nil {
 		t.Fatalf("Failed to restore from WAL: %v", err)
 	}

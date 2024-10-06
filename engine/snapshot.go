@@ -7,7 +7,6 @@ import (
 	"universum/entity"
 	"universum/internal/logger"
 	"universum/storage"
-	"universum/storage/memory"
 	"universum/utils"
 )
 
@@ -55,7 +54,7 @@ func StartDatabaseSnapshot(store storage.DataStore) error {
 	var err error
 
 	snapshotservice := getSnapshotService(config.Store.Storage.StorageEngine)
-	recordCount, ssSizeInBytes, err = snapshotservice.Snapshot(store.(*memory.MemoryStore))
+	recordCount, ssSizeInBytes, err = snapshotservice.Snapshot(store)
 
 	DatabaseInfoStats.Persistence.LastSnapshotTakenAt = utils.GetCurrentReadableTime()
 	DatabaseInfoStats.Persistence.LastSnapshotLatency = fmt.Sprintf("%dms", time.Now().UnixMilli()-snapshotStartTime)

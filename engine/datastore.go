@@ -45,6 +45,9 @@ func getSnapshotService(id string) storage.SnapshotService {
 	case config.StorageEngineMemory:
 		return new(memory.MemoryStoreSnapshotService)
 
+	case config.StorageEngineLSM:
+		return new(lsm.LSMStoreSnapshotService)
+
 	default:
 		logger.Get().Error("GetSnapshotService: unknown storage engine `%s` requested, shutting down.", id)
 		Shutdown(entity.ExitCodeStartupFailure)

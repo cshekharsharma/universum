@@ -5,7 +5,7 @@ ConnectionWriteTimeout = 10
 RequestExecutionTimeout = 10
 
 [Storage]
-StorageEngine = "MEMORY"
+StorageEngine = "LSM"
 MaxRecordSizeInBytes = 1048576
 
 [Storage.Memory]

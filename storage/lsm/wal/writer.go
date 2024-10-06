@@ -9,13 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"time"
 	"universum/config"
 	"universum/entity"
 	"universum/internal/logger"
 	"universum/resp3"
-	"universum/storage/lsm/common"
 	"universum/storage/lsm/memtable"
 	"universum/utils"
 )
@@ -221,9 +219,6 @@ func (ww *WALWriter) flush() {
 		ww.buffer.Next(bufLength)
 		ww.syncCounter++
 		ww.isFlushing = false
-
-		fileInfo, _ := os.Stat(ww.fileptr.Name())
-		atomic.StoreInt64(&common.CurrentWALSizeOnDisk, fileInfo.Size())
 
 		if ww.syncCounter >= ww.syncThreshold {
 			err := ww.fileptr.Sync()
