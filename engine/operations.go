@@ -44,5 +44,6 @@ func Shutdown(exitcode int) {
 		datastore.Close()
 	}
 
+	logger.Get().Close()
 	os.Exit(exitcode)
 }

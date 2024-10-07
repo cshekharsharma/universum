@@ -55,6 +55,7 @@ func (ms *MemoryStoreSnapshotService) Snapshot(store storage.DataStore) (int64, 
 
 	var buffer bytes.Buffer
 	compressor := compression.GetCompressor(&compression.Options{
+		CompressionAlgo: compression.CompressionAlgo(config.Store.Storage.Memory.SnapshotCompressionAlgo),
 		Writer:          tempFilePtr,
 		AutoCloseWriter: false,
 	})
@@ -156,7 +157,8 @@ func (ms *MemoryStoreSnapshotService) Restore(datastore storage.DataStore) (int6
 	defer filePtr.Close()
 
 	c := compression.GetCompressor(&compression.Options{
-		Reader: filePtr,
+		CompressionAlgo: compression.CompressionAlgo(config.Store.Storage.Memory.SnapshotCompressionAlgo),
+		Reader:          filePtr,
 	})
 
 	var partialBuffer []byte     // Holds unprocessed raw bytes for the next chunk

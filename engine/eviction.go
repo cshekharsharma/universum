@@ -9,10 +9,7 @@ import (
 )
 
 const (
-	EVICTION_POLICY_NONE string = "NONE"
-	EVICTION_POLICY_LRU  string = "LRU"
-
-	HEALTHY_MEMORY_CONSUMPTION_RATIO float64 = 1.01
+	HealthyMemotyConsumptionRatio float64 = 1.01
 )
 
 var evictionMutex sync.Mutex
@@ -62,17 +59,17 @@ func EvictRecords() {
 	allowedUsage := config.Store.Storage.Memory.AllowedMemoryStorageLimit
 
 	policy := config.Store.Eviction.AutoEvictionPolicy
-	if policy == EVICTION_POLICY_NONE || !isDbOverflown(currMemUsage, allowedUsage) {
+	if policy == config.EvictionPolicyNone || !isDbOverflown(currMemUsage, allowedUsage) {
 		return
 	}
 
-	if policy == EVICTION_POLICY_LRU {
+	if policy == config.EvictionPolicyLRU {
 		evictLRU(int64(currMemUsage), allowedUsage)
 	}
 }
 
 func isDbOverflown(currUsage uint64, allowedUsage int64) bool {
-	return float64(allowedUsage)*HEALTHY_MEMORY_CONSUMPTION_RATIO < float64(currUsage)
+	return float64(allowedUsage)*HealthyMemotyConsumptionRatio < float64(currUsage)
 }
 
 func evictLRU(currUsage int64, allowedUsage int64) {

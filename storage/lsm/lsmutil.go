@@ -10,7 +10,7 @@ import (
 	"universum/config"
 )
 
-const SstFileExtension = ".sst"
+const SstFileExtension = "sst"
 
 func getAllSSTableFiles() ([]string, error) {
 	dir := config.Store.Storage.LSM.DataStorageDirectory

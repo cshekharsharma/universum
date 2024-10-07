@@ -21,7 +21,7 @@ type Compressor interface {
 }
 
 func GetCompressor(opts *Options) Compressor {
-	algo := config.Store.Storage.Memory.SnapshotCompressionAlgo
+	algo := config.CompressionAlgoNone
 	if opts.CompressionAlgo != "" {
 		algo = string(opts.CompressionAlgo)
 	}
@@ -42,8 +42,4 @@ func GetCompressor(opts *Options) Compressor {
 		c.Init(opts)
 		return c
 	}
-}
-
-func IsCompressionEnabled() bool {
-	return config.Store.Storage.Memory.SnapshotCompressionAlgo != config.CompressionAlgoNone
 }
