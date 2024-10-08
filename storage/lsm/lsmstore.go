@@ -47,7 +47,7 @@ func (lsm *LSMStore) Initialize() error {
 
 		sst, err := sstable.NewSSTable(filename, false, maxRecords, fpRate)
 		if err != nil {
-			return fmt.Errorf("failed to load SSTable %s:  %v", filename, err)
+			return fmt.Errorf("failed to read SSTable %s:  %v", filename, err)
 		}
 
 		err = sst.LoadSSTableFromDisk()
@@ -207,15 +207,17 @@ func (lsm *LSMStore) MemtableBGFlusher() error {
 
 			newFileName := generateSSTableFileName()
 
+			logger.Get().Info("BGFlusher: Flushing memtable to SSTable: %s", newFileName)
+
 			for i := 0; i < SSTableFlushRetryCount; i++ {
 				sst, err = sstable.NewSSTable(newFileName, true, 0, 0)
 				if err != nil {
-					logger.Get().Error("[#%d] BGFlusher: Failed to create new SSTable: %v", i, err)
+					logger.Get().Error("[#%d] BGFlusher: failed to create new SSTable: %v", i+1, err)
 					time.Sleep(10 * time.Millisecond)
 
 					if i == SSTableFlushRetryCount-1 {
 						// @TODO: handle error or consider shutting down the service if needed.
-						logger.Get().Error("BGFlusher: Failed to create new SSTable after %d retries: %v", i-1, err)
+						logger.Get().Error("Background SSTable flush terminated after %d retries, Exiting", i+1)
 						return
 					}
 					continue
@@ -226,12 +228,12 @@ func (lsm *LSMStore) MemtableBGFlusher() error {
 			for i := 0; i < SSTableFlushRetryCount; i++ {
 				err = sst.FlushMemTableToSSTable(memtable)
 				if err != nil {
-					logger.Get().Error("[#%d] BGFlusher: Failed to flush SSTable to disk: %v", i, err)
+					logger.Get().Error("[#%d] BGFlusher: failed to flush SSTable to disk: %v", i+1, err)
 					time.Sleep(10 * time.Millisecond) // sleep for a while before retrying
 
 					if i == SSTableFlushRetryCount-1 {
 						// @TODO: handle error or consider shutting down the service if needed.
-						logger.Get().Error("BGFlusher: Failed to create new SSTable after %d retries: %v", i-1, err)
+						logger.Get().Error("Background SSTable flush terminated after %d retries, Exiting", i+1)
 						return
 					}
 					continue

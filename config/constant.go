@@ -54,9 +54,10 @@ const (
 
 	// Storage.LSM
 	DefaultMemtableStorageType     string  = MemtableStorageTypeLB
-	DefaultMaxMemtableRecords      int64   = 1000000 // 1 million
-	DefaultBloomFalsePositiveRate  float64 = 0.01    // 1%
-	DefaultWriteBlockSize          int64   = 65536   // 64 KB
+	DefaultMaxMemtableRecords      int64   = 1000000          // 1 million
+	DefaultMaxMemtableDataSize     int64   = 64 * 1024 * 1024 // 64 MB
+	DefaultBloomFalsePositiveRate  float64 = 0.01             // 1%
+	DefaultWriteBlockSize          int64   = 65536            // 64 KB
 	DefaultBlockCompressionAlgo    string  = CompressionAlgoLZ4
 	DefaultDataStorageDirectory    string  = "/opt/universum/data"
 	DefaultWriteAheadLogDirectory  string  = "/opt/universum/wal"

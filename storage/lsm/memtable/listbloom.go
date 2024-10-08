@@ -6,6 +6,7 @@ import (
 	"universum/config"
 	"universum/dslib"
 	"universum/entity"
+	"universum/internal/logger"
 	"universum/utils"
 )
 
@@ -28,7 +29,7 @@ func NewListBloomMemTable(maxRecords int64, falsePositiveRate float64) *ListBloo
 		skipList:    dslib.NewSkipList(),
 		bloomFilter: dslib.NewBloomFilter(bfSize, bfHashCount),
 		size:        0,
-		maxSize:     DefaultMemTableSize,
+		maxSize:     config.Store.Storage.LSM.MaxMemtableDataSize,
 		bfSize:      bfSize,
 		bfHashCount: bfHashCount,
 	}
@@ -315,4 +316,7 @@ func (m *ListBloomMemTable) TruncateMemtable() {
 
 	FlusherChan <- backupMemtable
 	WALRotaterChan <- time.Now().UnixNano()
+
+	logger.Get().Info("Memtable truncated after size=%d, count=%d",
+		backupMemtable.size, backupMemtable.skipList.Size())
 }

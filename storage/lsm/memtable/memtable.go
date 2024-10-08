@@ -5,10 +5,6 @@ import (
 	"universum/entity"
 )
 
-const (
-	DefaultMemTableSize int64 = 64 * 1024 * 1024 // 64 MB
-)
-
 type MemTable interface {
 	Exists(key string) (bool, uint32)
 	Get(key string) (entity.Record, uint32)

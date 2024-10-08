@@ -42,8 +42,8 @@ func TestGetAllSSTableFiles(t *testing.T) {
 	}
 
 	expectedFiles := map[string]bool{
-		filepath.Join(tempDir, "file1.sst"): true,
-		filepath.Join(tempDir, "file2.sst"): true,
+		"file1.sst": true,
+		"file2.sst": true,
 	}
 
 	if len(sstableFiles) != len(expectedFiles) {
@@ -91,18 +91,14 @@ func TestGenerateSSTableFileName(t *testing.T) {
 	config.Store.Storage.LSM.DataStorageDirectory = tempDir
 
 	fileName1 := generateSSTableFileName()
-	if !strings.HasPrefix(fileName1, tempDir) {
-		t.Errorf("Expected file name to start with %s, got %s", tempDir, fileName1)
-	}
 
 	if !strings.HasSuffix(fileName1, SstFileExtension) {
 		t.Errorf("Expected file name to have extension %s, got %s", SstFileExtension, fileName1)
 	}
 
-	baseName := filepath.Base(fileName1)
-	nameParts := strings.Split(baseName, ".")
+	nameParts := strings.Split(fileName1, ".")
 	if len(nameParts) != 2 {
-		t.Errorf("Expected file name to have format 'hash%s', got %s", SstFileExtension, baseName)
+		t.Errorf("Expected file name to have format 'hash.%s', got %s", SstFileExtension, fileName1)
 	}
 
 	time.Sleep(1 * time.Nanosecond)

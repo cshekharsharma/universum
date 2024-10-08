@@ -130,6 +130,10 @@ func (v *ConfigValidator) validateStorageEngineLSM(config *Config) error {
 		config.Storage.LSM.MaxMemtableRecords = DefaultMaxMemtableRecords
 	}
 
+	if config.Storage.LSM.MaxMemtableDataSize == 0 {
+		config.Storage.LSM.MaxMemtableDataSize = DefaultMaxMemtableDataSize
+	}
+
 	if config.Storage.LSM.BloomFalsePositiveRate == 0 {
 		config.Storage.LSM.BloomFalsePositiveRate = DefaultBloomFalsePositiveRate
 	}

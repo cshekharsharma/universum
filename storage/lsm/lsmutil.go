@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 	"universum/config"
@@ -22,7 +21,7 @@ func getAllSSTableFiles() ([]string, error) {
 	var sstableFiles []string
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), SstFileExtension) {
-			sstableFiles = append(sstableFiles, filepath.Join(dir, file.Name()))
+			sstableFiles = append(sstableFiles, file.Name())
 		}
 	}
 	return sstableFiles, nil
@@ -33,6 +32,5 @@ func generateSSTableFileName() string {
 	hasher.Write([]byte(fmt.Sprintf("%d", time.Now().UnixNano())))
 	hash := hasher.Sum64()
 
-	path := fmt.Sprintf("%s/%x.%s", config.Store.Storage.LSM.DataStorageDirectory, hash, SstFileExtension)
-	return filepath.Clean(path)
+	return fmt.Sprintf("%x.%s", hash, SstFileExtension)
 }

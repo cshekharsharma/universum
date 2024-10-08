@@ -18,6 +18,7 @@ func SetUpSSTableTests() {
 	config.Store.Storage.MaxRecordSizeInBytes = 1048576
 	config.Store.Storage.LSM.MemtableStorageType = config.MemtableStorageTypeLB
 	config.Store.Storage.LSM.MaxMemtableRecords = 1000
+	config.Store.Storage.LSM.MaxMemtableDataSize = 1048576
 	config.Store.Storage.LSM.BloomFalsePositiveRate = 0.01
 	config.Store.Storage.LSM.WriteBlockSize = 100
 	config.Store.Storage.LSM.DataStorageDirectory = "/tmp"

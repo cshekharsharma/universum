@@ -13,7 +13,8 @@ func SetUpLBTests() {
 	config.Store.Storage.StorageEngine = config.StorageEngineLSM
 	config.Store.Storage.MaxRecordSizeInBytes = 1048576
 	config.Store.Storage.LSM.MemtableStorageType = config.MemtableStorageTypeLB
-	config.Store.Storage.MaxRecordSizeInBytes = 1048575
+	config.Store.Storage.LSM.MaxMemtableDataSize = 1048576
+	config.Store.Logging.LogFileDirectory = "/tmp"
 }
 
 func TestListBloomMemTable_SetAndGet(t *testing.T) {
@@ -322,9 +323,10 @@ func TestListBloomMemTable_GetCount(t *testing.T) {
 
 func TestListBloomMemTable_Truncate(t *testing.T) {
 	SetUpLBTests()
+	config.Store.Storage.LSM.MaxMemtableDataSize = 100
 
-	FlusherChan = make(chan MemTable, 1)
-	WALRotaterChan = make(chan int64, 1)
+	FlusherChan = make(chan MemTable, 2)
+	WALRotaterChan = make(chan int64, 2)
 
 	lbMem := NewListBloomMemTable(100, 0.01)
 
@@ -332,23 +334,18 @@ func TestListBloomMemTable_Truncate(t *testing.T) {
 		"key1": "value1",
 		"key2": "value2",
 		"key3": "value3",
+		"key4": "value4",
 	}
 
 	lbMem.MSet(kvMap)
-	lbMem.TruncateMemtable()
 
-	if lbMem.GetCount() != 0 {
-		t.Error("Expected memtable to be empty after truncation")
+	if lbMem.GetCount() != 1 {
+		t.Errorf("Expected memtable count to be 1 after truncation, found: %d", lbMem.GetCount())
 	}
 
-	if lbMem.skipList.Size() != 0 {
-		t.Error("Expected skip list to be empty after truncation")
+	if lbMem.skipList.Size() != 1 {
+		t.Errorf("Expected skip list size to be 1 after truncation, found: %d", lbMem.skipList.Size())
 	}
-
-	lbMem.sizeMap.Range(func(key, string interface{}) bool {
-		t.Error("Expected size map to be empty after truncation")
-		return false
-	})
 
 	select {
 	case item := <-FlusherChan:
