@@ -27,7 +27,7 @@ func CreateNewMemTable(tabletype string) MemTable {
 	switch tabletype {
 	case config.MemtableStorageTypeLB: // implementated with skiplist + bloom filter
 		lsmCnf := config.Store.Storage.LSM
-		return NewListBloomMemTable(lsmCnf.MaxMemtableRecords, lsmCnf.BloomFalsePositiveRate)
+		return NewListBloomMemTable(lsmCnf.BloomFilterMaxRecords, lsmCnf.BloomFalsePositiveRate)
 
 	case config.MemtableStorageTypeLM: // implemented with map + sorted list
 		return &ListMapMemTable{}

@@ -29,7 +29,7 @@ func NewListBloomMemTable(maxRecords int64, falsePositiveRate float64) *ListBloo
 		skipList:    dslib.NewSkipList(),
 		bloomFilter: dslib.NewBloomFilter(bfSize, bfHashCount),
 		size:        0,
-		maxSize:     config.Store.Storage.LSM.MaxMemtableDataSize,
+		maxSize:     config.Store.Storage.LSM.WriteBufferSize,
 		bfSize:      bfSize,
 		bfHashCount: bfHashCount,
 	}

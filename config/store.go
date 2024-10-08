@@ -37,12 +37,12 @@ type Memory struct {
 
 type LSM struct {
 	MemtableStorageType     string  `toml:"MemtableStorageType"`
-	MaxMemtableRecords      int64   `toml:"MaxMemtableRecords"`
-	MaxMemtableDataSize     int64   `toml:"MaxMemtableDataSize"`
 	BloomFalsePositiveRate  float64 `toml:"BloomFalsePositiveRate"`
+	BloomFilterMaxRecords   int64   `toml:"BloomFilterMaxRecords"`
 	BlockCompressionAlgo    string  `toml:"BlockCompressionAlgo"`
 	DataStorageDirectory    string  `toml:"DataStorageDirectory"`
 	WriteBlockSize          int64   `toml:"WriteBlockSize"`
+	WriteBufferSize         int64   `toml:"WriteBufferSize"`
 	WriteAheadLogDirectory  string  `toml:"WriteAheadLogDirectory"`
 	WriteAheadLogAsyncFlush bool    `toml:"WriteAheadLogAsyncFlush"`
 	WriteAheadLogFrequency  int64   `toml:"WriteAheadLogFrequency"`

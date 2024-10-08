@@ -13,7 +13,7 @@ func SetUpLBTests() {
 	config.Store.Storage.StorageEngine = config.StorageEngineLSM
 	config.Store.Storage.MaxRecordSizeInBytes = 1048576
 	config.Store.Storage.LSM.MemtableStorageType = config.MemtableStorageTypeLB
-	config.Store.Storage.LSM.MaxMemtableDataSize = 1048576
+	config.Store.Storage.LSM.WriteBufferSize = 1048576
 	config.Store.Logging.LogFileDirectory = "/tmp"
 }
 
@@ -323,7 +323,7 @@ func TestListBloomMemTable_GetCount(t *testing.T) {
 
 func TestListBloomMemTable_Truncate(t *testing.T) {
 	SetUpLBTests()
-	config.Store.Storage.LSM.MaxMemtableDataSize = 100
+	config.Store.Storage.LSM.WriteBufferSize = 100
 
 	FlusherChan = make(chan MemTable, 2)
 	WALRotaterChan = make(chan int64, 2)

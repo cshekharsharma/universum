@@ -42,7 +42,7 @@ func (lsm *LSMStore) Initialize() error {
 	sstables := make([]*sstable.SSTable, len(sstableFiles))
 
 	for i, filename := range sstableFiles {
-		maxRecords := config.Store.Storage.LSM.MaxMemtableRecords
+		maxRecords := config.Store.Storage.LSM.BloomFilterMaxRecords
 		fpRate := config.Store.Storage.LSM.BloomFalsePositiveRate
 
 		sst, err := sstable.NewSSTable(filename, false, maxRecords, fpRate)

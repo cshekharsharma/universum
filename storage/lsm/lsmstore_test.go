@@ -17,8 +17,8 @@ func setupTestStore(t *testing.T) {
 	config.Store.Storage.LSM.BlockCompressionAlgo = config.CompressionAlgoLZ4
 	config.Store.Storage.LSM.DataStorageDirectory = tempdir
 	config.Store.Storage.LSM.MemtableStorageType = config.MemtableStorageTypeLB
-	config.Store.Storage.LSM.MaxMemtableRecords = 100
-	config.Store.Storage.LSM.MaxMemtableDataSize = 1024 * 1024
+	config.Store.Storage.LSM.BloomFilterMaxRecords = 100
+	config.Store.Storage.LSM.WriteBufferSize = 1024 * 1024
 	config.Store.Storage.LSM.WriteAheadLogAsyncFlush = false
 	config.Store.Storage.LSM.WriteAheadLogDirectory = tempdir
 	config.Store.Storage.LSM.WriteAheadLogBufferSize = 1024

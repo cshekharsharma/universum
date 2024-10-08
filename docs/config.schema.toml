@@ -17,8 +17,8 @@ RestoreSnapshotOnStart = true
 
 [Storage.LSM]
 MemtableStorageType = "LB"
-MaxMemtableRecords = 100000
-MaxMemtableDataSize = 4194304
+BloomFilterMaxRecords = 100000
+WriteBufferSize = 4194304
 BloomFalsePositiveRate = 0.01
 WriteBlockSize = 65536
 BlockCompressionAlgo = "LZ4"

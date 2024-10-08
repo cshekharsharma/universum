@@ -17,8 +17,8 @@ func SetUpSSTableTests() {
 	config.Store.Storage.StorageEngine = config.StorageEngineLSM
 	config.Store.Storage.MaxRecordSizeInBytes = 1048576
 	config.Store.Storage.LSM.MemtableStorageType = config.MemtableStorageTypeLB
-	config.Store.Storage.LSM.MaxMemtableRecords = 1000
-	config.Store.Storage.LSM.MaxMemtableDataSize = 1048576
+	config.Store.Storage.LSM.BloomFilterMaxRecords = 1000
+	config.Store.Storage.LSM.WriteBufferSize = 1048576
 	config.Store.Storage.LSM.BloomFalsePositiveRate = 0.01
 	config.Store.Storage.LSM.WriteBlockSize = 100
 	config.Store.Storage.LSM.DataStorageDirectory = "/tmp"
@@ -33,7 +33,7 @@ func TestNewSSTable(t *testing.T) {
 		"%s/%s", config.Store.Storage.LSM.DataStorageDirectory, filename))
 
 	lsmCnf := config.Store.Storage.LSM
-	sst, err := NewSSTable(filename, true, lsmCnf.MaxMemtableRecords, lsmCnf.BloomFalsePositiveRate)
+	sst, err := NewSSTable(filename, true, lsmCnf.BloomFilterMaxRecords, lsmCnf.BloomFalsePositiveRate)
 	if err != nil {
 		t.Fatalf("Failed to create SSTable: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestFlushMemTableToSSTable(t *testing.T) {
 		"%s/%s", config.Store.Storage.LSM.DataStorageDirectory, filename))
 
 	lsmCnf := config.Store.Storage.LSM
-	sst, err := NewSSTable(filename, true, lsmCnf.MaxMemtableRecords, lsmCnf.BloomFalsePositiveRate)
+	sst, err := NewSSTable(filename, true, lsmCnf.BloomFilterMaxRecords, lsmCnf.BloomFalsePositiveRate)
 	if err != nil {
 		t.Fatalf("Failed to create SSTable: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestLoadBlock(t *testing.T) {
 		"%s/%s", config.Store.Storage.LSM.DataStorageDirectory, filename))
 
 	lsmCnf := config.Store.Storage.LSM
-	sst, err := NewSSTable(filename, true, lsmCnf.MaxMemtableRecords, lsmCnf.BloomFalsePositiveRate)
+	sst, err := NewSSTable(filename, true, lsmCnf.BloomFilterMaxRecords, lsmCnf.BloomFalsePositiveRate)
 	if err != nil {
 		t.Fatalf("Failed to create SSTable: %v", err)
 	}

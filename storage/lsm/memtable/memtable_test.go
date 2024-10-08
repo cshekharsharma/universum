@@ -7,8 +7,8 @@ import (
 
 func TestCreateNewMemTable_TypeLB(t *testing.T) {
 	config.Store = config.GetSkeleton()
-	config.Store.Storage.LSM.MaxMemtableRecords = 1000
-	config.Store.Storage.LSM.MaxMemtableDataSize = 1048576
+	config.Store.Storage.LSM.BloomFilterMaxRecords = 1000
+	config.Store.Storage.LSM.WriteBufferSize = 1048576
 	config.Store.Storage.LSM.BloomFalsePositiveRate = 0.01
 	config.Store.Logging.LogFileDirectory = "/tmp"
 
@@ -31,7 +31,7 @@ func TestCreateNewMemTable_TypeLM(t *testing.T) {
 
 func TestCreateNewMemTable_Default(t *testing.T) {
 	config.Store = config.GetSkeleton()
-	config.Store.Storage.LSM.MaxMemtableRecords = 1000
+	config.Store.Storage.LSM.BloomFilterMaxRecords = 1000
 	config.Store.Storage.LSM.BloomFalsePositiveRate = 0.01
 
 	memTable := CreateNewMemTable("randomvalue")

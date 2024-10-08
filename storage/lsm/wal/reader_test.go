@@ -13,10 +13,10 @@ import (
 func setupReaderTests() {
 	config.Store = config.GetSkeleton()
 	config.Store.Storage.MaxRecordSizeInBytes = 1024
-	config.Store.Storage.LSM.MaxMemtableRecords = 100
+	config.Store.Storage.LSM.BloomFilterMaxRecords = 100
 	config.Store.Storage.LSM.BloomFalsePositiveRate = 0.01
 	config.Store.Storage.LSM.WriteAheadLogAsyncFlush = false
-	config.Store.Storage.LSM.MaxMemtableDataSize = 1024 * 1024
+	config.Store.Storage.LSM.WriteBufferSize = 1024 * 1024
 	config.Store.Logging.LogFileDirectory = "/tmp"
 }
 

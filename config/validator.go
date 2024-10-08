@@ -126,12 +126,12 @@ func (v *ConfigValidator) validateStorageEngineLSM(config *Config) error {
 		return fmt.Errorf("invalid memtable storage type %s set in config", config.Storage.LSM.MemtableStorageType)
 	}
 
-	if config.Storage.LSM.MaxMemtableRecords == 0 {
-		config.Storage.LSM.MaxMemtableRecords = DefaultMaxMemtableRecords
+	if config.Storage.LSM.BloomFilterMaxRecords == 0 {
+		config.Storage.LSM.BloomFilterMaxRecords = DefaultBloomFilterMaxRecords
 	}
 
-	if config.Storage.LSM.MaxMemtableDataSize == 0 {
-		config.Storage.LSM.MaxMemtableDataSize = DefaultMaxMemtableDataSize
+	if config.Storage.LSM.WriteBufferSize == 0 {
+		config.Storage.LSM.WriteBufferSize = DefaultWriteBlockSize
 	}
 
 	if config.Storage.LSM.BloomFalsePositiveRate == 0 {
