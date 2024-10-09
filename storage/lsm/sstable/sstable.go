@@ -1,16 +1,21 @@
 package sstable
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"universum/compression"
 	"universum/config"
 	"universum/dslib"
+	"universum/entity"
+	"universum/resp3"
 	"universum/storage/lsm/memtable"
 	"universum/utils"
 )
@@ -21,7 +26,7 @@ type SSTable struct {
 	writeMode bool
 
 	BloomFilter  *dslib.BloomFilter
-	Index        map[string]int64
+	Index        []*sstIndexEntry
 	CurrentBlock *Block
 
 	RecordCount int64
@@ -48,7 +53,11 @@ func NewSSTable(filename string, writeMode bool, maxRecords int64, falsePositive
 		}
 	}
 
-	index := make(map[string]int64)
+	writeBufferSize := config.Store.Storage.LSM.WriteBufferSize
+	writeBlockSize := config.Store.Storage.LSM.WriteBlockSize
+
+	// initialise with approximate number of blocks in the sst.
+	index := make([]*sstIndexEntry, 0, writeBufferSize/writeBlockSize)
 
 	bfSize, bfHashCount := dslib.OptimalBloomFilterSize(maxRecords, falsePositiveRate)
 	bloomFilter := dslib.NewBloomFilter(bfSize, bfHashCount)
@@ -144,24 +153,39 @@ func (sst *SSTable) LoadIndex() error {
 		return fmt.Errorf("SST index checksum mismatch, possibly corrupt file")
 	}
 
-	buf := bytes.NewBuffer(indexBytes)
-	for {
-		var keyLen int64
-		err := binary.Read(buf, binary.BigEndian, &keyLen)
+	offset := 0
+	for offset < len(indexBytes) {
+		var indexEntryLen int64
+		err := binary.Read(bytes.NewReader(indexBytes[offset:]), binary.BigEndian, &indexEntryLen)
+
 		if err != nil {
-			break // End of index
+			if err == io.EOF {
+				break // End of index
+			}
+			return fmt.Errorf("failed to read index entry length: %v", err)
 		}
 
-		key := make([]byte, keyLen)
-		buf.Read(key)
+		offset += int(binary.Size(indexEntryLen))
 
-		var offset int64
-		err = binary.Read(buf, binary.BigEndian, &offset)
-		if err != nil {
-			return fmt.Errorf("failed to read block offset: %v", err)
+		if indexEntryLen < 0 || offset+int(indexEntryLen) > len(indexBytes) {
+			return fmt.Errorf("invalid index entry length: %d", indexEntryLen)
 		}
 
-		sst.Index[string(key)] = offset
+		indexEntryStr := indexBytes[offset : offset+int(indexEntryLen)]
+		offset += int(indexEntryLen)
+
+		indexEntry, err := resp3.Decode(bufio.NewReader(bytes.NewReader(indexEntryStr)))
+		if err != nil {
+			return fmt.Errorf("failed to decode SST index entry read from disk: %v", err)
+		}
+
+		if asMap, ok := indexEntry.(map[string]interface{}); ok {
+			sst.Index = append(sst.Index, &sstIndexEntry{
+				f: asMap["f"].(string),
+				l: asMap["l"].(string),
+				o: asMap["o"].(int64),
+			})
+		}
 	}
 
 	return nil
@@ -234,6 +258,59 @@ func (sst *SSTable) LoadMetadata() error {
 
 	sst.Metadata = metadata
 	return nil
+}
+
+func (sst *SSTable) FindRecord(key string) (bool, entity.Record, error) {
+	if key == "" {
+		return false, nil, errors.New("empty key provided")
+	}
+
+	if sst.Metadata.FirstKey < key || sst.Metadata.LastKey > key {
+		return false, nil, nil
+	}
+
+	if sst.BloomFilter != nil && !sst.BloomFilter.Exists(key) {
+		return false, nil, nil
+	}
+
+	if indexEntry, err := sst.FindBlockForKey(key, sst.Index); err == nil {
+		blockOffset, blockSize := utils.UnpackNumbers(indexEntry.GetOffset())
+		block, err := sst.LoadBlock(int64(blockOffset), int64(blockSize))
+
+		if err != nil {
+			return false, nil, nil
+		}
+
+		record, err := block.GetRecord(key)
+		if record == nil && err == nil {
+			return false, nil, nil
+		}
+
+		if err != nil {
+			return false, nil, err
+		}
+
+		return true, record, nil
+	}
+
+	return false, nil, nil
+}
+
+func (sst *SSTable) FindBlockForKey(key string, index []*sstIndexEntry) (*sstIndexEntry, error) {
+	idx := sort.Search(len(index), func(i int) bool {
+		return sst.Index[i].GetFirstKey() > key
+	})
+
+	if idx == 0 || idx >= len(sst.Index) {
+		return nil, fmt.Errorf("key not found in index")
+	}
+
+	entry := sst.Index[idx-1]
+	if key >= entry.GetFirstKey() && key <= entry.GetLastKey() {
+		return entry, nil
+	}
+
+	return nil, fmt.Errorf("key not found in any block")
 }
 
 /////////////////////// Writer functions /////////////////////////
@@ -334,7 +411,18 @@ func (sst *SSTable) FlushBlock() error {
 	// Update the index with the block start offset and size by packing into single number
 	// assumption is that neither the offset nor the block will ever cross 2G limit, hence
 	// int32 number is safe enough to hold both of them respectively.
-	sst.Index[sst.CurrentBlock.startKey] = utils.PackNumbers(int32(blockStartOffset), int32(flushedBlockSize))
+	// @FIXME index should hold both start and end keys and respective offset info
+	blockOffsetAndLength := utils.PackNumbers(int32(blockStartOffset), int32(flushedBlockSize))
+	sst.Index = append(sst.Index, &sstIndexEntry{
+		f: sst.CurrentBlock.firstKey,
+		l: sst.CurrentBlock.lastKey,
+		o: blockOffsetAndLength,
+	})
+
+	if sst.Metadata.FirstKey == "" {
+		sst.Metadata.FirstKey = sst.CurrentBlock.firstKey
+	}
+	sst.Metadata.LastKey = sst.CurrentBlock.lastKey
 
 	sst.CurrentBlock = NewBlock(sst.CurrentBlock.maxSize)
 	return nil
@@ -348,18 +436,19 @@ func (sst *SSTable) FlushIndex() error {
 
 	buf := bytes.NewBuffer(make([]byte, 0, sst.RecordCount*16))
 
-	for key, offset := range sst.Index {
-		keyBytes := []byte(key)
-		keyLen := int64(len(keyBytes))
+	for _, indexEntry := range sst.Index {
+		encodedIdxEntry, err := resp3.Encode(indexEntry.ToMap())
+		if err != nil {
+			return fmt.Errorf("failed to encode index object: %v", err)
+		}
 
-		if err := binary.Write(buf, binary.BigEndian, keyLen); err != nil {
+		asBytes := []byte(encodedIdxEntry)
+		byteLength := int64(len(asBytes))
+
+		if err := binary.Write(buf, binary.BigEndian, byteLength); err != nil {
 			return fmt.Errorf("failed to write key length: %v", err)
 		}
-		buf.Write(keyBytes)
-
-		if err := binary.Write(buf, binary.BigEndian, offset); err != nil {
-			return fmt.Errorf("failed to write block offset: %v", err)
-		}
+		buf.Write(asBytes)
 	}
 
 	indexData := buf.Bytes()

@@ -36,8 +36,8 @@ func TestBlock_AddRecord(t *testing.T) {
 		t.Fatalf("failed to add record: %v", err)
 	}
 
-	if block.startKey != "testKey" {
-		t.Fatalf("expected startKey to be testKey, got %s", block.startKey)
+	if block.firstKey != "testKey" {
+		t.Fatalf("expected startKey to be testKey, got %s", block.lastKey)
 	}
 
 	if !bloom.Exists("testKey") {

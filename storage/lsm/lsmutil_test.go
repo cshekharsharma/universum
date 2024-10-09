@@ -1,6 +1,7 @@
 package lsm
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,50 +10,48 @@ import (
 	"universum/config"
 )
 
-func TestGetAllSSTableFiles(t *testing.T) {
+func TestGetAllSSTableFilesWithTempDir(t *testing.T) {
 	tempDir := t.TempDir()
 	config.Store = config.GetSkeleton()
 	config.Store.Storage.LSM.DataStorageDirectory = tempDir
 
-	files := []struct {
-		name   string
-		isSST  bool
-		create bool
-	}{
-		{"file1.sst", true, true},
-		{"file2.sst", true, true},
-		{"file3.txt", false, true},
-		{"file4", false, true},
-		{"file5.sst", true, false},
+	timeStamps := []string{
+		fmt.Sprintf("1625151601234567890.%s", SstFileExtension),
+		fmt.Sprintf("1625151603234567890.%s", SstFileExtension),
+		fmt.Sprintf("1625151604234567890.%s", SstFileExtension),
+		fmt.Sprintf("1625151605234567890.%s", SstFileExtension),
+		fmt.Sprintf("1625151602234567890.%s", SstFileExtension),
 	}
 
-	for _, f := range files {
-		if f.create {
-			filePath := filepath.Join(tempDir, f.name)
-			err := os.WriteFile(filePath, []byte("test data"), 0644)
-			if err != nil {
-				t.Fatalf("Failed to create test file %s: %v", f.name, err)
-			}
+	for _, ts := range timeStamps {
+		filePath := filepath.Join(tempDir, ts)
+		_, err := os.Create(filePath)
+		if err != nil {
+			t.Fatalf("Failed to create file %s: %v", ts, err)
 		}
 	}
 
-	sstableFiles, err := getAllSSTableFiles()
+	retreivedFiles, err := getAllSSTableFiles()
+
 	if err != nil {
-		t.Fatalf("getAllSSTableFiles returned error: %v", err)
+		t.Fatalf("expected no error, got %v", err)
 	}
 
-	expectedFiles := map[string]bool{
-		"file1.sst": true,
-		"file2.sst": true,
+	expectedOrder := []string{
+		fmt.Sprintf("1625151605234567890.%s", SstFileExtension),
+		fmt.Sprintf("1625151604234567890.%s", SstFileExtension),
+		fmt.Sprintf("1625151603234567890.%s", SstFileExtension),
+		fmt.Sprintf("1625151602234567890.%s", SstFileExtension),
+		fmt.Sprintf("1625151601234567890.%s", SstFileExtension),
 	}
 
-	if len(sstableFiles) != len(expectedFiles) {
-		t.Fatalf("Expected %d SSTable files, got %d", len(expectedFiles), len(sstableFiles))
+	if len(retreivedFiles) != len(expectedOrder) {
+		t.Fatalf("Expected %d files, got %d", len(expectedOrder), len(retreivedFiles))
 	}
 
-	for _, f := range sstableFiles {
-		if !expectedFiles[f] {
-			t.Errorf("Unexpected SSTable file found: %s", f)
+	for i, expectedFileName := range expectedOrder {
+		if retreivedFiles[i] != expectedFileName {
+			t.Errorf("Expected file %s at index %d, got %s", expectedFileName, i, retreivedFiles[i])
 		}
 	}
 }

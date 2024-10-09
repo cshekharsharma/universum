@@ -19,8 +19,8 @@ type Block struct {
 	index       map[string]int64
 	currentSize int64
 	maxSize     int64
-	startKey    string
-	endKey      string
+	firstKey    string
+	lastKey     string
 	data        []byte
 	checksum    uint32
 }
@@ -84,9 +84,9 @@ func (b *Block) AddRecord(key string, value map[string]interface{}, bloom *dslib
 	b.records = append(b.records, serialisedValue)
 
 	if len(b.records) == 1 {
-		b.startKey = key
+		b.firstKey = key
 	}
-	b.endKey = key
+	b.lastKey = key
 
 	bloom.Add(key)
 	b.currentSize += recordSize

@@ -10,7 +10,6 @@ import (
 	"universum/storage/lsm/memtable"
 	"universum/storage/lsm/sstable"
 	"universum/storage/lsm/wal"
-	"universum/utils"
 )
 
 const FlusherChanSize = 10
@@ -57,6 +56,7 @@ func (lsm *LSMStore) Initialize() error {
 
 		sstables[i] = sst
 	}
+	lsm.sstables = sstables
 
 	lsm.walWriter, err = wal.NewWriter(config.Store.Storage.LSM.WriteAheadLogDirectory)
 	if err != nil {
@@ -83,16 +83,21 @@ func (lsm *LSMStore) Exists(key string) (bool, uint32) {
 	// @TODO: Implement block cache to avoid reading from disk every time.
 
 	for _, sst := range lsm.sstables {
-		if sst.BloomFilter != nil && !sst.BloomFilter.Exists(key) {
-			continue // move to next SST if bloom filter says no
+		found, record, err := sst.FindRecord(key)
+		if err != nil {
+			return false, entity.CRC_DATA_READ_ERROR
 		}
 
-		_, ok := sst.Index[key]
-		if !ok {
-			return false, entity.CRC_RECORD_NOT_FOUND
+		if !found {
+			continue // check in next sstable
 		}
-		return ok, entity.CRC_RECORD_FOUND
+
+		if record.IsExpired() {
+			return true, entity.CRC_RECORD_NOT_FOUND
+		}
+		return true, entity.CRC_RECORD_FOUND
 	}
+
 	return false, entity.CRC_RECORD_NOT_FOUND
 }
 
@@ -105,34 +110,19 @@ func (lsm *LSMStore) Get(key string) (entity.Record, uint32) {
 	// @TODO: Implement block cache to avoid reading from disk every time.
 
 	for _, sst := range lsm.sstables {
-		if sst.BloomFilter != nil && !sst.BloomFilter.Exists(key) {
-			continue // move to next SST if bloom filter says no
+		found, record, err := sst.FindRecord(key)
+		if err != nil {
+			return record, entity.CRC_DATA_READ_ERROR
 		}
 
-		blockIdxMeta, ok := sst.Index[key]
-		if ok {
-			blockOffset, blockSize := utils.UnpackNumbers(blockIdxMeta)
-			block, err := sst.LoadBlock(int64(blockOffset), int64(blockSize))
-
-			if err != nil {
-				return nil, entity.CRC_DATA_READ_ERROR
-			}
-
-			record, err := block.GetRecord(key)
-			if record == nil && err != nil {
-				continue // block index says no, check next SSTable
-			}
-
-			if err != nil {
-				return record, entity.CRC_DATA_READ_ERROR
-			}
-
-			if record.IsExpired() {
-				return record, entity.CRC_RECORD_NOT_FOUND
-			}
-
-			return record, entity.CRC_RECORD_FOUND
+		if !found {
+			continue // check in next sstable
 		}
+
+		if record.IsExpired() {
+			return record, entity.CRC_RECORD_NOT_FOUND
+		}
+		return record, entity.CRC_RECORD_FOUND
 	}
 
 	return nil, entity.CRC_RECORD_NOT_FOUND

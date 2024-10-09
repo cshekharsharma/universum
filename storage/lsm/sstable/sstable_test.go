@@ -127,12 +127,12 @@ func TestFlushMemTableToSSTable(t *testing.T) {
 		t.Fatalf("Expected 2 records in SSTable, got %d", sst.RecordCount)
 	}
 
-	if sst.Metadata.DataSize != 603 {
-		t.Fatalf("Expected 603B of size in SSTable metadata, got %dB", sst.Metadata.DataSize)
+	if sst.Metadata.DataSize != 660 {
+		t.Fatalf("Expected 660B of size in SSTable metadata, got %dB", sst.Metadata.DataSize)
 	}
 
-	if sst.DataSize != 686 {
-		t.Fatalf("Expected 686B of data in SSTable, got %dB", sst.DataSize)
+	if sst.DataSize != 759 {
+		t.Fatalf("Expected 759B of data in SSTable, got %dB", sst.DataSize)
 	}
 
 	_, err = os.Stat(filepath)
@@ -161,7 +161,8 @@ func TestLoadBlock(t *testing.T) {
 
 	_ = sst.FlushMemTableToSSTable(mem)
 
-	blockOffset, blocksize := utils.UnpackNumbers(sst.Index["key1"])
+	entry, _ := sst.FindBlockForKey("key1", sst.Index)
+	blockOffset, blocksize := utils.UnpackNumbers(entry.GetOffset())
 
 	block, err := sst.LoadBlock(int64(blockOffset), int64(blocksize))
 	block.PopulateRecordsInBlock()

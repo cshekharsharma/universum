@@ -12,6 +12,8 @@ type Metadata struct {
 	Version           int64  // Version of the SSTable format
 	NumRecords        int64  // Number of key-value pairs in the SSTable
 	DataSize          int64  // Total size of the data block
+	FirstKey          string // First key in the SSTable
+	LastKey           string // Last key in the SSTable
 	IndexOffset       int64  // Offset in the file where the index block starts
 	IndexSize         int64  // Size of the index block
 	IndexChecksum     uint32 // Optional checksum for index block validation
@@ -44,13 +46,20 @@ func (m *Metadata) Serialize() ([]byte, error) {
 		}
 	}
 
-	str := m.Compression
-	strLen := int32(len(str))
-	if err := binary.Write(buf, binary.BigEndian, strLen); err != nil {
-		return nil, fmt.Errorf("failed to serialize Compression length: %v", err)
+	variableSizeFields := []string{
+		m.FirstKey,
+		m.LastKey,
+		m.Compression,
 	}
-	if _, err := buf.Write([]byte(str)); err != nil {
-		return nil, fmt.Errorf("failed to serialize Compression: %v", err)
+
+	for _, field := range variableSizeFields {
+		fieldLen := int32(len(field))
+		if err := binary.Write(buf, binary.BigEndian, fieldLen); err != nil {
+			return nil, fmt.Errorf("failed to serialize field length: %v", err)
+		}
+		if _, err := buf.Write([]byte(field)); err != nil {
+			return nil, fmt.Errorf("failed to serialize field: %v", err)
+		}
 	}
 
 	return buf.Bytes(), nil
@@ -75,23 +84,33 @@ func (m *Metadata) Deserialize(data []byte) error {
 
 	for _, field := range fixedFields {
 		if err := binary.Read(buf, binary.BigEndian, field); err != nil {
-			return fmt.Errorf("failed to deserialize: %v", err)
+			return fmt.Errorf("failed to deserialize metadata fixed field: %v", err)
 		}
 	}
 
-	var strLen int32
-	if err := binary.Read(buf, binary.BigEndian, &strLen); err != nil {
-		return fmt.Errorf("failed to deserialize Compression length: %v", err)
-	}
-	if strLen < 0 || strLen > 1<<20 { // 1MB limit to prevent excessive allocation
-		return fmt.Errorf("invalid Compression length: %d", strLen)
+	variableSizeFields := []*string{
+		&m.FirstKey,
+		&m.LastKey,
+		&m.Compression,
 	}
 
-	strBytes := make([]byte, strLen)
-	if _, err := io.ReadFull(buf, strBytes); err != nil {
-		return fmt.Errorf("failed to deserialize Compression: %v", err)
+	for _, field := range variableSizeFields {
+		var strLen int32
+		if err := binary.Read(buf, binary.BigEndian, &strLen); err != nil {
+			return fmt.Errorf("failed to deserialize metadata variable field length: %v", err)
+		}
+
+		if strLen < 0 || strLen > 1<<20 { // 1MB limit to prevent excessive allocation
+			return fmt.Errorf("invalid metadata variable field length: %d", strLen)
+		}
+
+		strBytes := make([]byte, strLen)
+		if _, err := io.ReadFull(buf, strBytes); err != nil {
+			return fmt.Errorf("failed to deserialize metadata variable field: %v", err)
+		}
+
+		*field = string(strBytes)
 	}
-	m.Compression = string(strBytes)
 
 	return nil
 }

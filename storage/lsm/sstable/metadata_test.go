@@ -13,6 +13,8 @@ func TestMetadataSerialization(t *testing.T) {
 		NumRecords:        1000,
 		IndexOffset:       2048,
 		DataSize:          102400,
+		FirstKey:          "first",
+		LastKey:           "last",
 		IndexSize:         5120,
 		BloomFilterOffset: 1536,
 		BloomFilterSize:   256,
