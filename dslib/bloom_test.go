@@ -1,6 +1,7 @@
 package dslib
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 )
@@ -74,23 +75,36 @@ func TestBloomFilter(t *testing.T) {
 }
 
 func TestBloomFilterSerialization(t *testing.T) {
-	bf := NewBloomFilter(1000, 5)
+	bf := NewBloomFilter(10000, 5)
 
-	bf.Add("test")
+	for i := 0; i < 100; i++ {
+		bf.Add(fmt.Sprintf("test%d", i))
+	}
+
 	data, err := bf.Serialize()
 	if err != nil {
 		t.Fatalf("Failed to serialize Bloom filter: %v", err)
 	}
 
-	newBF := NewBloomFilter(1000, 5)
+	newBF := NewBloomFilter(1000, 10)
 	err = newBF.Deserialize(data)
 	if err != nil {
 		t.Fatalf("Failed to deserialize Bloom filter: %v", err)
 	}
 
-	if !newBF.Exists("test") {
-		t.Errorf("Expected 'test' to exist after deserialization")
+	for i := 0; i < 100; i++ {
+		e1 := fmt.Sprintf("test%d", i)
+		e2 := fmt.Sprintf("nonexistant1-%d", i)
+
+		if !newBF.Exists(e1) {
+			t.Errorf("expected '%s' to exist after deserialization", e1)
+		}
+
+		if newBF.Exists(e2) {
+			t.Errorf("expected '%s' to not exist after deserialization", e2)
+		}
 	}
+
 }
 
 func TestBloomFilterMerge(t *testing.T) {

@@ -265,7 +265,7 @@ func (sst *SSTable) FindRecord(key string) (bool, entity.Record, error) {
 		return false, nil, errors.New("empty key provided")
 	}
 
-	if sst.Metadata.FirstKey < key || sst.Metadata.LastKey > key {
+	if sst.Metadata.FirstKey > key || sst.Metadata.LastKey < key {
 		return false, nil, nil
 	}
 

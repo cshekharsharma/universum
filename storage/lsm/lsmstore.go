@@ -190,6 +190,9 @@ func (lsm *LSMStore) MemtableBGFlusher() error {
 		}
 	}()
 
+	maxRecords := config.Store.Storage.LSM.BloomFilterMaxRecords
+	fpRate := config.Store.Storage.LSM.BloomFalsePositiveRate
+
 	for memtable := range memtable.FlusherChan {
 		go func(container interface{}) {
 			var sst *sstable.SSTable
@@ -200,7 +203,7 @@ func (lsm *LSMStore) MemtableBGFlusher() error {
 			logger.Get().Info("BGFlusher: Flushing memtable to SSTable: %s", newFileName)
 
 			for i := 0; i < SSTableFlushRetryCount; i++ {
-				sst, err = sstable.NewSSTable(newFileName, true, 0, 0)
+				sst, err = sstable.NewSSTable(newFileName, true, maxRecords, fpRate)
 				if err != nil {
 					logger.Get().Error("[#%d] BGFlusher: failed to create new SSTable: %v", i+1, err)
 					time.Sleep(10 * time.Millisecond)
@@ -232,7 +235,7 @@ func (lsm *LSMStore) MemtableBGFlusher() error {
 			}
 
 			lsm.mutex.Lock()
-			lsm.sstables = append(lsm.sstables, sst)
+			lsm.sstables = append([]*sstable.SSTable{sst}, lsm.sstables...)
 			lsm.mutex.Unlock()
 
 		}(memtable)
