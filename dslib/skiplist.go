@@ -21,15 +21,17 @@ type Node struct {
 	key    string
 	value  interface{}
 	expiry int64
+	state  uint8
 	next   []*Node
 }
 
 // NewNode creates a new Node for the skip list
-func NewNode(key string, value interface{}, expiry int64, level int) *Node {
+func NewNode(key string, value interface{}, expiry int64, state uint8, level int) *Node {
 	return &Node{
 		key:    key,
 		value:  value,
 		expiry: expiry,
+		state:  state,
 		next:   make([]*Node, level),
 	}
 }
@@ -37,7 +39,7 @@ func NewNode(key string, value interface{}, expiry int64, level int) *Node {
 // NewSkipList initializes a new SkipList with the size field and dedicated random generator
 func NewSkipList() *SkipList {
 	return &SkipList{
-		head:  NewNode(MinString, nil, 0, MaxLevel),
+		head:  NewNode(MinString, nil, 0, 0, MaxLevel),
 		level: 1,
 		size:  0,
 		rand:  rand.New(rand.NewSource(time.Now().UnixNano())),
@@ -45,7 +47,7 @@ func NewSkipList() *SkipList {
 }
 
 // Insert inserts a new element into the skip list or updates an existing one
-func (sl *SkipList) Insert(key string, value interface{}, expiry int64) {
+func (sl *SkipList) Insert(key string, value interface{}, expiry int64, state uint8) {
 	update := make([]*Node, MaxLevel)
 	current := sl.head
 
@@ -60,6 +62,7 @@ func (sl *SkipList) Insert(key string, value interface{}, expiry int64) {
 	if current != nil && current.key == key {
 		current.value = value
 		current.expiry = expiry
+		current.state = state
 		return
 	}
 
@@ -72,7 +75,7 @@ func (sl *SkipList) Insert(key string, value interface{}, expiry int64) {
 		sl.level = level
 	}
 
-	newNode := NewNode(key, value, expiry, level)
+	newNode := NewNode(key, value, expiry, state, level)
 
 	for i := 0; i < level; i++ {
 		newNode.next[i] = update[i].next[i]
@@ -83,7 +86,7 @@ func (sl *SkipList) Insert(key string, value interface{}, expiry int64) {
 }
 
 // Search returns the value for the specified key, if it exists, or nil if not found
-func (sl *SkipList) Search(key string) (bool, interface{}, int64) {
+func (sl *SkipList) Search(key string) (bool, interface{}, int64, uint8) {
 	current := sl.head
 	for i := sl.level - 1; i >= 0; i-- {
 		for current.next[i] != nil && current.next[i].key < key {
@@ -93,14 +96,14 @@ func (sl *SkipList) Search(key string) (bool, interface{}, int64) {
 
 	current = current.next[0]
 	if current != nil && current.key == key {
-		return true, current.value, current.expiry
+		return true, current.value, current.expiry, current.state
 	}
 
-	return false, nil, 0
+	return false, nil, 0, entity.RecordStateActive
 }
 
 // Get retrieves a value from the skip list based on the given key
-func (sl *SkipList) Get(key string) (bool, interface{}, int64) {
+func (sl *SkipList) Get(key string) (bool, interface{}, int64, uint8) {
 	return sl.Search(key)
 }
 
@@ -167,6 +170,7 @@ func (sl *SkipList) GetAllRecords() []*entity.RecordKV {
 			Record: &entity.ScalarRecord{
 				Value:  current.value,
 				Expiry: current.expiry,
+				State:  current.state,
 			},
 		})
 		current = current.next[0]

@@ -8,7 +8,7 @@ import (
 type MemTable interface {
 	Exists(key string) (bool, uint32)
 	Get(key string) (entity.Record, uint32)
-	Set(key string, value interface{}, ttl int64) (bool, uint32)
+	Set(key string, value interface{}, ttl int64, state uint8) (bool, uint32)
 	Delete(key string) (bool, uint32)
 	IncrDecrInteger(key string, offset int64, isIncr bool) (int64, uint32)
 	Append(key string, value string) (int64, uint32)
@@ -21,6 +21,7 @@ type MemTable interface {
 	IsFull() bool
 	GetCount() int64
 	GetAll() []*entity.RecordKV
+	Truncate() error
 }
 
 func CreateNewMemTable(tabletype string) MemTable {

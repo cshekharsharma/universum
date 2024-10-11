@@ -25,7 +25,7 @@ func TestListMapMemTable_Get(t *testing.T) {
 
 func TestListMapMemTable_Set(t *testing.T) {
 	lm := &ListMapMemTable{}
-	success, version := lm.Set("testKey", "testValue", 0)
+	success, version := lm.Set("testKey", "testValue", 0, entity.RecordStateActive)
 	if success != false || version != 0 {
 		t.Errorf("Expected (false, 0), got (%v, %v)", success, version)
 	}

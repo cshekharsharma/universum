@@ -4,6 +4,8 @@ import (
 	"testing"
 )
 
+const testingTempDir string = "/tmp"
+
 func TestConfigValidator_Validate(t *testing.T) {
 	validator := NewConfigValidator()
 
@@ -58,7 +60,7 @@ func TestConfigValidator_Validate(t *testing.T) {
 			StorageEngine:        "invalid-engine",
 			MaxRecordSizeInBytes: 0,
 			Memory: &Memory{
-				SnapshotFileDirectory: "/tmp",
+				SnapshotFileDirectory: testingTempDir,
 			},
 		}
 
@@ -71,7 +73,7 @@ func TestConfigValidator_Validate(t *testing.T) {
 			StorageEngine:        "",
 			MaxRecordSizeInBytes: 0,
 			Memory: &Memory{
-				SnapshotFileDirectory: "/tmp",
+				SnapshotFileDirectory: testingTempDir,
 			},
 		}
 
@@ -96,8 +98,8 @@ func TestConfigValidator_Validate(t *testing.T) {
 		cfg.Storage.LSM = &LSM{
 			WriteBlockSize:          0,
 			MemtableStorageType:     "",
-			DataStorageDirectory:    "/tmp",
-			WriteAheadLogDirectory:  "/tmp",
+			DataStorageDirectory:    testingTempDir,
+			WriteAheadLogDirectory:  testingTempDir,
 			WriteAheadLogFrequency:  0,
 			WriteAheadLogBufferSize: 1024,
 		}
@@ -123,11 +125,11 @@ func TestConfigValidator_Validate(t *testing.T) {
 			t.Errorf("Expected WriteAheadLogBufferSize to be set to 1024, got %d", cfg.Storage.LSM.WriteAheadLogBufferSize)
 		}
 
-		if cfg.Storage.LSM.DataStorageDirectory != "/tmp" {
+		if cfg.Storage.LSM.DataStorageDirectory != testingTempDir {
 			t.Errorf("Expected DataStorageDirectory to be set to /tmp, got %s", cfg.Storage.LSM.DataStorageDirectory)
 		}
 
-		if cfg.Storage.LSM.WriteAheadLogDirectory != "/tmp" {
+		if cfg.Storage.LSM.WriteAheadLogDirectory != testingTempDir {
 			t.Errorf("Expected WriteAheadLogDirectory to be set to /tmp, got %s", cfg.Storage.LSM.WriteAheadLogDirectory)
 		}
 	})
@@ -138,7 +140,7 @@ func TestConfigValidator_Validate(t *testing.T) {
 
 		cfg.Storage.Memory = &Memory{
 			AllowedMemoryStorageLimit: 0,
-			SnapshotFileDirectory:     "/tmp",
+			SnapshotFileDirectory:     testingTempDir,
 			AutoSnapshotFrequency:     100,
 		}
 

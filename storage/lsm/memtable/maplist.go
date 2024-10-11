@@ -11,7 +11,7 @@ func (lm *ListMapMemTable) Exists(key string) (bool, uint32) {
 func (lm *ListMapMemTable) Get(key string) (entity.Record, uint32) {
 	return &entity.ScalarRecord{}, 0
 }
-func (lm *ListMapMemTable) Set(key string, value interface{}, ttl int64) (bool, uint32) {
+func (lm *ListMapMemTable) Set(key string, value interface{}, ttl int64, state uint8) (bool, uint32) {
 	return false, 0
 }
 func (lm *ListMapMemTable) Delete(key string) (bool, uint32) {
@@ -49,6 +49,10 @@ func (lm *ListMapMemTable) GetCount() int64 {
 	return 0
 }
 
-func (lb *ListMapMemTable) GetAll() []*entity.RecordKV {
+func (lm *ListMapMemTable) GetAll() []*entity.RecordKV {
+	return nil
+}
+
+func (lm *ListMapMemTable) Truncate() error {
 	return nil
 }

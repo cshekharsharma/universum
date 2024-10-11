@@ -9,14 +9,16 @@ import (
 	"time"
 
 	"universum/config"
+	"universum/entity"
 )
 
-func setupWriterTests() {
+func setupWriterTests(t *testing.T) {
+	tmpdir := t.TempDir()
 	config.Store = config.GetSkeleton()
 	config.Store.Storage.LSM.WriteAheadLogAsyncFlush = false
 	config.Store.Storage.LSM.WriteAheadLogBufferSize = 4096 // 4KB
 	config.Store.Storage.LSM.WriteAheadLogFrequency = 1     // 1 second
-	config.Store.Logging.LogFileDirectory = "/tmp"
+	config.Store.Logging.LogFileDirectory = tmpdir
 }
 
 func createTempDir(t *testing.T) string {
@@ -35,7 +37,7 @@ func cleanupDir(t *testing.T, dir string) {
 }
 
 func TestNewWriter(t *testing.T) {
-	setupWriterTests()
+	setupWriterTests(t)
 	dir := createTempDir(t)
 	defer cleanupDir(t, dir)
 
@@ -52,7 +54,7 @@ func TestNewWriter(t *testing.T) {
 }
 
 func TestAddToWALBufferSyncFlush(t *testing.T) {
-	setupWriterTests()
+	setupWriterTests(t)
 	dir := createTempDir(t)
 	defer cleanupDir(t, dir)
 
@@ -64,7 +66,7 @@ func TestAddToWALBufferSyncFlush(t *testing.T) {
 	}
 	defer writer.Close()
 
-	err = writer.AddToWALBuffer(OperationTypeSET, "key1", "value1", 0)
+	err = writer.AddToWALBuffer("key1", "value1", 0, entity.RecordStateActive)
 	if err != nil {
 		t.Fatalf("AddToWALBuffer failed: %v", err)
 	}
@@ -81,7 +83,7 @@ func TestAddToWALBufferSyncFlush(t *testing.T) {
 }
 
 func TestAddToWALBufferAsyncFlush(t *testing.T) {
-	setupWriterTests()
+	setupWriterTests(t)
 	dir := createTempDir(t)
 	defer cleanupDir(t, dir)
 
@@ -93,7 +95,7 @@ func TestAddToWALBufferAsyncFlush(t *testing.T) {
 	}
 	defer writer.Close()
 
-	err = writer.AddToWALBuffer("SET", "key1", "value1", 0)
+	err = writer.AddToWALBuffer("key1", "value1", 0, entity.RecordStateActive)
 	if err != nil {
 		t.Fatalf("AddToWALBuffer failed: %v", err)
 	}
@@ -112,7 +114,7 @@ func TestAddToWALBufferAsyncFlush(t *testing.T) {
 }
 
 func TestFlush(t *testing.T) {
-	setupWriterTests()
+	setupWriterTests(t)
 	dir := createTempDir(t)
 	defer cleanupDir(t, dir)
 
@@ -124,7 +126,7 @@ func TestFlush(t *testing.T) {
 	}
 	defer writer.Close()
 
-	err = writer.AddToWALBuffer("SET", "key1", "value1", 0)
+	err = writer.AddToWALBuffer("key1", "value1", 0, entity.RecordStateActive)
 	if err != nil {
 		t.Fatalf("AddToWALBuffer failed: %v", err)
 	}
@@ -143,7 +145,7 @@ func TestFlush(t *testing.T) {
 }
 
 func TestBufferFlushOnMaxSize(t *testing.T) {
-	setupWriterTests()
+	setupWriterTests(t)
 	dir := createTempDir(t)
 	defer cleanupDir(t, dir)
 
@@ -165,7 +167,7 @@ func TestBufferFlushOnMaxSize(t *testing.T) {
 	for i := 0; i < numEntries; i++ {
 		key := fmt.Sprintf("key%d", i)
 		value := fmt.Sprintf("value%d", i)
-		err := writer.AddToWALBuffer("SET", key, value, 0)
+		err := writer.AddToWALBuffer(key, value, 0, entity.RecordStateActive)
 
 		if err != nil {
 			t.Fatalf("AddToWALBuffer failed: %v", err)
@@ -194,7 +196,7 @@ func TestBufferFlushOnMaxSize(t *testing.T) {
 }
 
 func TestRotateWALFile(t *testing.T) {
-	setupWriterTests()
+	setupWriterTests(t)
 	dir := createTempDir(t)
 	defer cleanupDir(t, dir)
 
@@ -206,7 +208,7 @@ func TestRotateWALFile(t *testing.T) {
 	}
 	defer writer.Close()
 
-	err = writer.AddToWALBuffer("SET", "key1", "value1", 0)
+	err = writer.AddToWALBuffer("key1", "value1", 0, entity.RecordStateActive)
 	if err != nil {
 		t.Fatalf("AddToWALBuffer failed: %v", err)
 	}
@@ -228,7 +230,7 @@ func TestRotateWALFile(t *testing.T) {
 }
 
 func TestConcurrentAddToWALBuffer(t *testing.T) {
-	setupWriterTests()
+	setupWriterTests(t)
 	dir := createTempDir(t)
 	defer cleanupDir(t, dir)
 
@@ -251,7 +253,7 @@ func TestConcurrentAddToWALBuffer(t *testing.T) {
 			for j := 0; j < numWritesPerGoroutine; j++ {
 				key := fmt.Sprintf("key-%d-%d", id, j)
 				value := fmt.Sprintf("value-%d-%d", id, j)
-				err := writer.AddToWALBuffer("SET", key, value, 0)
+				err := writer.AddToWALBuffer(key, value, 0, entity.RecordStateActive)
 				if err != nil {
 					t.Errorf("AddToWALBuffer failed: %v", err)
 				}
@@ -273,7 +275,7 @@ func TestConcurrentAddToWALBuffer(t *testing.T) {
 }
 
 func TestWriterClose(t *testing.T) {
-	setupWriterTests()
+	setupWriterTests(t)
 	dir := createTempDir(t)
 	defer cleanupDir(t, dir)
 
@@ -284,7 +286,7 @@ func TestWriterClose(t *testing.T) {
 		t.Fatalf("Failed to create WALWriter: %v", err)
 	}
 
-	err = writer.AddToWALBuffer(OperationTypeDELETE, "key1", "", 0)
+	err = writer.AddToWALBuffer("key1", "value1", 0, entity.RecordStateActive)
 	if err != nil {
 		t.Fatalf("AddToWALBuffer failed: %v", err)
 	}
@@ -303,7 +305,7 @@ func TestWriterClose(t *testing.T) {
 }
 
 func TestGetEncodedEntries(t *testing.T) {
-	setupWriterTests()
+	setupWriterTests(t)
 	dir := createTempDir(t)
 	defer cleanupDir(t, dir)
 
@@ -313,19 +315,14 @@ func TestGetEncodedEntries(t *testing.T) {
 	}
 	defer writer.Close()
 
-	err = writer.AddToWALBuffer("UNKNOWN_OP", "key1", "value1", 0)
-	if err == nil {
-		t.Fatalf("Expected error with unknown operation, but got nil")
-	}
-
-	err = writer.AddToWALBuffer(OperationTypeSET, "key1", "value1", 0)
+	err = writer.AddToWALBuffer("key1", "value1", 0, entity.RecordStateActive)
 	if err != nil {
 		t.Fatalf("AddToWALBuffer failed with valid operation: %v", err)
 	}
 }
 
 func TestAttemptFlushFailure(t *testing.T) {
-	setupWriterTests()
+	setupWriterTests(t)
 	dir := createTempDir(t)
 	defer cleanupDir(t, dir)
 
@@ -336,7 +333,7 @@ func TestAttemptFlushFailure(t *testing.T) {
 		t.Fatalf("Failed to create WALWriter: %v", err)
 	}
 
-	err = writer.AddToWALBuffer("SET", "key1", "value1", 0)
+	err = writer.AddToWALBuffer("key1", "value1", 0, entity.RecordStateActive)
 	if err != nil {
 		t.Fatalf("AddToWALBuffer failed: %v", err)
 	}
@@ -346,7 +343,7 @@ func TestAttemptFlushFailure(t *testing.T) {
 }
 
 func TestSyncCounterThreshold(t *testing.T) {
-	setupWriterTests()
+	setupWriterTests(t)
 	dir := createTempDir(t)
 	defer cleanupDir(t, dir)
 
@@ -360,7 +357,7 @@ func TestSyncCounterThreshold(t *testing.T) {
 
 	writer.syncThreshold = 1
 
-	err = writer.AddToWALBuffer("SET", "key1", "value1", 0)
+	err = writer.AddToWALBuffer("key1", "value1", 0, entity.RecordStateActive)
 	if err != nil {
 		t.Fatalf("AddToWALBuffer failed: %v", err)
 	}

@@ -43,13 +43,23 @@ func (m *ListBloomMemTable) Exists(key string) (bool, uint32) {
 		return false, entity.CRC_RECORD_NOT_FOUND
 	}
 
-	found, _, expiry := m.skipList.Get(key)
+	found, _, expiry, state := m.skipList.Get(key)
 
 	if !found {
 		return false, entity.CRC_RECORD_NOT_FOUND
 	}
 
-	if found && (expiry == 0 || expiry < utils.GetCurrentEPochTime()) {
+	record := &entity.ScalarRecord{
+		Value:  nil,
+		Expiry: expiry,
+		State:  state,
+	}
+
+	if found && !record.IsActive() {
+		return false, entity.CRC_RECORD_TOMBSTONED
+	}
+
+	if found && record.IsExpired() {
 		m.skipList.Remove(key)
 		m.reduceMemtableSize(key)
 		return false, entity.CRC_RECORD_EXPIRED
@@ -66,7 +76,7 @@ func (m *ListBloomMemTable) Get(key string) (entity.Record, uint32) {
 		return nil, entity.CRC_RECORD_NOT_FOUND
 	}
 
-	found, val, expiry := m.skipList.Get(key)
+	found, val, expiry, state := m.skipList.Get(key)
 	if !found {
 		return nil, entity.CRC_RECORD_NOT_FOUND
 	}
@@ -75,6 +85,11 @@ func (m *ListBloomMemTable) Get(key string) (entity.Record, uint32) {
 		Value:  val,
 		LAT:    utils.GetCurrentEPochTime(),
 		Expiry: expiry,
+		State:  state,
+	}
+
+	if found && !record.IsActive() {
+		return nil, entity.CRC_RECORD_TOMBSTONED
 	}
 
 	if found && record.IsExpired() {
@@ -87,7 +102,7 @@ func (m *ListBloomMemTable) Get(key string) (entity.Record, uint32) {
 	return record, entity.CRC_RECORD_FOUND
 }
 
-func (m *ListBloomMemTable) Set(key string, value interface{}, ttl int64) (bool, uint32) {
+func (m *ListBloomMemTable) Set(key string, value interface{}, ttl int64, state uint8) (bool, uint32) {
 	if !utils.IsWriteableDatatype(value) {
 		return false, entity.CRC_INVALID_DATATYPE
 	}
@@ -106,10 +121,10 @@ func (m *ListBloomMemTable) Set(key string, value interface{}, ttl int64) (bool,
 	defer m.lock.Unlock()
 
 	if m.IsFull() {
-		m.TruncateMemtable()
+		m.Truncate()
 	}
 
-	m.skipList.Insert(key, value, expiry)
+	m.skipList.Insert(key, value, expiry, state)
 	m.updateMemtableSize(key, value)
 	m.bloomFilter.Add(key)
 
@@ -120,8 +135,8 @@ func (m *ListBloomMemTable) Delete(key string) (bool, uint32) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	m.skipList.Remove(key)
-	m.reduceMemtableSize(key)
+	m.skipList.Insert(key, 0, 0, entity.RecordStateTombstoned)
+	m.updateMemtableSize(key, 0)
 
 	return true, entity.CRC_RECORD_DELETED
 }
@@ -148,7 +163,7 @@ func (m *ListBloomMemTable) IncrDecrInteger(key string, offset int64, isIncr boo
 	}
 
 	ttl := record.Expiry - utils.GetCurrentEPochTime()
-	didSet, setcode := m.Set(key, newValue, ttl)
+	didSet, setcode := m.Set(key, newValue, ttl, entity.RecordStateActive)
 
 	if !didSet {
 		return config.InvalidNumericValue, setcode
@@ -173,7 +188,7 @@ func (m *ListBloomMemTable) Append(key string, value string) (int64, uint32) {
 	newValue := record.Value.(string) + value
 	ttl := record.Expiry - utils.GetCurrentEPochTime()
 
-	didSet, setcode := m.Set(key, newValue, ttl)
+	didSet, setcode := m.Set(key, newValue, ttl, entity.RecordStateActive)
 	if !didSet {
 		return config.InvalidNumericValue, setcode
 	}
@@ -207,7 +222,7 @@ func (m *ListBloomMemTable) MSet(kvMap map[string]interface{}) (map[string]inter
 	responseMap := make(map[string]interface{})
 
 	for key, value := range kvMap {
-		didSet, _ := m.Set(key, value, 0)
+		didSet, _ := m.Set(key, value, 0, entity.RecordStateActive)
 		responseMap[key] = didSet
 	}
 
@@ -246,7 +261,7 @@ func (m *ListBloomMemTable) Expire(key string, ttl int64) (bool, uint32) {
 	}
 
 	record := val.(*entity.ScalarRecord)
-	return m.Set(key, record.Value, ttl)
+	return m.Set(key, record.Value, ttl, entity.RecordStateActive)
 }
 
 func (m *ListBloomMemTable) GetSize() int64 {
@@ -262,9 +277,9 @@ func (m *ListBloomMemTable) GetCount() int64 {
 }
 
 func (m *ListBloomMemTable) updateMemtableSize(key string, val interface{}) {
-	var expiryValSize int64 = 1 << 3 // 8 bytes for expiry info
+	var metadataSize int64 = 2 * entity.Int64SizeInBytes // 8 bytes each for exp and state
 	newSize, err := utils.GetInMemorySizeInBytes(val)
-	newSize += int64(len(key)) + expiryValSize
+	newSize += int64(len(key)) + metadataSize
 
 	delta := newSize
 
@@ -301,7 +316,7 @@ func (m *ListBloomMemTable) GetAll() []*entity.RecordKV {
 	return m.skipList.GetAllRecords()
 }
 
-func (m *ListBloomMemTable) TruncateMemtable() {
+func (m *ListBloomMemTable) Truncate() error {
 	backupMemtable := &ListBloomMemTable{
 		skipList:    m.skipList,
 		bloomFilter: m.bloomFilter,
@@ -319,4 +334,6 @@ func (m *ListBloomMemTable) TruncateMemtable() {
 
 	logger.Get().Info("Memtable truncated after size=%d, count=%d",
 		backupMemtable.size, backupMemtable.skipList.Size())
+
+	return nil
 }

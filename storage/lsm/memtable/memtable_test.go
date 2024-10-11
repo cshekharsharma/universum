@@ -6,11 +6,12 @@ import (
 )
 
 func TestCreateNewMemTable_TypeLB(t *testing.T) {
+	tmpdir := t.TempDir()
 	config.Store = config.GetSkeleton()
 	config.Store.Storage.LSM.BloomFilterMaxRecords = 1000
 	config.Store.Storage.LSM.WriteBufferSize = 1048576
 	config.Store.Storage.LSM.BloomFalsePositiveRate = 0.01
-	config.Store.Logging.LogFileDirectory = "/tmp"
+	config.Store.Logging.LogFileDirectory = tmpdir
 
 	memTable := CreateNewMemTable(config.MemtableStorageTypeLB)
 	_, ok := memTable.(*ListBloomMemTable)

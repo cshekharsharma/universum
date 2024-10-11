@@ -19,10 +19,10 @@ import (
 )
 
 type WALRecord struct {
-	Operation string
-	Key       string
-	Value     interface{}
-	TTL       int64
+	Key    string
+	Value  interface{}
+	Expiry int64
+	State  uint8
 }
 
 type WALWriter struct {
@@ -71,7 +71,7 @@ func NewWriter(filedir string) (*WALWriter, error) {
 }
 
 // AddToWALBuffer adds the key-value pair to the buffer.
-func (ww *WALWriter) AddToWALBuffer(op string, key string, value interface{}, ttl int64) error {
+func (ww *WALWriter) AddToWALBuffer(key string, value interface{}, ttl int64, state uint8) error {
 	ww.mutex.Lock()
 	defer ww.mutex.Unlock()
 
@@ -82,7 +82,7 @@ func (ww *WALWriter) AddToWALBuffer(op string, key string, value interface{}, tt
 	default:
 	}
 
-	encodedCommand, err := ww.getEncodedEntries(op, key, value, ttl)
+	encodedCommand, err := ww.getEncodedEntries(key, value, ttl, state)
 	if err != nil {
 		return fmt.Errorf("AddToWALBuffer:: WAL append failed: %v", err)
 	}
@@ -131,31 +131,20 @@ func (ww *WALWriter) AddToWALBuffer(op string, key string, value interface{}, tt
 	return nil
 }
 
-// logEncodedEntries encodes the key, value, and other prams into the buffer.
-func (ww *WALWriter) getEncodedEntries(op string, key string, value interface{}, ttl int64) (string, error) {
-	if found, _ := utils.ExistsInList(op, []string{OperationTypeSET, OperationTypeDELETE}); !found {
-		return "", fmt.Errorf("unknown operation type for WAL entry: %s", op)
-	}
-
+// logEncodedEntries encodes the key, value, and other params into the buffer.
+func (ww *WALWriter) getEncodedEntries(key string, value interface{}, ttl int64, state uint8) (string, error) {
 	var command = make(map[string]interface{})
 
-	if op == OperationTypeSET {
-		expiry := utils.GetCurrentEPochTime() + ttl
-		if ttl == 0 {
-			expiry = config.InfiniteExpiryTime
-		}
+	expiry := utils.GetCurrentEPochTime() + ttl
+	if ttl == 0 {
+		expiry = config.InfiniteExpiryTime
+	}
 
-		command = map[string]interface{}{
-			"Name":   OperationTypeSET,
-			"Key":    key,
-			"Value":  value,
-			"Expiry": expiry,
-		}
-	} else {
-		command = map[string]interface{}{
-			"Name": OperationTypeDELETE,
-			"Key":  key,
-		}
+	command = map[string]interface{}{
+		"Key":    key,
+		"Value":  value,
+		"Expiry": expiry,
+		"State":  state,
 	}
 
 	encodedCommand, err := resp3.Encode(command)

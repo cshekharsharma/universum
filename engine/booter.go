@@ -19,7 +19,7 @@ func Startup() {
 		Shutdown(entity.ExitCodeStartupFailure)
 	}
 
-	RestoreDatabaseSnapshot(datastore)
+	AutoRestoreDatabaseSnapshot(datastore)
 
 	expiryJobExecutionFrequency = time.Duration(config.Store.Eviction.AutoRecordExpiryFrequency) * time.Second
 	snapshotJobExecutionFrequency = time.Duration(config.Store.Storage.Memory.AutoSnapshotFrequency) * time.Second

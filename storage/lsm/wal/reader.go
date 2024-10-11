@@ -65,12 +65,10 @@ func (wr *WALReader) readEntries() ([]*WALRecord, error) {
 		}
 
 		entry := &WALRecord{
-			Operation: parsedCommand["Name"].(string),
-			Key:       parsedCommand["Key"].(string),
-		}
-		if entry.Operation == OperationTypeSET {
-			entry.Value = parsedCommand["Value"]
-			entry.TTL = parsedCommand["Expiry"].(int64)
+			Key:    parsedCommand["Key"].(string),
+			Value:  parsedCommand["Value"],
+			Expiry: parsedCommand["Expiry"].(int64),
+			State:  uint8(parsedCommand["State"].(int64)),
 		}
 
 		entries = append(entries, entry)
@@ -88,31 +86,18 @@ func (wr *WALReader) RestoreFromWAL(memTable memtable.MemTable) (int64, error) {
 	}
 
 	for _, entry := range entries {
-		switch entry.Operation {
-		case OperationTypeSET:
-			entry.TTL = entry.TTL - utils.GetCurrentEPochTime()
-			if entry.TTL < 0 {
-				continue
-			}
-
-			didSet, code := memTable.Set(entry.Key, entry.Value, entry.TTL)
-			if !didSet && code != entity.CRC_RECORD_UPDATED {
-				logger.Get().Warn("failed to restore record key=%s from WAL: %v", entry.Key, code)
-				continue
-			}
-			keycount++
-
-		case OperationTypeDELETE:
-			deleted, code := memTable.Delete(entry.Key)
-			if !deleted && code != entity.CRC_RECORD_DELETED {
-				logger.Get().Warn("failed to restore record key=%s from WAL: %v", entry.Key, code)
-				continue
-			}
-			keycount++
-
-		default:
-			return keycount, fmt.Errorf("unknown operation type in WAL entry: %s", entry.Operation)
+		entry.Expiry = entry.Expiry - utils.GetCurrentEPochTime()
+		if entry.Expiry < 0 {
+			continue
 		}
+
+		didSet, code := memTable.Set(entry.Key, entry.Value, entry.Expiry, entry.State)
+		if !didSet && code != entity.CRC_RECORD_UPDATED {
+			logger.Get().Warn("failed to restore record key=%s from WAL: %v", entry.Key, code)
+			continue
+		}
+		keycount++
+
 	}
 
 	logger.Get().Info("LSM:WAL:: Restored %d keys from write ahead logs", keycount)

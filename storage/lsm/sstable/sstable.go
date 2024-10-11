@@ -84,7 +84,6 @@ func NewSSTable(filename string, writeMode bool, maxRecords int64, falsePositive
 /////////////////////// Loader functions //////////////////////////
 
 func (sst *SSTable) LoadSSTableFromDisk() error {
-
 	err := sst.LoadMetadata()
 	if err != nil {
 		return fmt.Errorf("failed to load metadata for SSTable %s: %v", sst.filename, err)

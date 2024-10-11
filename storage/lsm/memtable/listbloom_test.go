@@ -8,29 +8,30 @@ import (
 	"universum/entity"
 )
 
-func SetUpLBTests() {
+func SetUpLBTests(t *testing.T) {
+	tmpdir := t.TempDir()
 	config.Store = config.GetSkeleton()
 	config.Store.Storage.StorageEngine = config.StorageEngineLSM
 	config.Store.Storage.MaxRecordSizeInBytes = 1048576
 	config.Store.Storage.LSM.MemtableStorageType = config.MemtableStorageTypeLB
 	config.Store.Storage.LSM.WriteBufferSize = 1048576
-	config.Store.Logging.LogFileDirectory = "/tmp"
+	config.Store.Logging.LogFileDirectory = tmpdir
 }
 
 func TestListBloomMemTable_SetAndGet(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
 	value := "testValue"
 	invalidValue := map[int]int{1: 2}
 
-	success, code := mt.Set(key, invalidValue, 0)
+	success, code := mt.Set(key, invalidValue, 0, entity.RecordStateActive)
 	if success || code != entity.CRC_INVALID_DATATYPE {
 		t.Errorf("expected invalid datatype err, got %v, %d", success, code)
 	}
 
-	success, code = mt.Set(key, value, 0)
+	success, code = mt.Set(key, value, 0, entity.RecordStateActive)
 	if !success || code != entity.CRC_RECORD_UPDATED {
 		t.Errorf("expected successful set, got %v, %d", success, code)
 	}
@@ -42,13 +43,13 @@ func TestListBloomMemTable_SetAndGet(t *testing.T) {
 }
 
 func TestListBloomMemTable_Exists(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
 	value := "testValue"
 
-	mt.Set(key, value, 1)
+	mt.Set(key, value, 1, entity.RecordStateActive)
 
 	exists, code := mt.Exists(key)
 	if !exists || code != entity.CRC_RECORD_FOUND {
@@ -69,13 +70,13 @@ func TestListBloomMemTable_Exists(t *testing.T) {
 }
 
 func TestListBloomMemTable_Delete(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
 	value := "testValue"
 
-	mt.Set(key, value, 0)
+	mt.Set(key, value, 0, entity.RecordStateActive)
 
 	deleted, code := mt.Delete(key)
 	if !deleted || code != entity.CRC_RECORD_DELETED {
@@ -83,13 +84,13 @@ func TestListBloomMemTable_Delete(t *testing.T) {
 	}
 
 	record, code := mt.Get(key)
-	if record != nil || code != entity.CRC_RECORD_NOT_FOUND {
-		t.Errorf("expected record to not be found after deletion, got %v, %d", record, code)
+	if code != entity.CRC_RECORD_TOMBSTONED {
+		t.Errorf("expected record to be found as tombstoned, got %v, %d", record, code)
 	}
 }
 
 func TestListBloomMemTable_SizeManagement(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
@@ -97,7 +98,7 @@ func TestListBloomMemTable_SizeManagement(t *testing.T) {
 
 	initialSize := mt.GetSize()
 
-	mt.Set(key, value, 0)
+	mt.Set(key, value, 0, entity.RecordStateActive)
 	updatedSize := mt.GetSize()
 	if updatedSize <= initialSize {
 		t.Errorf("expected size to increase after set, got %d", updatedSize)
@@ -105,20 +106,20 @@ func TestListBloomMemTable_SizeManagement(t *testing.T) {
 
 	mt.Delete(key)
 	finalSize := mt.GetSize()
-	if finalSize != initialSize {
-		t.Errorf("expected size to return to initial, got %d", finalSize)
+	if finalSize > updatedSize {
+		t.Errorf("expected final size to be smaller than updated size, got %d", finalSize)
 	}
 }
 
 func TestListBloomMemTable_KeyExpired(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
 	value := "testValue"
 	ttl := int64(1)
 
-	mt.Set(key, value, ttl)
+	mt.Set(key, value, ttl, entity.RecordStateActive)
 
 	record, code := mt.Get(key)
 	if record == nil || code != entity.CRC_RECORD_FOUND {
@@ -134,14 +135,14 @@ func TestListBloomMemTable_KeyExpired(t *testing.T) {
 }
 
 func TestListBloomMemTable_Expire(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
 	value := "testValue"
 	ttl := int64(10)
 
-	mt.Set(key, value, ttl)
+	mt.Set(key, value, ttl, entity.RecordStateActive)
 	success, code := mt.Expire(key, 200)
 
 	if !success || code != entity.CRC_RECORD_UPDATED {
@@ -155,13 +156,13 @@ func TestListBloomMemTable_Expire(t *testing.T) {
 }
 
 func TestListBloomMemTable_IncrDecr(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
 	initialValue := int64(10)
 
-	mt.Set(key, initialValue, 0)
+	mt.Set(key, initialValue, 0, entity.RecordStateActive)
 
 	newValue, code := mt.IncrDecrInteger(key, 5, true)
 	if newValue != 15 || code != entity.CRC_RECORD_UPDATED {
@@ -175,20 +176,20 @@ func TestListBloomMemTable_IncrDecr(t *testing.T) {
 }
 
 func TestListBloomMemTable_Append(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
 	initialValue := "abcd"
 	initialInvalidValue := 100
 
-	mt.Set(key, initialInvalidValue, 0)
+	mt.Set(key, initialInvalidValue, 0, entity.RecordStateActive)
 	actualLen, code := mt.Append(key, "_pqr")
 	if actualLen != config.InvalidNumericValue || code != entity.CRC_INCR_INVALID_TYPE {
 		t.Errorf("expected incr to fail, got %d, %d", actualLen, code)
 	}
 
-	mt.Set(key, initialValue, 0)
+	mt.Set(key, initialValue, 0, entity.RecordStateActive)
 
 	actualLen, code = mt.Append(key, "_pqr")
 	expectedLen := int64(len("abcd_pqr"))
@@ -198,7 +199,7 @@ func TestListBloomMemTable_Append(t *testing.T) {
 }
 
 func TestListBloomMemTable_MSet(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 	lbMem := NewListBloomMemTable(100, 0.01)
 
 	kvMap := map[string]interface{}{
@@ -220,7 +221,7 @@ func TestListBloomMemTable_MSet(t *testing.T) {
 }
 
 func TestListBloomMemTable_MGet(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 	lbMem := NewListBloomMemTable(100, 0.01)
 
 	kvMap := map[string]interface{}{
@@ -248,7 +249,7 @@ func TestListBloomMemTable_MGet(t *testing.T) {
 }
 
 func TestListBloomMemTable_MDelete(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 	lbMem := NewListBloomMemTable(100, 0.01)
 
 	kvMap := map[string]interface{}{
@@ -270,14 +271,14 @@ func TestListBloomMemTable_MDelete(t *testing.T) {
 }
 
 func TestListBloomMemTable_TTL(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 
 	mt := NewListBloomMemTable(100, 0.01)
 	key := "testKey"
 	value := "testValue"
 	ttl := int64(2)
 
-	mt.Set(key, value, ttl)
+	mt.Set(key, value, ttl, entity.RecordStateActive)
 
 	remainingTTL, code := mt.TTL(key)
 	if remainingTTL <= 0 || code != entity.CRC_RECORD_FOUND {
@@ -293,7 +294,7 @@ func TestListBloomMemTable_TTL(t *testing.T) {
 }
 
 func TestListBloomMemTable_IsFull(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 
 	mt := NewListBloomMemTable(100, 0.01)
 	isfull := mt.IsFull()
@@ -304,7 +305,7 @@ func TestListBloomMemTable_IsFull(t *testing.T) {
 }
 
 func TestListBloomMemTable_GetCount(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 
 	mt := NewListBloomMemTable(100, 0.01)
 	count := mt.GetCount()
@@ -313,16 +314,17 @@ func TestListBloomMemTable_GetCount(t *testing.T) {
 		t.Errorf("expected count to be 0, got %d", count)
 	}
 
-	mt.Set("key1", "value1", 0)
+	mt.Set("key1", "value1", 0, entity.RecordStateActive)
+	mt.Set("key2", "value2", 0, entity.RecordStateTombstoned)
 	count = mt.GetCount()
 
-	if count != 1 {
-		t.Errorf("expected count to be 1, got %d", count)
+	if count != 2 {
+		t.Errorf("expected count to be 2, got %d", count)
 	}
 }
 
 func TestListBloomMemTable_Truncate(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 	config.Store.Storage.LSM.WriteBufferSize = 100
 
 	FlusherChan = make(chan MemTable, 2)
@@ -365,7 +367,7 @@ func TestListBloomMemTable_Truncate(t *testing.T) {
 }
 
 func TestListBloomMemTable_GetAll(t *testing.T) {
-	SetUpLBTests()
+	SetUpLBTests(t)
 
 	FlusherChan = make(chan MemTable, 1)
 	lbMem := NewListBloomMemTable(100, 0.01)

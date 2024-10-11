@@ -8,7 +8,4 @@ const (
 	recoveryInterval  = 2 * time.Second  // Time to wait before restarting the flusher
 	maxWALFlushRetry  = 3                // Maximum number of retries for WAL flush
 	fileSyncThreshold = 3                // Number of flushes before syncing the file
-
-	OperationTypeSET    string = "SET"
-	OperationTypeDELETE string = "DELETE"
 )

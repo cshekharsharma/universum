@@ -22,6 +22,7 @@ import (
 
 var (
 	snapshotMutex        sync.Mutex
+	restoreMutex         sync.Mutex
 	errSnapshotFileEmpty error = errors.New("snapshot file is empty")
 )
 
@@ -77,6 +78,7 @@ func (ms *MemoryStoreSnapshotService) Snapshot(store storage.DataStore) (int64, 
 				"Value":  record.Value,
 				"LAT":    record.LAT,
 				"Expiry": record.Expiry,
+				"State":  record.State,
 			})
 
 			if err != nil {
@@ -140,6 +142,9 @@ func (ms *MemoryStoreSnapshotService) Snapshot(store storage.DataStore) (int64, 
 }
 
 func (ms *MemoryStoreSnapshotService) Restore(datastore storage.DataStore) (int64, error) {
+	restoreMutex.Lock()
+	defer restoreMutex.Unlock()
+
 	var keycount int64 = 0
 	snapshotFilePath := getSnapshotFilePath()
 

@@ -95,6 +95,7 @@ func (ms *MemoryStore) Set(key string, value interface{}, ttl int64) (bool, uint
 		Value:  value,
 		LAT:    utils.GetCurrentEPochTime(),
 		Expiry: config.InfiniteExpiryTime,
+		State:  entity.RecordStateActive,
 	}
 
 	if !utils.IsWriteableDatatype(value) {

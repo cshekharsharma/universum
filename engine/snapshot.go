@@ -64,7 +64,7 @@ func StartDatabaseSnapshot(store storage.DataStore) error {
 	return err
 }
 
-func RestoreDatabaseSnapshot(datastore storage.DataStore) {
+func AutoRestoreDatabaseSnapshot(datastore storage.DataStore) {
 	replayStartTime := time.Now().UnixMilli()
 
 	snapshotservice := getSnapshotService(config.Store.Storage.StorageEngine)

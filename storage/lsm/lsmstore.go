@@ -10,6 +10,7 @@ import (
 	"universum/storage/lsm/memtable"
 	"universum/storage/lsm/sstable"
 	"universum/storage/lsm/wal"
+	"universum/utils"
 )
 
 const FlusherChanSize = 10
@@ -92,7 +93,7 @@ func (lsm *LSMStore) Exists(key string) (bool, uint32) {
 			continue // check in next sstable
 		}
 
-		if record.IsExpired() {
+		if !record.IsActive() || record.IsExpired() {
 			return true, entity.CRC_RECORD_NOT_FOUND
 		}
 		return true, entity.CRC_RECORD_FOUND
@@ -119,7 +120,7 @@ func (lsm *LSMStore) Get(key string) (entity.Record, uint32) {
 			continue // check in next sstable
 		}
 
-		if record.IsExpired() {
+		if !record.IsActive() || record.IsExpired() {
 			return record, entity.CRC_RECORD_NOT_FOUND
 		}
 		return record, entity.CRC_RECORD_FOUND
@@ -129,12 +130,12 @@ func (lsm *LSMStore) Get(key string) (entity.Record, uint32) {
 }
 
 func (lsm *LSMStore) Set(key string, value interface{}, ttl int64) (bool, uint32) {
-	success, statusCode := lsm.memTable.Set(key, value, ttl)
+	success, statusCode := lsm.memTable.Set(key, value, ttl, entity.RecordStateActive)
 	if !success && statusCode != entity.CRC_RECORD_UPDATED {
 		return false, statusCode
 	}
 
-	err := lsm.walWriter.AddToWALBuffer(wal.OperationTypeSET, key, value, ttl)
+	err := lsm.walWriter.AddToWALBuffer(key, value, ttl, entity.RecordStateActive)
 	if err != nil {
 		return false, entity.CRC_WAL_WRITE_FAILED
 	}
@@ -143,43 +144,139 @@ func (lsm *LSMStore) Set(key string, value interface{}, ttl int64) (bool, uint32
 }
 
 func (lsm *LSMStore) Delete(key string) (bool, uint32) {
-	// Implementation here
-	return false, 0
+	lsm.memTable.Delete(key)
+
+	err := lsm.walWriter.AddToWALBuffer(key, 0, time.Now().Unix(), entity.RecordStateTombstoned)
+	if err != nil {
+		return false, entity.CRC_WAL_WRITE_FAILED
+	}
+
+	return true, entity.CRC_RECORD_DELETED
 }
 
 func (lsm *LSMStore) IncrDecrInteger(key string, offset int64, isIncr bool) (int64, uint32) {
-	// Implementation here
-	return 0, 0
+	val, code := lsm.Get(key)
+
+	if code != entity.CRC_RECORD_FOUND {
+		return config.InvalidNumericValue, code
+	}
+
+	record := val.(*entity.ScalarRecord)
+	if !utils.IsInteger(record.Value) {
+		return config.InvalidNumericValue, entity.CRC_INCR_INVALID_TYPE
+	}
+
+	var newValue int64
+	oldValue := record.Value.(int64)
+
+	if isIncr {
+		newValue = int64(oldValue) + offset
+	} else {
+		newValue = int64(oldValue) - offset
+	}
+
+	ttl := record.Expiry - utils.GetCurrentEPochTime()
+	didSet, setcode := lsm.Set(key, newValue, ttl)
+
+	if !didSet {
+		return config.InvalidNumericValue, setcode
+	}
+
+	return newValue, entity.CRC_RECORD_UPDATED
 }
 
 func (lsm *LSMStore) Append(key string, value string) (int64, uint32) {
-	// Implementation here
-	return 0, 0
+	val, code := lsm.Get(key)
+
+	if code != entity.CRC_RECORD_FOUND {
+		return config.InvalidNumericValue, code
+	}
+
+	record := val.(*entity.ScalarRecord)
+	if !utils.IsString(record.Value) {
+		return config.InvalidNumericValue, entity.CRC_INCR_INVALID_TYPE
+	}
+
+	newValue := record.Value.(string) + value
+	ttl := record.Expiry - utils.GetCurrentEPochTime()
+
+	didSet, setcode := lsm.Set(key, newValue, ttl)
+	if !didSet {
+		return config.InvalidNumericValue, setcode
+	}
+
+	return int64(len(newValue)), entity.CRC_RECORD_UPDATED
 }
 
 func (lsm *LSMStore) MGet(keys []string) (map[string]interface{}, uint32) {
-	// Implementation here
-	return nil, 0
+	responseMap := make(map[string]interface{})
+
+	for idx := range keys {
+		record, code := lsm.Get(keys[idx])
+
+		if _, ok := record.(*entity.ScalarRecord); ok {
+			responseMap[keys[idx]] = map[string]interface{}{
+				"Value": record.(*entity.ScalarRecord).Value,
+				"Code":  code,
+			}
+		} else {
+			responseMap[keys[idx]] = map[string]interface{}{
+				"Value": nil,
+				"Code":  code,
+			}
+		}
+	}
+
+	return responseMap, entity.CRC_MGET_COMPLETED
 }
 
 func (lsm *LSMStore) MSet(kvMap map[string]interface{}) (map[string]interface{}, uint32) {
-	// Implementation here
-	return nil, 0
+	responseMap := make(map[string]interface{})
+
+	for key, value := range kvMap {
+		didSet, code := lsm.Set(key, value, 0)
+		if code == entity.CRC_RECORD_TOO_BIG || code == entity.CRC_INVALID_DATATYPE {
+			fmt.Printf("Key %s failed due to %d\n", key, code)
+		}
+		responseMap[key] = didSet
+	}
+
+	return responseMap, entity.CRC_MSET_COMPLETED
 }
 
 func (lsm *LSMStore) MDelete(keys []string) (map[string]interface{}, uint32) {
-	// Implementation here
-	return nil, 0
+	responseMap := make(map[string]interface{})
+
+	for idx := range keys {
+		deleted, _ := lsm.Delete(keys[idx])
+		responseMap[keys[idx]] = deleted
+	}
+
+	return responseMap, entity.CRC_MDEL_COMPLETED
 }
 
 func (lsm *LSMStore) TTL(key string) (int64, uint32) {
-	// Implementation here
-	return 0, 0
+	val, code := lsm.Get(key)
+
+	if code != entity.CRC_RECORD_FOUND {
+		return 0, code
+	}
+
+	record := val.(*entity.ScalarRecord)
+
+	ttl := record.Expiry - utils.GetCurrentEPochTime()
+	return ttl, entity.CRC_RECORD_FOUND
 }
 
 func (lsm *LSMStore) Expire(key string, ttl int64) (bool, uint32) {
-	// Implementation here
-	return false, 0
+	val, code := lsm.Get(key)
+
+	if code != entity.CRC_RECORD_FOUND {
+		return false, code
+	}
+
+	record := val.(*entity.ScalarRecord)
+	return lsm.Set(key, record.Value, ttl)
 }
 
 func (lsm *LSMStore) MemtableBGFlusher() error {
@@ -218,6 +315,9 @@ func (lsm *LSMStore) MemtableBGFlusher() error {
 				break
 			}
 
+			lsm.mutex.Lock()
+			defer lsm.mutex.Unlock()
+
 			for i := 0; i < SSTableFlushRetryCount; i++ {
 				err = sst.FlushMemTableToSSTable(memtable)
 				if err != nil {
@@ -234,10 +334,7 @@ func (lsm *LSMStore) MemtableBGFlusher() error {
 				break
 			}
 
-			lsm.mutex.Lock()
 			lsm.sstables = append([]*sstable.SSTable{sst}, lsm.sstables...)
-			lsm.mutex.Unlock()
-
 		}(memtable)
 	}
 	return nil

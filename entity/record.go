@@ -6,11 +6,16 @@ import (
 
 const (
 	RecordTypeScalar = "scalar"
+
+	RecordStateActive     = 0
+	RecordStateTombstoned = 1
+	RecordStateObsolete   = 2
 )
 
 type Record interface {
 	GetFamily() string
 	IsExpired() bool
+	IsActive() bool
 	ToMap() map[string]interface{}
 	FromMap(m map[string]interface{}) (string, Record)
 }
@@ -19,6 +24,7 @@ type ScalarRecord struct {
 	Value  interface{}
 	LAT    int64
 	Expiry int64
+	State  uint8
 }
 
 func (sr *ScalarRecord) GetFamily() string {
@@ -33,11 +39,16 @@ func (sr *ScalarRecord) IsExpired() bool {
 	return time.Now().Unix() > sr.Expiry
 }
 
+func (sr *ScalarRecord) IsActive() bool {
+	return sr.State == RecordStateActive
+}
+
 func (sr *ScalarRecord) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"Value":  sr.Value,
 		"LAT":    sr.LAT,
 		"Expiry": sr.Expiry,
+		"State":  sr.State,
 	}
 }
 
@@ -58,6 +69,10 @@ func (sr *ScalarRecord) FromMap(recordMap map[string]interface{}) (string, Recor
 
 	if expiry, ok := recordMap["Expiry"]; ok {
 		sr.Expiry, _ = expiry.(int64)
+	}
+
+	if state, ok := recordMap["State"]; ok {
+		sr.State, _ = state.(uint8)
 	}
 
 	return key, sr

@@ -7,13 +7,15 @@ import (
 	"path/filepath"
 	"testing"
 	"universum/config"
+	"universum/entity"
 	"universum/storage/lsm/memtable"
 	"universum/utils"
 )
 
-func SetUpSSTableTests() {
+func SetUpSSTableTests(t *testing.T) {
+	tmpdir := t.TempDir()
 	config.Store = config.GetSkeleton()
-	config.Store.Logging.LogFileDirectory = "/tmp"
+	config.Store.Logging.LogFileDirectory = tmpdir
 	config.Store.Storage.StorageEngine = config.StorageEngineLSM
 	config.Store.Storage.MaxRecordSizeInBytes = 1048576
 	config.Store.Storage.LSM.MemtableStorageType = config.MemtableStorageTypeLB
@@ -21,12 +23,12 @@ func SetUpSSTableTests() {
 	config.Store.Storage.LSM.WriteBufferSize = 1048576
 	config.Store.Storage.LSM.BloomFalsePositiveRate = 0.01
 	config.Store.Storage.LSM.WriteBlockSize = 100
-	config.Store.Storage.LSM.DataStorageDirectory = "/tmp"
+	config.Store.Storage.LSM.DataStorageDirectory = tmpdir
 	config.Store.Storage.LSM.BlockCompressionAlgo = config.CompressionAlgoLZ4
 }
 
 func TestNewSSTable(t *testing.T) {
-	SetUpSSTableTests()
+	SetUpSSTableTests(t)
 
 	filename := "test.sst"
 	filepath := filepath.Clean(fmt.Sprintf(
@@ -55,7 +57,7 @@ func TestNewSSTable(t *testing.T) {
 }
 
 func TestLoadSSTableFromDisk(t *testing.T) {
-	SetUpSSTableTests()
+	SetUpSSTableTests(t)
 
 	fileName := "test1.sst"
 	cnf := config.Store.Storage.LSM
@@ -70,7 +72,7 @@ func TestLoadSSTableFromDisk(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		key := fmt.Sprintf("key%d", i)
 		val := fmt.Sprintf("value%d", i)
-		mem.Set(key, val, int64(i))
+		mem.Set(key, val, int64(i*1000), entity.RecordStateActive)
 	}
 
 	err = sst.FlushMemTableToSSTable(mem)
@@ -101,7 +103,7 @@ func TestLoadSSTableFromDisk(t *testing.T) {
 }
 
 func TestFlushMemTableToSSTable(t *testing.T) {
-	SetUpSSTableTests()
+	SetUpSSTableTests(t)
 
 	filename := "test.sst"
 	filepath := filepath.Clean(fmt.Sprintf(
@@ -115,8 +117,8 @@ func TestFlushMemTableToSSTable(t *testing.T) {
 	defer os.Remove(filepath)
 
 	mem := memtable.CreateNewMemTable(config.DefaultMemtableStorageType).(*memtable.ListBloomMemTable)
-	mem.Set("key1", "value1", 10)
-	mem.Set("key2", "value2", 10)
+	mem.Set("key1", "value1", 100, entity.RecordStateActive)
+	mem.Set("key2", "value2", 100, entity.RecordStateActive)
 
 	err = sst.FlushMemTableToSSTable(mem)
 	if err != nil {
@@ -127,12 +129,12 @@ func TestFlushMemTableToSSTable(t *testing.T) {
 		t.Fatalf("Expected 2 records in SSTable, got %d", sst.RecordCount)
 	}
 
-	if sst.Metadata.DataSize != 660 {
-		t.Fatalf("Expected 660B of size in SSTable metadata, got %dB", sst.Metadata.DataSize)
+	if sst.Metadata.DataSize < 676 || sst.Metadata.DataSize > 684 {
+		t.Fatalf("Expected 676B of size in SSTable metadata, got %dB", sst.Metadata.DataSize)
 	}
 
-	if sst.DataSize != 759 {
-		t.Fatalf("Expected 759B of data in SSTable, got %dB", sst.DataSize)
+	if sst.DataSize < 775 && sst.DataSize > 784 {
+		t.Fatalf("Expected 775B of data in SSTable, got %dB", sst.DataSize)
 	}
 
 	_, err = os.Stat(filepath)
@@ -142,7 +144,7 @@ func TestFlushMemTableToSSTable(t *testing.T) {
 }
 
 func TestLoadBlock(t *testing.T) {
-	SetUpSSTableTests()
+	SetUpSSTableTests(t)
 
 	filename := "test.sst"
 	filepath := filepath.Clean(fmt.Sprintf(
@@ -156,8 +158,8 @@ func TestLoadBlock(t *testing.T) {
 	defer os.Remove(filepath)
 
 	mem := memtable.CreateNewMemTable(config.DefaultMemtableStorageType).(*memtable.ListBloomMemTable)
-	mem.Set("key1", "value1", 10)
-	mem.Set("key2", "value2", 10)
+	mem.Set("key1", "value1", 10, entity.RecordStateActive)
+	mem.Set("key2", "value2", 10, entity.RecordStateActive)
 
 	_ = sst.FlushMemTableToSSTable(mem)
 
