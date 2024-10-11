@@ -66,10 +66,11 @@ RestoreSnapshotOnStart = true
 
 [Storage.LSM]
 MemtableStorageType = "LB"
-MaxMemtableRecords = 100000
+BloomFilterMaxRecords = 100000
+WriteBufferSize = 4194304
 BloomFalsePositiveRate = 0.01
 WriteBlockSize = 65536
-BlockCompressionAlgo = "NONE"
+BlockCompressionAlgo = "LZ4"
 DataStorageDirectory = "/opt/universum/data"
 WriteAheadLogDirectory = "/opt/universum/wal"
 WriteAheadLogAsyncFlush = true
@@ -85,9 +86,10 @@ AutoRecordExpiryFrequency = 2
 AutoEvictionPolicy = "LRU"
 
 [Auth]
-AuthenticationEnabled = true
+AuthenticationEnabled = false
 DbUserName = ""
 DbUserPassword = ""
+
 
 ```
 

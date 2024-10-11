@@ -77,6 +77,10 @@ func (lsm *LSMStore) GetStoreType() string {
 
 func (lsm *LSMStore) Exists(key string) (bool, uint32) {
 	exists, code := lsm.memTable.Exists(key)
+	if yes, _ := utils.ExistsInList(code, []uint32{entity.CRC_RECORD_EXPIRED, entity.CRC_RECORD_TOMBSTONED}); yes {
+		return false, entity.CRC_RECORD_NOT_FOUND
+	}
+
 	if code == entity.CRC_RECORD_FOUND {
 		return exists, code
 	}
@@ -94,7 +98,7 @@ func (lsm *LSMStore) Exists(key string) (bool, uint32) {
 		}
 
 		if !record.IsActive() || record.IsExpired() {
-			return true, entity.CRC_RECORD_NOT_FOUND
+			return false, entity.CRC_RECORD_NOT_FOUND
 		}
 		return true, entity.CRC_RECORD_FOUND
 	}
@@ -104,6 +108,10 @@ func (lsm *LSMStore) Exists(key string) (bool, uint32) {
 
 func (lsm *LSMStore) Get(key string) (entity.Record, uint32) {
 	record, code := lsm.memTable.Get(key)
+	if yes, _ := utils.ExistsInList(code, []uint32{entity.CRC_RECORD_EXPIRED, entity.CRC_RECORD_TOMBSTONED}); yes {
+		return nil, entity.CRC_RECORD_NOT_FOUND
+	}
+
 	if code == entity.CRC_RECORD_FOUND {
 		return record, code
 	}

@@ -300,7 +300,7 @@ func (sst *SSTable) FindBlockForKey(key string, index []*sstIndexEntry) (*sstInd
 		return sst.Index[i].GetFirstKey() > key
 	})
 
-	if idx == 0 || idx >= len(sst.Index) {
+	if idx == 0 || idx > len(sst.Index) {
 		return nil, fmt.Errorf("key not found in index")
 	}
 

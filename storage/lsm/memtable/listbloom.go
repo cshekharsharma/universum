@@ -132,12 +132,7 @@ func (m *ListBloomMemTable) Set(key string, value interface{}, ttl int64, state 
 }
 
 func (m *ListBloomMemTable) Delete(key string) (bool, uint32) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	m.skipList.Insert(key, 0, 0, entity.RecordStateTombstoned)
-	m.updateMemtableSize(key, 0)
-
+	m.Set(key, 0, 0, entity.RecordStateTombstoned)
 	return true, entity.CRC_RECORD_DELETED
 }
 
