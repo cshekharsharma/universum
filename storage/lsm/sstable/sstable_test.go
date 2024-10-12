@@ -173,15 +173,16 @@ func TestLoadBlock(t *testing.T) {
 		t.Fatalf("Failed to read block: %v", err)
 	}
 
-	if len(block.records) == 0 {
+	if len(block.Records) == 0 {
 		t.Fatalf("Expected records in the block, found 0")
 	}
 
-	if len(block.data) == 0 {
+	if len(block.Data) == 0 {
 		t.Fatalf("Expected data in the block, found empty")
 	}
 
-	key, value, err := block.ReadRecordAtOffset(block.index["key1"])
+	offset, _ := block.Index.Load("key1")
+	key, value, err := block.ReadRecordAtOffset(offset.(int64))
 
 	if err != nil {
 		t.Fatalf("Failed to read record from block: %v", err)

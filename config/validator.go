@@ -183,6 +183,10 @@ func (v *ConfigValidator) validateStorageEngineLSM(config *Config) error {
 		return fmt.Errorf("WAL directory %s is not writable", config.Storage.LSM.WriteAheadLogDirectory)
 	}
 
+	if config.Storage.LSM.BlockCacheMemoryLimit == 0 {
+		config.Storage.LSM.BlockCacheMemoryLimit = DefaultBlockCacheMemoryLimit
+	}
+
 	return nil
 }
 func (v *ConfigValidator) validateStorageEngineMemory(config *Config) error {

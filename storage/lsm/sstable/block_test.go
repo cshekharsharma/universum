@@ -16,8 +16,8 @@ func TestNewBlock(t *testing.T) {
 	if block == nil {
 		t.Fatal("expected a valid Block instance")
 	}
-	if block.maxSize != 64*1024 {
-		t.Fatalf("expected maxSize to be 64KB, got %d", block.maxSize)
+	if block.MaxSize != 64*1024 {
+		t.Fatalf("expected maxSize to be 64KB, got %d", block.MaxSize)
 	}
 }
 
@@ -36,8 +36,8 @@ func TestBlock_AddRecord(t *testing.T) {
 		t.Fatalf("failed to add record: %v", err)
 	}
 
-	if block.firstKey != "testKey" {
-		t.Fatalf("expected startKey to be testKey, got %s", block.lastKey)
+	if block.FirstKey != "testKey" {
+		t.Fatalf("expected startKey to be testKey, got %s", block.LastKey)
 	}
 
 	if !bloom.Exists("testKey") {
@@ -86,7 +86,7 @@ func TestBlock_ReadRecordAtOffset(t *testing.T) {
 		t.Fatalf("failed to serialize block: %v", err)
 	}
 
-	block.data = serialized
+	block.Data = serialized
 	key, value, err := block.ReadRecordAtOffset(0)
 	if err != nil {
 		t.Fatalf("failed to read record from block: %v", err)
@@ -150,13 +150,13 @@ func TestBlock_ValidateBlock(t *testing.T) {
 	}
 
 	serialized[0] = 0xFF
-	block.data = serialized
+	block.Data = serialized
 
 	if block.ValidateBlock() {
 		t.Fatal("expected block validation to fail with tampered data")
 	}
 
-	block.checksum = crc32.ChecksumIEEE(block.data)
+	block.Checksum = crc32.ChecksumIEEE(block.Data)
 	if !block.ValidateBlock() {
 		t.Fatal("expected block validation to succeed after fixing checksum")
 	}

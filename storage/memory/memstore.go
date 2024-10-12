@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	ShardCount uint32 = 32
+	ShardCount uint32 = 64
 )
 
 type MemoryStore struct {

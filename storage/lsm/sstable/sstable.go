@@ -338,7 +338,7 @@ func (sst *SSTable) FlushMemTableToSSTable(mem memtable.MemTable) error {
 	}
 
 	// Flush the last block if it has any records
-	if len(sst.CurrentBlock.records) > 0 {
+	if len(sst.CurrentBlock.Records) > 0 {
 		err := sst.FlushBlock()
 		if err != nil {
 			return fmt.Errorf("failed to flush last block to SSTable: %v", err)
@@ -372,7 +372,7 @@ func (sst *SSTable) FlushMemTableToSSTable(mem memtable.MemTable) error {
 }
 
 func (sst *SSTable) FlushBlock() error {
-	if len(sst.CurrentBlock.records) == 0 {
+	if len(sst.CurrentBlock.Records) == 0 {
 		return fmt.Errorf("no records to flush in the current block")
 	}
 
@@ -403,9 +403,9 @@ func (sst *SSTable) FlushBlock() error {
 	}
 
 	flushedBlockSize := int64(len(serializedBlock))
-	sst.RecordCount += int64(len(sst.CurrentBlock.records))
+	sst.RecordCount += int64(len(sst.CurrentBlock.Records))
 	sst.Metadata.DataSize += flushedBlockSize
-	sst.Metadata.NumRecords += int64(len(sst.CurrentBlock.records))
+	sst.Metadata.NumRecords += int64(len(sst.CurrentBlock.Records))
 
 	// Update the index with the block start offset and size by packing into single number
 	// assumption is that neither the offset nor the block will ever cross 2G limit, hence
@@ -413,17 +413,17 @@ func (sst *SSTable) FlushBlock() error {
 	// @FIXME index should hold both start and end keys and respective offset info
 	blockOffsetAndLength := utils.PackNumbers(int32(blockStartOffset), int32(flushedBlockSize))
 	sst.Index = append(sst.Index, &sstIndexEntry{
-		f: sst.CurrentBlock.firstKey,
-		l: sst.CurrentBlock.lastKey,
+		f: sst.CurrentBlock.FirstKey,
+		l: sst.CurrentBlock.LastKey,
 		o: blockOffsetAndLength,
 	})
 
 	if sst.Metadata.FirstKey == "" {
-		sst.Metadata.FirstKey = sst.CurrentBlock.firstKey
+		sst.Metadata.FirstKey = sst.CurrentBlock.FirstKey
 	}
-	sst.Metadata.LastKey = sst.CurrentBlock.lastKey
+	sst.Metadata.LastKey = sst.CurrentBlock.LastKey
 
-	sst.CurrentBlock = NewBlock(sst.CurrentBlock.maxSize)
+	sst.CurrentBlock = NewBlock(sst.CurrentBlock.MaxSize)
 	return nil
 }
 

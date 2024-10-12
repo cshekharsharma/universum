@@ -27,6 +27,7 @@ WriteAheadLogDirectory = "/opt/universum/wal"
 WriteAheadLogAsyncFlush = true
 WriteAheadLogFrequency = 5
 WriteAheadLogBufferSize = 1048576
+BlockCacheMemoryLimit = 1048576
 
 [Logging]
 LogFileDirectory = "/var/log/universum"

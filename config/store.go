@@ -47,6 +47,7 @@ type LSM struct {
 	WriteAheadLogAsyncFlush bool    `toml:"WriteAheadLogAsyncFlush"`
 	WriteAheadLogFrequency  int64   `toml:"WriteAheadLogFrequency"`
 	WriteAheadLogBufferSize int64   `toml:"WriteAheadLogBufferSize"`
+	BlockCacheMemoryLimit   int64   `toml:"BlockCacheMemoryLimit"`
 }
 
 type Storage struct {

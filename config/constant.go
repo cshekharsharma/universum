@@ -62,8 +62,9 @@ const (
 	DefaultWriteBufferSize         int64   = 64 * 1024 * 1024 // 64 MB
 	DefaultWriteAheadLogDirectory  string  = "/opt/universum/wal"
 	DefaultWriteAheadLogAsyncFlush bool    = false
-	DefaultWriteAheadLogBufferSize int64   = 1024 * 1024 // 1 MB
-	DefaultWriteAheadLogFrequency  int64   = 5           // 5 seconds
+	DefaultWriteAheadLogBufferSize int64   = 1024 * 1024        // 1 MB
+	DefaultWriteAheadLogFrequency  int64   = 5                  // 5 seconds
+	DefaultBlockCacheMemoryLimit   int64   = 1024 * 1024 * 1024 // 1 GB
 
 	// Section:Logging
 	LogLevelDebug string = "DEBUG"
