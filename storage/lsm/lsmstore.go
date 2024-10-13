@@ -7,6 +7,7 @@ import (
 	"universum/config"
 	"universum/entity"
 	"universum/internal/logger"
+	"universum/storage/lsm/cache"
 	"universum/storage/lsm/memtable"
 	"universum/storage/lsm/sstable"
 	"universum/storage/lsm/wal"
@@ -18,18 +19,21 @@ const WALRotaterChanSize = 10
 const SSTableFlushRetryCount = 3
 
 type LSMStore struct {
-	memTable  memtable.MemTable
-	sstables  []*sstable.SSTable
-	mutex     sync.Mutex
-	walWriter *wal.WALWriter
+	memTable   memtable.MemTable
+	sstables   []*sstable.SSTable
+	blockcache *cache.BlockCache
+	walWriter  *wal.WALWriter
+	mutex      sync.Mutex
 }
 
 func CreateNewLSMStore(mtype string) *LSMStore {
 	memtable := memtable.CreateNewMemTable(config.Store.Storage.LSM.MemtableStorageType)
+	blockcache := cache.NewBlockCache()
 
 	return &LSMStore{
-		memTable: memtable,
-		sstables: make([]*sstable.SSTable, 0),
+		memTable:   memtable,
+		sstables:   make([]*sstable.SSTable, 0),
+		blockcache: blockcache,
 	}
 }
 

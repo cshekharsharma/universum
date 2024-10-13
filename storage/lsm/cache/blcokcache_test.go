@@ -11,7 +11,8 @@ import (
 
 func setupBlockCacheTests() {
 	config.Store = config.GetSkeleton()
-	config.Store.Storage.LSM.BlockCacheMemoryLimit = 12000
+	config.Store.Storage.LSM.WriteBlockSize = 4096
+	config.Store.Storage.LSM.BlockCacheMemoryLimit = 22500
 }
 
 func createTestBlock(keys []string) *sstable.Block {
@@ -21,7 +22,7 @@ func createTestBlock(keys []string) *sstable.Block {
 	block := sstable.NewBlock(1024)
 	for i := 0; i < len(keys); i++ {
 		block.AddRecord(keys[i], map[string]interface{}{
-			"Value":  100,
+			"Value":  int64(100),
 			"LAT":    0,
 			"Expiry": expiry,
 			"State":  0,
@@ -29,6 +30,7 @@ func createTestBlock(keys []string) *sstable.Block {
 			bloom)
 	}
 
+	block.SerializeBlock()
 	block.SetID(block.GenerateBlockID())
 	return block
 }
@@ -37,8 +39,10 @@ func TestBlockCacheAdd(t *testing.T) {
 	setupBlockCacheTests()
 	blockCache := NewBlockCache()
 	block := createTestBlock([]string{"key1", "key2", "key3"})
+	block2 := createTestBlock([]string{"key1", "key2", "key3"})
 
 	blockCache.Add(block)
+	blockCache.Add(block2)
 
 	cachedBlock, found := blockCache.GetBlock(block.GetID())
 	if !found {
@@ -53,14 +57,11 @@ func TestBlockCacheEviction(t *testing.T) {
 	setupBlockCacheTests()
 	blockCache := NewBlockCache()
 	block1 := createTestBlock([]string{"key1", "key2"})
-	block2 := createTestBlock([]string{"key1", "key2"})
-	block3 := createTestBlock([]string{"key1", "key2"})
+	block2 := createTestBlock([]string{"firstkey", "keyA"})
+	block3 := createTestBlock([]string{"samplekey", "validsearch"})
 
 	blockCache.Add(block1)
 	blockCache.Add(block2)
-
-	limit := config.Store.Storage.LSM.BlockCacheMemoryLimit
-	blockCache.shardForBlockID(block1.Id).currentSize = limit / int64(ShardCount)
 	blockCache.Add(block3)
 
 	_, found := blockCache.GetBlock(block1.Id)
@@ -107,7 +108,7 @@ func TestBlockCacheSearchBlock(t *testing.T) {
 	}
 
 	scalarRecord := record.(*entity.ScalarRecord)
-	if scalarRecord.Value != 100 {
+	if scalarRecord.Value != int64(100) {
 		t.Fatalf("Expected 100, got %v", scalarRecord.Value)
 	}
 }
@@ -121,13 +122,11 @@ func TestBlockCacheShardDistribution(t *testing.T) {
 	blockCache.Add(block1)
 	blockCache.Add(block2)
 
-	// Ensure block1 is in the correct shard
 	shard1 := blockCache.shardForBlockID(block1.Id)
 	if _, found := shard1.cache.Load(block1.Id); !found {
 		t.Fatalf("Block with ID %d should be in shard1", block1.Id)
 	}
 
-	// Ensure block2 is in the correct shard
 	shard2 := blockCache.shardForBlockID(block2.Id)
 	if _, found := shard2.cache.Load(block2.Id); !found {
 		t.Fatalf("Block with ID %d should be in shard2", block2.Id)

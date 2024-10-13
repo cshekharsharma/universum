@@ -10,12 +10,14 @@ import (
 )
 
 const (
-	ShardCount int = 64 // Number of shards
+	ShardCount               int = 1 << 6 // 64 shards
+	maxEvictionRetriesIfFull int = 1 << 3 // 8 retries
 )
 
 type BlockCacheShard struct {
 	cache       sync.Map   // map[uint64]*list.Element
 	eviction    *list.List // Doubly linked list for LRU eviction
+	maxsize     int64      // Max size of the shard's cache
 	currentSize int64      // Current size of the shard's cache
 }
 
@@ -23,7 +25,6 @@ type BlockCache struct {
 	shards [ShardCount]*BlockCacheShard
 }
 
-// CacheItem represents an item in the cache, stored in the eviction list
 type CacheItem struct {
 	BlockID   uint64
 	BlockData *sstable.Block
@@ -33,8 +34,10 @@ func NewBlockCache() *BlockCache {
 	bc := &BlockCache{}
 	for i := 0; i < int(ShardCount); i++ {
 		bc.shards[i] = &BlockCacheShard{
-			cache:    sync.Map{},
-			eviction: list.New(),
+			cache:       sync.Map{},
+			eviction:    list.New(),
+			maxsize:     config.Store.Storage.LSM.BlockCacheMemoryLimit / int64(ShardCount),
+			currentSize: 0,
 		}
 	}
 	return bc
@@ -63,9 +66,8 @@ func (bc *BlockCache) Add(block *sstable.Block) {
 		return
 	}
 
-	maxCacheSize := config.Store.Storage.LSM.BlockCacheMemoryLimit
-	counter := 10
-	for shard.currentSize+block.CurrentSize > maxCacheSize/int64(ShardCount) && counter > 0 {
+	counter := maxEvictionRetriesIfFull
+	for shard.currentSize+block.CurrentSize > shard.maxsize && counter > 0 {
 		shard.evict()
 		counter--
 	}
@@ -98,7 +100,6 @@ func (bc *BlockCache) SearchBlock(sst *sstable.SSTable, blockID uint64, key stri
 	return nil, errors.New("cache miss: block could not be found in the block cache")
 }
 
-// searchInBlock searches for a key in a given block's data
 func (bc *BlockCache) searchInBlock(block *sstable.Block, key string) (entity.Record, error) {
 	record, err := block.GetRecord(key)
 	if err != nil {
