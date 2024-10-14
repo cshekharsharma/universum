@@ -79,6 +79,7 @@ func TestLSMStoreSetGetExistsAfterFlush(t *testing.T) {
 
 	for i := 0; i < len(keysToCheck); i++ {
 		key := keysToCheck[i]
+
 		exists, code := store.Exists(key)
 		if !exists || code != entity.CRC_RECORD_FOUND {
 			t.Fatalf("Exists operation failed after flush")

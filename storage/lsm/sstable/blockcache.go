@@ -1,4 +1,4 @@
-package cache
+package sstable
 
 import (
 	"container/list"
@@ -6,13 +6,14 @@ import (
 	"sync"
 	"universum/config"
 	"universum/entity"
-	"universum/storage/lsm/sstable"
 )
 
 const (
 	ShardCount               int = 1 << 6 // 64 shards
 	maxEvictionRetriesIfFull int = 1 << 3 // 8 retries
 )
+
+var BlockCacheStore *BlockCache
 
 type BlockCacheShard struct {
 	cache       sync.Map   // map[uint64]*list.Element
@@ -27,7 +28,7 @@ type BlockCache struct {
 
 type CacheItem struct {
 	BlockID   uint64
-	BlockData *sstable.Block
+	BlockData *Block
 }
 
 func NewBlockCache() *BlockCache {
@@ -47,7 +48,7 @@ func (bc *BlockCache) shardForBlockID(blockID uint64) *BlockCacheShard {
 	return bc.shards[blockID%uint64(ShardCount)]
 }
 
-func (bc *BlockCache) GetBlock(blockID uint64) (*sstable.Block, bool) {
+func (bc *BlockCache) GetBlock(blockID uint64) (*Block, bool) {
 	shard := bc.shardForBlockID(blockID)
 
 	if element, found := shard.cache.Load(blockID); found {
@@ -57,7 +58,7 @@ func (bc *BlockCache) GetBlock(blockID uint64) (*sstable.Block, bool) {
 	return nil, false
 }
 
-func (bc *BlockCache) Add(block *sstable.Block) {
+func (bc *BlockCache) Add(block *Block) {
 	blockID := block.GetID()
 	shard := bc.shardForBlockID(blockID)
 
@@ -92,7 +93,7 @@ func (shard *BlockCacheShard) evict() {
 	}
 }
 
-func (bc *BlockCache) SearchBlock(sst *sstable.SSTable, blockID uint64, key string) (entity.Record, error) {
+func (bc *BlockCache) SearchBlock(blockID uint64, key string) (entity.Record, error) {
 	block, found := bc.GetBlock(blockID)
 	if found {
 		return bc.searchInBlock(block, key)
@@ -100,7 +101,7 @@ func (bc *BlockCache) SearchBlock(sst *sstable.SSTable, blockID uint64, key stri
 	return nil, errors.New("cache miss: block could not be found in the block cache")
 }
 
-func (bc *BlockCache) searchInBlock(block *sstable.Block, key string) (entity.Record, error) {
+func (bc *BlockCache) searchInBlock(block *Block, key string) (entity.Record, error) {
 	record, err := block.GetRecord(key)
 	if err != nil {
 		return nil, err

@@ -14,6 +14,8 @@ const (
 
 type Record interface {
 	GetFamily() string
+	GetValue() interface{}
+	GetExpiry() int64
 	IsExpired() bool
 	IsActive() bool
 	ToMap() map[string]interface{}
@@ -29,6 +31,14 @@ type ScalarRecord struct {
 
 func (sr *ScalarRecord) GetFamily() string {
 	return RecordTypeScalar
+}
+
+func (sr *ScalarRecord) GetValue() interface{} {
+	return sr.Value
+}
+
+func (sr *ScalarRecord) GetExpiry() int64 {
+	return sr.Expiry
 }
 
 func (sr *ScalarRecord) IsExpired() bool {

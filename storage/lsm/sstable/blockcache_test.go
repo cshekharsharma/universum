@@ -1,4 +1,4 @@
-package cache
+package sstable
 
 import (
 	"testing"
@@ -6,7 +6,6 @@ import (
 	"universum/config"
 	"universum/dslib"
 	"universum/entity"
-	"universum/storage/lsm/sstable"
 )
 
 func setupBlockCacheTests() {
@@ -15,11 +14,11 @@ func setupBlockCacheTests() {
 	config.Store.Storage.LSM.BlockCacheMemoryLimit = 22500
 }
 
-func createTestBlock(keys []string) *sstable.Block {
+func createTestBlock(keys []string) *Block {
 	expiry := time.Now().Unix() + 10000
 	bloom := dslib.NewBloomFilter(1000, 5)
 
-	block := sstable.NewBlock(1024)
+	block := NewBlock(1024)
 	for i := 0; i < len(keys); i++ {
 		block.AddRecord(keys[i], map[string]interface{}{
 			"Value":  int64(100),
@@ -31,7 +30,7 @@ func createTestBlock(keys []string) *sstable.Block {
 	}
 
 	block.SerializeBlock()
-	block.SetID(block.GenerateBlockID())
+	block.SetID(GenerateBlockID(block.FirstKey, block.LastKey))
 	return block
 }
 
@@ -102,7 +101,7 @@ func TestBlockCacheSearchBlock(t *testing.T) {
 
 	blockCache.Add(block)
 
-	record, err := blockCache.SearchBlock(nil, block.Id, "key1")
+	record, err := blockCache.SearchBlock(block.Id, "key1")
 	if err != nil {
 		t.Fatalf("Error occurred during block search: %v", err)
 	}

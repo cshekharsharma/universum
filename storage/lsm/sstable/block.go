@@ -46,12 +46,6 @@ func (b *Block) SetID(id uint64) {
 	b.Id = id
 }
 
-func (b *Block) GenerateBlockID() uint64 {
-	hash := fnv.New64a()
-	hash.Write([]byte(fmt.Sprintf("f:%s-l:%s", b.FirstKey, b.LastKey)))
-	return hash.Sum64()
-}
-
 func (b *Block) GetKeyInfoFromIndex(key string) (bool, int64, error) {
 	if recordOffset, found := b.Index.Load(key); found {
 		return true, recordOffset.(int64), nil
@@ -287,4 +281,10 @@ func (b *Block) ValidateBlock() bool {
 
 func (b *Block) RemainingSpace() int64 {
 	return b.MaxSize - b.CurrentSize
+}
+
+func GenerateBlockID(firstKey string, lastKey string) uint64 {
+	hash := fnv.New64a()
+	hash.Write([]byte(fmt.Sprintf("f:%s-l:%s", firstKey, lastKey)))
+	return hash.Sum64()
 }

@@ -143,7 +143,7 @@ func TestFlushMemTableToSSTable(t *testing.T) {
 	}
 }
 
-func TestLoadBlock(t *testing.T) {
+func TestLoadBlockAndFindRecord(t *testing.T) {
 	SetUpSSTableTests(t)
 
 	filename := "test.sst"
@@ -194,5 +194,38 @@ func TestLoadBlock(t *testing.T) {
 
 	if value == nil {
 		t.Fatalf("Expected value1, got %s", value)
+	}
+
+	found, _, err := sst.FindRecord("key1")
+	if !found {
+		t.Fatalf("Expected record to be found")
+	}
+
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+
+	found, record, err := sst.FindRecord("key1")
+	if !found {
+		t.Fatalf("Expected record to be found")
+	}
+
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+
+	var expectedVal interface{} = "value1"
+	if record.GetValue() != expectedVal {
+		t.Fatalf("Expected value1, got %s", record.GetValue())
+	}
+
+	found, _, _ = sst.FindRecord("key3")
+	if found {
+		t.Fatalf("Expected record to not be found")
+	}
+
+	_, _, err = sst.FindRecord("")
+	if err == nil {
+		t.Fatalf("Expected error, got nil")
 	}
 }

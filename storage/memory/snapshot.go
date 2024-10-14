@@ -218,19 +218,17 @@ func (ms *MemoryStoreSnapshotService) Restore(datastore storage.DataStore) (int6
 				}
 
 				lastSuccessfulOffset = currentOffset // updated last successful offset
-				scalarRecord := &entity.ScalarRecord{}
-				key, record := scalarRecord.FromMap(decodedMap)
-				scalarRecord, _ = record.(*entity.ScalarRecord)
+				key, record := (&entity.ScalarRecord{}).FromMap(decodedMap)
 
-				if scalarRecord.Expiry <= utils.GetCurrentEPochTime() {
+				if record.GetExpiry() <= utils.GetCurrentEPochTime() {
 					continue
 				}
 
-				ttl := scalarRecord.Expiry - utils.GetCurrentEPochTime()
-				success, statuscode := datastore.Set(key, scalarRecord.Value, ttl)
+				ttl := record.GetExpiry() - utils.GetCurrentEPochTime()
+				success, statuscode := datastore.Set(key, record.GetValue(), ttl)
 
 				if success {
-					logger.Get().Debug("Replayed [%5d] SET %s %v %v", keycount+1, key, scalarRecord.Value, ttl)
+					logger.Get().Debug("Replayed [%5d] SET %s %v %v", keycount+1, key, record.GetValue(), ttl)
 					keycount++
 				} else {
 					logger.Get().Warn("Failed to restore the record [code=%d], skipping.", statuscode)

@@ -7,7 +7,6 @@ import (
 	"universum/config"
 	"universum/entity"
 	"universum/internal/logger"
-	"universum/storage/lsm/cache"
 	"universum/storage/lsm/memtable"
 	"universum/storage/lsm/sstable"
 	"universum/storage/lsm/wal"
@@ -19,21 +18,18 @@ const WALRotaterChanSize = 10
 const SSTableFlushRetryCount = 3
 
 type LSMStore struct {
-	memTable   memtable.MemTable
-	sstables   []*sstable.SSTable
-	blockcache *cache.BlockCache
-	walWriter  *wal.WALWriter
-	mutex      sync.Mutex
+	memTable  memtable.MemTable
+	sstables  []*sstable.SSTable
+	walWriter *wal.WALWriter
+	mutex     sync.Mutex
 }
 
 func CreateNewLSMStore(mtype string) *LSMStore {
 	memtable := memtable.CreateNewMemTable(config.Store.Storage.LSM.MemtableStorageType)
-	blockcache := cache.NewBlockCache()
 
 	return &LSMStore{
-		memTable:   memtable,
-		sstables:   make([]*sstable.SSTable, 0),
-		blockcache: blockcache,
+		memTable: memtable,
+		sstables: make([]*sstable.SSTable, 0),
 	}
 }
 
@@ -72,6 +68,8 @@ func (lsm *LSMStore) Initialize() error {
 	memtable.WALRotaterChan = make(chan int64, WALRotaterChanSize)
 	go lsm.MemtableBGFlusher() // start the background flusher job
 
+	sstable.BlockCacheStore = sstable.NewBlockCache()
+
 	return nil
 }
 
@@ -89,15 +87,13 @@ func (lsm *LSMStore) Exists(key string) (bool, uint32) {
 		return exists, code
 	}
 
-	// @TODO: Implement block cache to avoid reading from disk every time.
-
 	for _, sst := range lsm.sstables {
 		found, record, err := sst.FindRecord(key)
 		if err != nil {
 			return false, entity.CRC_DATA_READ_ERROR
 		}
 
-		if !found {
+		if !found || record == nil {
 			continue // check in next sstable
 		}
 
@@ -128,7 +124,7 @@ func (lsm *LSMStore) Get(key string) (entity.Record, uint32) {
 			return record, entity.CRC_DATA_READ_ERROR
 		}
 
-		if !found {
+		if !found || record == nil {
 			continue // check in next sstable
 		}
 

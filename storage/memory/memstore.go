@@ -183,7 +183,7 @@ func (ms *MemoryStore) MGet(keys []string) (map[string]interface{}, uint32) {
 
 		if _, ok := record.(*entity.ScalarRecord); ok {
 			responseMap[keys[idx]] = map[string]interface{}{
-				"Value": record.(*entity.ScalarRecord).Value,
+				"Value": record.GetValue(),
 				"Code":  code,
 			}
 		} else {

@@ -68,6 +68,10 @@ func NewSSTable(filename string, writeMode bool, maxRecords int64, falsePositive
 		Compression: config.Store.Storage.LSM.BlockCompressionAlgo,
 	}
 
+	if BlockCacheStore == nil {
+		BlockCacheStore = NewBlockCache()
+	}
+
 	return &SSTable{
 		filename:     filename,
 		fileptr:      file,
@@ -274,6 +278,12 @@ func (sst *SSTable) FindRecord(key string) (bool, entity.Record, error) {
 
 	if indexEntry, err := sst.FindBlockForKey(key, sst.Index); err == nil {
 		blockOffset, blockSize := utils.UnpackNumbers(indexEntry.GetOffset())
+
+		blockId := GenerateBlockID(indexEntry.GetFirstKey(), indexEntry.GetLastKey())
+		if record, err := BlockCacheStore.SearchBlock(blockId, key); err == nil && record != nil {
+			return true, record, nil
+		}
+
 		block, err := sst.LoadBlock(int64(blockOffset), int64(blockSize))
 
 		if err != nil {
@@ -288,6 +298,9 @@ func (sst *SSTable) FindRecord(key string) (bool, entity.Record, error) {
 		if err != nil {
 			return false, nil, err
 		}
+
+		block.SetID(blockId)
+		BlockCacheStore.Add(block)
 
 		return true, record, nil
 	}

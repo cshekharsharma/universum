@@ -33,7 +33,7 @@ func TestMemstore_SetAndGet(t *testing.T) {
 	}
 
 	record, code := m.Get(key)
-	if record == nil || code != entity.CRC_RECORD_FOUND || record.(*entity.ScalarRecord).Value != value {
+	if record == nil || code != entity.CRC_RECORD_FOUND || record.GetValue() != value {
 		t.Errorf("expected value %v, got %v, code %d", value, record, code)
 	}
 }
