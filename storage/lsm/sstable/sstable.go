@@ -67,6 +67,7 @@ func NewSSTable(filename string, writeMode bool, maxRecords int64, falsePositive
 		Timestamp:   utils.GetCurrentEPochTime(),
 		Compression: config.Store.Storage.LSM.BlockCompressionAlgo,
 	}
+	metadata.SSTableID, _ = utils.GetRandomStringCrypto(16)
 
 	if BlockCacheStore == nil {
 		BlockCacheStore = NewBlockCache()

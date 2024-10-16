@@ -9,6 +9,7 @@ import (
 
 // Metadata represents the metadata information for an SSTable.
 type Metadata struct {
+	SSTableID         string // Unique identifier for the SSTable
 	Version           int64  // Version of the SSTable format
 	NumRecords        int64  // Number of key-value pairs in the SSTable
 	DataSize          int64  // Total size of the data block
@@ -21,6 +22,7 @@ type Metadata struct {
 	BloomFilterSize   int64  // Size of the bloom filter block
 	Timestamp         int64  // Timestamp when this SSTable was created
 	Compression       string // Compression algorithm used (if any)
+	CompactionLevel   int64  // Level of compaction for the SSTable
 }
 
 // Serialize converts the Metadata struct into a byte slice using binary encoding.
@@ -38,6 +40,7 @@ func (m *Metadata) Serialize() ([]byte, error) {
 		m.BloomFilterOffset,
 		m.BloomFilterSize,
 		m.Timestamp,
+		m.CompactionLevel,
 	}
 
 	for _, field := range fixedFields {
@@ -47,6 +50,7 @@ func (m *Metadata) Serialize() ([]byte, error) {
 	}
 
 	variableSizeFields := []string{
+		m.SSTableID,
 		m.FirstKey,
 		m.LastKey,
 		m.Compression,
@@ -80,6 +84,7 @@ func (m *Metadata) Deserialize(data []byte) error {
 		&m.BloomFilterOffset,
 		&m.BloomFilterSize,
 		&m.Timestamp,
+		&m.CompactionLevel,
 	}
 
 	for _, field := range fixedFields {
@@ -89,6 +94,7 @@ func (m *Metadata) Deserialize(data []byte) error {
 	}
 
 	variableSizeFields := []*string{
+		&m.SSTableID,
 		&m.FirstKey,
 		&m.LastKey,
 		&m.Compression,

@@ -9,6 +9,7 @@ import (
 
 func TestMetadataSerialization(t *testing.T) {
 	original := Metadata{
+		SSTableID:         "abcd",
 		Version:           1,
 		NumRecords:        1000,
 		IndexOffset:       2048,
@@ -21,6 +22,7 @@ func TestMetadataSerialization(t *testing.T) {
 		Timestamp:         1638307200,
 		Compression:       "gzip",
 		IndexChecksum:     987654321,
+		CompactionLevel:   1,
 	}
 
 	data, err := original.Serialize()
@@ -101,6 +103,7 @@ func TestMetadataSerializationDifferentEndianness(t *testing.T) {
 		Timestamp:         1638307200,
 		Compression:       "gzip",
 		IndexChecksum:     987654321,
+		CompactionLevel:   1,
 	}
 
 	buf := new(bytes.Buffer)
@@ -114,6 +117,7 @@ func TestMetadataSerializationDifferentEndianness(t *testing.T) {
 		original.BloomFilterSize,
 		original.Timestamp,
 		original.IndexChecksum,
+		original.CompactionLevel,
 	}
 
 	for _, field := range fixedFields {

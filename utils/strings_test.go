@@ -59,3 +59,25 @@ func TestGetRandomString(t *testing.T) {
 		t.Errorf("GetRandomString(10) produced the same string '%s' twice; expected different strings", str1)
 	}
 }
+
+func TestGetRandomStringCrypto_ValidLength(t *testing.T) {
+	length := uint8(10)
+	result, err := GetRandomStringCrypto(length)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if len(result) != int(length) {
+		t.Errorf("Expected length %d, got %d", length, len(result))
+	}
+}
+
+func TestGetRandomStringCrypto_ZeroLength(t *testing.T) {
+	length := uint8(0)
+	result, err := GetRandomStringCrypto(length)
+	if err != nil {
+		t.Errorf("Expected no error for length 0, got %v", err)
+	}
+	if len(result) != 0 {
+		t.Errorf("Expected empty string, got %d characters", len(result))
+	}
+}
