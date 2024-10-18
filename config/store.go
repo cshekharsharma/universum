@@ -14,6 +14,7 @@ const InfiniteExpiryTime int64 = 4102444800
 
 type Config struct {
 	Server   *Server   `toml:"Server"`
+	Cluster  *Cluster  `toml:"Cluster"`
 	Storage  *Storage  `toml:"Storage"`
 	Logging  *Logging  `toml:"Logging"`
 	Eviction *Eviction `toml:"Eviction"`
@@ -25,6 +26,12 @@ type Server struct {
 	MaxConnections          int64 `toml:"MaxConnections"`
 	ConnectionWriteTimeout  int64 `toml:"ConnectionWriteTimeout"`
 	RequestExecutionTimeout int64 `toml:"RequestExecutionTimeout"`
+}
+
+type Cluster struct {
+	EnableCluster bool     `toml:"EnableCluster"`
+	HeartbeatPort int64    `toml:"HeartbeatPort"`
+	Hosts         []string `toml:"Hosts"`
 }
 
 type Memory struct {

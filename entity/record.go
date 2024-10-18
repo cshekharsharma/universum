@@ -17,7 +17,7 @@ type Record interface {
 	GetValue() interface{}
 	GetExpiry() int64
 	IsExpired() bool
-	IsActive() bool
+	IsTombstoned() bool
 	ToMap() map[string]interface{}
 	FromMap(m map[string]interface{}) (string, Record)
 }
@@ -49,8 +49,8 @@ func (sr *ScalarRecord) IsExpired() bool {
 	return time.Now().Unix() > sr.Expiry
 }
 
-func (sr *ScalarRecord) IsActive() bool {
-	return sr.State == RecordStateActive
+func (sr *ScalarRecord) IsTombstoned() bool {
+	return sr.State == RecordStateTombstoned
 }
 
 func (sr *ScalarRecord) ToMap() map[string]interface{} {

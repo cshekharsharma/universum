@@ -23,6 +23,11 @@ func (v *ConfigValidator) Validate(config *Config) (*Config, error) {
 		return nil, err
 	}
 
+	err = v.validateClusterSection(config)
+	if err != nil {
+		return nil, err
+	}
+
 	err = v.validateLoggingSection(config)
 	if err != nil {
 		return nil, err
@@ -68,6 +73,27 @@ func (v *ConfigValidator) validateServerSection(config *Config) error {
 
 	if config.Server.MaxConnections == 0 {
 		config.Server.MaxConnections = DefultMaxClientConnections
+	}
+
+	return nil
+}
+
+func (v *ConfigValidator) validateClusterSection(config *Config) error {
+	if config.Cluster == nil {
+		return errors.New("cluster section is missing in config")
+	}
+
+	if config.Cluster.HeartbeatPort == 0 {
+		config.Cluster.HeartbeatPort = DefaultHeartbeatPort
+	}
+
+	if config.Cluster.HeartbeatPort == config.Server.ServerPort {
+		return fmt.Errorf("heartbeat port %d cannot be same as server port %d",
+			config.Cluster.HeartbeatPort, config.Server.ServerPort)
+	}
+
+	if config.Cluster.EnableCluster && len(config.Cluster.Hosts) < int(MinClusterSize) {
+		return fmt.Errorf("host list cannot be less than %d in cluster mode [potential split brain]", MinClusterSize)
 	}
 
 	return nil

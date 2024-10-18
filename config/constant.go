@@ -41,6 +41,11 @@ const (
 	DefaultConnectionWriteTimeout int64 = 10 // 10 seconds
 	DefaultRequestExecTimeout     int64 = 10 // 10 seconds
 
+	// Section:Cluster
+	DefaultEnableCluster bool  = false
+	DefaultHeartbeatPort int64 = 11192
+	MinClusterSize       uint8 = 3 // to avoid split brain
+
 	// Storage
 	DefaultStorageEngine        string = "MEMORY"    // [MEMORY, LSM]
 	DefaultMaxRecordSizeInBytes int64  = 1024 * 1024 // 1 MB

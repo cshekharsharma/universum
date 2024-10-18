@@ -7,6 +7,7 @@ import (
 	"universum/config"
 	"universum/entity"
 	"universum/internal/logger"
+	"universum/storage/lsm/compaction"
 	"universum/storage/lsm/memtable"
 	"universum/storage/lsm/sstable"
 	"universum/storage/lsm/wal"
@@ -21,6 +22,7 @@ type LSMStore struct {
 	memTable  memtable.MemTable
 	sstables  []*sstable.SSTable
 	walWriter *wal.WALWriter
+	compactor *compaction.Compactor
 	mutex     sync.Mutex
 }
 
@@ -68,8 +70,10 @@ func (lsm *LSMStore) Initialize() error {
 	memtable.WALRotaterChan = make(chan int64, WALRotaterChanSize)
 	go lsm.MemtableBGFlusher() // start the background flusher job
 
-	sstable.BlockCacheStore = sstable.NewBlockCache()
+	lsm.compactor = compaction.NewCompactor()
+	go lsm.compactor.Compact() // start the background compaction job
 
+	sstable.BlockCacheStore = sstable.NewBlockCache()
 	return nil
 }
 
@@ -97,7 +101,7 @@ func (lsm *LSMStore) Exists(key string) (bool, uint32) {
 			continue // check in next sstable
 		}
 
-		if !record.IsActive() || record.IsExpired() {
+		if record.IsTombstoned() || record.IsExpired() {
 			return false, entity.CRC_RECORD_NOT_FOUND
 		}
 		return true, entity.CRC_RECORD_FOUND
@@ -128,7 +132,7 @@ func (lsm *LSMStore) Get(key string) (entity.Record, uint32) {
 			continue // check in next sstable
 		}
 
-		if !record.IsActive() || record.IsExpired() {
+		if record.IsTombstoned() || record.IsExpired() {
 			return record, entity.CRC_RECORD_NOT_FOUND
 		}
 		return record, entity.CRC_RECORD_FOUND
@@ -343,6 +347,7 @@ func (lsm *LSMStore) MemtableBGFlusher() error {
 			}
 
 			lsm.sstables = append([]*sstable.SSTable{sst}, lsm.sstables...)
+			lsm.compactor.CompactLevel(sst.Metadata.CompactionLevel)
 		}(memtable)
 	}
 	return nil

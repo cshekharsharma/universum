@@ -539,3 +539,8 @@ func (sst *SSTable) FlushMetadata() error {
 
 	return nil
 }
+
+func (sst *SSTable) DeleteFromDisk() error {
+	sst.fileptr.Close()
+	return os.Remove(sst.filename)
+}

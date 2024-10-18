@@ -4,6 +4,11 @@ MaxConnections = 100
 ConnectionWriteTimeout = 10
 RequestExecutionTimeout = 10
 
+[Cluster]
+EnableCluster = false
+HearbeatPort = 11192
+Hosts = ["127.0.0.1"]
+
 [Storage]
 StorageEngine = "LSM"
 MaxRecordSizeInBytes = 1048576

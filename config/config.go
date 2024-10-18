@@ -49,7 +49,8 @@ func Init(filepath string) error {
 
 func GetSkeleton() *Config {
 	return &Config{
-		Server: &Server{},
+		Server:  &Server{},
+		Cluster: &Cluster{},
 		Storage: &Storage{
 			LSM:    &LSM{},
 			Memory: &Memory{},

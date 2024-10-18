@@ -55,7 +55,7 @@ func (m *ListBloomMemTable) Exists(key string) (bool, uint32) {
 		State:  state,
 	}
 
-	if found && !record.IsActive() {
+	if found && record.IsTombstoned() {
 		return false, entity.CRC_RECORD_TOMBSTONED
 	}
 
@@ -88,7 +88,7 @@ func (m *ListBloomMemTable) Get(key string) (entity.Record, uint32) {
 		State:  state,
 	}
 
-	if found && !record.IsActive() {
+	if found && record.IsTombstoned() {
 		return nil, entity.CRC_RECORD_TOMBSTONED
 	}
 
