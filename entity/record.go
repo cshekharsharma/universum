@@ -82,7 +82,7 @@ func (sr *ScalarRecord) FromMap(recordMap map[string]interface{}) (string, Recor
 	}
 
 	if state, ok := recordMap["State"]; ok {
-		sr.State, _ = state.(uint8)
+		sr.State = uint8(state.(int64))
 	}
 
 	return key, sr
@@ -91,4 +91,9 @@ func (sr *ScalarRecord) FromMap(recordMap map[string]interface{}) (string, Recor
 type RecordKV struct {
 	Key    string
 	Record Record
+}
+
+type SerializedRecordKV struct {
+	Key    []byte
+	Record []byte
 }

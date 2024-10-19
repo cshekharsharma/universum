@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 	"universum/config"
+	"universum/storage/lsm/sstable"
 )
 
 func TestGetAllSSTableFilesWithTempDir(t *testing.T) {
@@ -16,11 +17,11 @@ func TestGetAllSSTableFilesWithTempDir(t *testing.T) {
 	config.Store.Storage.LSM.DataStorageDirectory = tempDir
 
 	timeStamps := []string{
-		fmt.Sprintf("1625151601234567890.%s", SstFileExtension),
-		fmt.Sprintf("1625151603234567890.%s", SstFileExtension),
-		fmt.Sprintf("1625151604234567890.%s", SstFileExtension),
-		fmt.Sprintf("1625151605234567890.%s", SstFileExtension),
-		fmt.Sprintf("1625151602234567890.%s", SstFileExtension),
+		fmt.Sprintf("1625151601234567890.%s", sstable.SstFileExtension),
+		fmt.Sprintf("1625151603234567890.%s", sstable.SstFileExtension),
+		fmt.Sprintf("1625151604234567890.%s", sstable.SstFileExtension),
+		fmt.Sprintf("1625151605234567890.%s", sstable.SstFileExtension),
+		fmt.Sprintf("1625151602234567890.%s", sstable.SstFileExtension),
 	}
 
 	for _, ts := range timeStamps {
@@ -38,11 +39,11 @@ func TestGetAllSSTableFilesWithTempDir(t *testing.T) {
 	}
 
 	expectedOrder := []string{
-		fmt.Sprintf("1625151605234567890.%s", SstFileExtension),
-		fmt.Sprintf("1625151604234567890.%s", SstFileExtension),
-		fmt.Sprintf("1625151603234567890.%s", SstFileExtension),
-		fmt.Sprintf("1625151602234567890.%s", SstFileExtension),
-		fmt.Sprintf("1625151601234567890.%s", SstFileExtension),
+		fmt.Sprintf("1625151605234567890.%s", sstable.SstFileExtension),
+		fmt.Sprintf("1625151604234567890.%s", sstable.SstFileExtension),
+		fmt.Sprintf("1625151603234567890.%s", sstable.SstFileExtension),
+		fmt.Sprintf("1625151602234567890.%s", sstable.SstFileExtension),
+		fmt.Sprintf("1625151601234567890.%s", sstable.SstFileExtension),
 	}
 
 	if len(retreivedFiles) != len(expectedOrder) {
@@ -91,13 +92,13 @@ func TestGenerateSSTableFileName(t *testing.T) {
 
 	fileName1 := generateSSTableFileName()
 
-	if !strings.HasSuffix(fileName1, SstFileExtension) {
-		t.Errorf("Expected file name to have extension %s, got %s", SstFileExtension, fileName1)
+	if !strings.HasSuffix(fileName1, sstable.SstFileExtension) {
+		t.Errorf("Expected file name to have extension %s, got %s", sstable.SstFileExtension, fileName1)
 	}
 
 	nameParts := strings.Split(fileName1, ".")
 	if len(nameParts) != 2 {
-		t.Errorf("Expected file name to have format 'hash.%s', got %s", SstFileExtension, fileName1)
+		t.Errorf("Expected file name to have format 'hash.%s', got %s", sstable.SstFileExtension, fileName1)
 	}
 
 	time.Sleep(1 * time.Nanosecond)

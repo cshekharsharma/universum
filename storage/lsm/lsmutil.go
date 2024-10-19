@@ -8,9 +8,8 @@ import (
 	"strings"
 	"time"
 	"universum/config"
+	"universum/storage/lsm/sstable"
 )
-
-const SstFileExtension = "sst"
 
 func getAllSSTableFiles() ([]string, error) {
 	dir := config.Store.Storage.LSM.DataStorageDirectory
@@ -21,7 +20,7 @@ func getAllSSTableFiles() ([]string, error) {
 	}
 
 	var sstableFiles []string
-	var sstExtWithDot = fmt.Sprintf(".%s", SstFileExtension)
+	var sstExtWithDot = fmt.Sprintf(".%s", sstable.SstFileExtension)
 
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), sstExtWithDot) {
@@ -47,5 +46,5 @@ func getAllSSTableFiles() ([]string, error) {
 }
 
 func generateSSTableFileName() string {
-	return fmt.Sprintf("%d.%s", time.Now().UnixNano(), SstFileExtension)
+	return fmt.Sprintf("%d.%s", time.Now().UnixNano(), sstable.SstFileExtension)
 }

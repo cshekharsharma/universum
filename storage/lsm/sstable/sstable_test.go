@@ -35,7 +35,7 @@ func TestNewSSTable(t *testing.T) {
 		"%s/%s", config.Store.Storage.LSM.DataStorageDirectory, filename))
 
 	lsmCnf := config.Store.Storage.LSM
-	sst, err := NewSSTable(filename, true, lsmCnf.BloomFilterMaxRecords, lsmCnf.BloomFalsePositiveRate)
+	sst, err := NewSSTable(filename, SSTmodeWrite, lsmCnf.BloomFilterMaxRecords, lsmCnf.BloomFalsePositiveRate)
 	if err != nil {
 		t.Fatalf("Failed to create SSTable: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestLoadSSTableFromDisk(t *testing.T) {
 	fileName := "test1.sst"
 	cnf := config.Store.Storage.LSM
 
-	sst, err := NewSSTable(fileName, true, 100, 0.01)
+	sst, err := NewSSTable(fileName, SSTmodeWrite, 100, 0.01)
 	if err != nil {
 		t.Fatalf("Failed to create SSTable: %v", err)
 	}
@@ -75,13 +75,13 @@ func TestLoadSSTableFromDisk(t *testing.T) {
 		mem.Set(key, val, int64(i*1000), entity.RecordStateActive)
 	}
 
-	err = sst.FlushMemTableToSSTable(mem)
+	err = sst.FlushRecordsToSSTable(mem.GetAll())
 	if err != nil {
 		t.Fatalf("Failed to flush memtable to SSTable: %v", err)
 	}
 
 	// reset sst instance to populate again
-	sst, _ = NewSSTable(fileName, false, 100, 0.01)
+	sst, _ = NewSSTable(fileName, SSTmodeRead, 100, 0.01)
 
 	err = sst.LoadSSTableFromDisk()
 
@@ -110,7 +110,7 @@ func TestFlushMemTableToSSTable(t *testing.T) {
 		"%s/%s", config.Store.Storage.LSM.DataStorageDirectory, filename))
 
 	lsmCnf := config.Store.Storage.LSM
-	sst, err := NewSSTable(filename, true, lsmCnf.BloomFilterMaxRecords, lsmCnf.BloomFalsePositiveRate)
+	sst, err := NewSSTable(filename, SSTmodeWrite, lsmCnf.BloomFilterMaxRecords, lsmCnf.BloomFalsePositiveRate)
 	if err != nil {
 		t.Fatalf("Failed to create SSTable: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestFlushMemTableToSSTable(t *testing.T) {
 	mem.Set("key1", "value1", 100, entity.RecordStateActive)
 	mem.Set("key2", "value2", 100, entity.RecordStateActive)
 
-	err = sst.FlushMemTableToSSTable(mem)
+	err = sst.FlushRecordsToSSTable(mem.GetAll())
 	if err != nil {
 		t.Fatalf("Failed to flush memtable to SSTable: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestLoadBlockAndFindRecord(t *testing.T) {
 		"%s/%s", config.Store.Storage.LSM.DataStorageDirectory, filename))
 
 	lsmCnf := config.Store.Storage.LSM
-	sst, err := NewSSTable(filename, true, lsmCnf.BloomFilterMaxRecords, lsmCnf.BloomFalsePositiveRate)
+	sst, err := NewSSTable(filename, SSTmodeWrite, lsmCnf.BloomFilterMaxRecords, lsmCnf.BloomFalsePositiveRate)
 	if err != nil {
 		t.Fatalf("Failed to create SSTable: %v", err)
 	}
@@ -161,19 +161,22 @@ func TestLoadBlockAndFindRecord(t *testing.T) {
 	mem.Set("key1", "value1", 10, entity.RecordStateActive)
 	mem.Set("key2", "value2", 10, entity.RecordStateActive)
 
-	_ = sst.FlushMemTableToSSTable(mem)
+	_ = sst.FlushRecordsToSSTable(mem.GetAll())
 
 	entry, _ := sst.FindBlockForKey("key1", sst.Index)
 	blockOffset, blocksize := utils.UnpackNumbers(entry.GetOffset())
 
 	block, err := sst.LoadBlock(int64(blockOffset), int64(blocksize))
-	block.PopulateRecordsInBlock()
-
 	if err != nil {
 		t.Fatalf("Failed to read block: %v", err)
 	}
 
-	if len(block.Records) == 0 {
+	recordList, err := block.GetAllRecords()
+	if err != nil {
+		t.Fatalf("Failed to read all sstable records: %v", err)
+	}
+
+	if len(recordList) == 0 {
 		t.Fatalf("Expected records in the block, found 0")
 	}
 
@@ -227,5 +230,22 @@ func TestLoadBlockAndFindRecord(t *testing.T) {
 	_, _, err = sst.FindRecord("")
 	if err == nil {
 		t.Fatalf("Expected error, got nil")
+	}
+
+	allrecords, err := sst.GetAllRecords()
+	if err != nil {
+		t.Fatalf("GetAllRecords: expected nil but got error: %v", err)
+	}
+
+	if len(allrecords) != 2 {
+		t.Fatalf("GetAllRecords: expected 2 records, got %d", len(allrecords))
+	}
+
+	if allrecords[0].Key != "key1" || allrecords[0].Record.GetValue() != "value1" {
+		t.Fatalf("GetAllRecords: expected key1=value1, got %v", allrecords[0])
+	}
+
+	if allrecords[1].Key != "key2" || allrecords[1].Record.GetValue() != "value2" {
+		t.Fatalf("GetAllRecords: expected key2=value1, got %v", allrecords[1])
 	}
 }

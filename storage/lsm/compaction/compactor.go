@@ -2,20 +2,26 @@ package compaction
 
 import (
 	"fmt"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
+	"universum/config"
+	"universum/entity"
 	"universum/internal/logger"
 	"universum/storage/lsm/sstable"
 )
 
 const (
-	DefaultMaxLevel             int = 6 // Default maximum number of levels in LSM
-	CompactionThresholdPerLevel int = 4 // Number of SSTables per level before triggering compaction
+	DefaultMaxLevel             int = 8 // Default maximum number of levels in LSM
+	CompactionThresholdPerLevel int = 3 // Number of SSTables per level before triggering compaction
 )
 
 type Compactor struct {
 	LevelSSTables map[int64][]*sstable.SSTable // SSTables grouped by level
-	mutex         sync.Mutex                   // Concurrency safety for compacting
+	compactionMu  sync.Mutex                   // Concurrency safety for compacting
+	additionMu    sync.Mutex                   // Concurrency safety for adding SSTables
 	MaxLevel      int64                        // Maximum number of levels
 }
 
@@ -27,8 +33,8 @@ func NewCompactor() *Compactor {
 }
 
 func (c *Compactor) AddSSTable(level int64, sst *sstable.SSTable) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	c.additionMu.Lock()
+	defer c.additionMu.Unlock()
 
 	c.LevelSSTables[level] = append(c.LevelSSTables[level], sst)
 }
@@ -42,7 +48,7 @@ func (c *Compactor) Compact() {
 	}()
 
 	for level := int64(0); level < c.MaxLevel; level++ {
-		if len(c.LevelSSTables[level]) > int(CompactionThresholdPerLevel) {
+		if len(c.LevelSSTables[level]) >= int(CompactionThresholdPerLevel) {
 			c.CompactLevel(level)
 		}
 
@@ -51,8 +57,8 @@ func (c *Compactor) Compact() {
 }
 
 func (c *Compactor) CompactLevel(level int64) error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+	c.compactionMu.Lock()
+	defer c.compactionMu.Unlock()
 
 	if _, ok := c.LevelSSTables[level]; !ok {
 		return nil // No SSTables to compact
@@ -65,9 +71,16 @@ func (c *Compactor) CompactLevel(level int64) error {
 
 	mergedSST, err := c.mergeSSTables(sstablesToCompact)
 	if err != nil {
-		logger.Get().Error("SSTable compactopn failed: %v", err)
+		logger.Get().Error("SSTable compaction failed: %v", err)
 		return err
 	}
+
+	SSTReplacementChan <- &SSTReplacement{
+		Obsoletes:  sstablesToCompact,
+		Substitute: mergedSST,
+	}
+
+	time.Sleep(10 * time.Microsecond) // give consumer sometime to process the notification
 
 	c.LevelSSTables[level] = nil
 	c.AddSSTable(level+1, mergedSST)
@@ -82,10 +95,46 @@ func (c *Compactor) CompactLevel(level int64) error {
 }
 
 func (c *Compactor) mergeSSTables(sstables []*sstable.SSTable) (*sstable.SSTable, error) {
-	for i, sstable := range sstables {
-		fmt.Printf("merge sstable at key:%d, %v", i, sstable)
+	mergedList := make([]*entity.RecordKV, 0)
+	for _, sstable := range sstables {
+		sstRecords, err := sstable.GetAllRecords()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get all records from SSTable: %v", err)
+		}
+
+		mergedList = Merge(mergedList, sstRecords)
 	}
-	return nil, nil
+
+	compactedMergedList := make([]*entity.RecordKV, 0)
+	for _, recordKV := range mergedList {
+		if recordKV.Record.IsExpired() || recordKV.Record.IsTombstoned() {
+			continue // skip all expired and deleted/tombstoned records
+		}
+		compactedMergedList = append(compactedMergedList, recordKV)
+	}
+
+	newSSTFileName, err := c.getMergedSSTFileName(sstables)
+	if err != nil {
+		return nil, err
+	}
+
+	mergedSST, err := sstable.NewSSTable(
+		newSSTFileName,
+		sstable.SSTmodeWrite,
+		config.Store.Storage.LSM.BloomFilterMaxRecords,
+		config.Store.Storage.LSM.BloomFalsePositiveRate,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = mergedSST.FlushRecordsToSSTable(compactedMergedList)
+	if err != nil {
+		return nil, err
+	}
+
+	return mergedSST, nil
 }
 
 func (c *Compactor) deleteOldSSTables(sstables []*sstable.SSTable) error {
@@ -96,4 +145,23 @@ func (c *Compactor) deleteOldSSTables(sstables []*sstable.SSTable) error {
 		}
 	}
 	return nil
+}
+
+func (c *Compactor) getMergedSSTFileName(sstables []*sstable.SSTable) (string, error) {
+	var min int64 = 1<<63 - 1
+
+	for _, sst := range sstables {
+		filenamestr := strings.TrimSuffix(filepath.Base(sst.Filename), filepath.Ext(filepath.Base(sst.Filename)))
+		filenameInt, err := strconv.ParseInt(filenamestr, 10, 64)
+
+		if err != nil {
+			return "", fmt.Errorf("failed to parse SST filename %s to int64: %v", sst.Filename, err)
+		}
+
+		if filenameInt < min {
+			min = filenameInt
+		}
+	}
+
+	return fmt.Sprintf("%d.%s", min, sstable.SstFileExtension), nil
 }

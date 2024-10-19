@@ -12,13 +12,16 @@ func createRecordKV(key string, value int) *entity.RecordKV {
 	}
 }
 
-func compareResults(t *testing.T, result []*entity.RecordKV, expectedKeys []string) {
+func compareResults(t *testing.T, result []*entity.RecordKV, expectedKeys []string, expectedValues []int) {
 	if len(result) != len(expectedKeys) {
 		t.Fatalf("expected %d keys, got %d", len(expectedKeys), len(result))
 	}
 	for i, recordKV := range result {
 		if recordKV.Key != expectedKeys[i] {
 			t.Errorf("expected key %s, got %s", expectedKeys[i], recordKV.Key)
+		}
+		if recordKV.Record.(*entity.ScalarRecord).Value != expectedValues[i] {
+			t.Errorf("expected value %d for key %s, got %d", expectedValues[i], expectedKeys[i], recordKV.Record.(*entity.ScalarRecord).Value)
 		}
 	}
 }
@@ -36,9 +39,10 @@ func TestMultiWayMerge_Basic(t *testing.T) {
 		createRecordKV("date", 6),
 	}
 
-	result := MultiWayMerge([][]*entity.RecordKV{arr1, arr2})
+	result := Merge(arr1, arr2)
 	expectedKeys := []string{"apple", "apricot", "banana", "blueberry", "cherry", "date"}
-	compareResults(t, result, expectedKeys)
+	expectedValues := []int{1, 4, 2, 5, 3, 6}
+	compareResults(t, result, expectedKeys, expectedValues)
 }
 
 func TestMultiWayMerge_DuplicateKeys(t *testing.T) {
@@ -52,9 +56,10 @@ func TestMultiWayMerge_DuplicateKeys(t *testing.T) {
 		createRecordKV("date", 6),
 	}
 
-	result := MultiWayMerge([][]*entity.RecordKV{arr1, arr2})
-	expectedKeys := []string{"apple", "banana", "banana", "date"}
-	compareResults(t, result, expectedKeys)
+	result := Merge(arr1, arr2)
+	expectedKeys := []string{"apple", "banana", "date"}
+	expectedValues := []int{1, 3, 6}
+	compareResults(t, result, expectedKeys, expectedValues)
 }
 
 func TestMultiWayMerge_EmptyInput(t *testing.T) {
@@ -64,9 +69,10 @@ func TestMultiWayMerge_EmptyInput(t *testing.T) {
 		createRecordKV("banana", 3),
 	}
 
-	result := MultiWayMerge([][]*entity.RecordKV{arr1, arr2})
+	result := Merge(arr1, arr2)
 	expectedKeys := []string{"banana"}
-	compareResults(t, result, expectedKeys)
+	expectedValues := []int{3}
+	compareResults(t, result, expectedKeys, expectedValues)
 }
 
 func TestMultiWayMerge_MultipleArrays(t *testing.T) {
@@ -83,9 +89,12 @@ func TestMultiWayMerge_MultipleArrays(t *testing.T) {
 		createRecordKV("cherry", 5),
 	}
 
-	result := MultiWayMerge([][]*entity.RecordKV{arr1, arr2, arr3})
+	result := Merge(arr1, arr2)
+	result = Merge(result, arr3) // Chaining two merges
+
 	expectedKeys := []string{"apple", "banana", "cherry", "date"}
-	compareResults(t, result, expectedKeys)
+	expectedValues := []int{1, 2, 5, 6}
+	compareResults(t, result, expectedKeys, expectedValues)
 }
 
 func TestMultiWayMerge_SingleArray(t *testing.T) {
@@ -94,7 +103,8 @@ func TestMultiWayMerge_SingleArray(t *testing.T) {
 		createRecordKV("banana", 2),
 	}
 
-	result := MultiWayMerge([][]*entity.RecordKV{arr1})
+	result := Merge(arr1, []*entity.RecordKV{})
 	expectedKeys := []string{"apple", "banana"}
-	compareResults(t, result, expectedKeys)
+	expectedValues := []int{1, 2}
+	compareResults(t, result, expectedKeys, expectedValues)
 }

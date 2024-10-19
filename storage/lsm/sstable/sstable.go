@@ -16,14 +16,20 @@ import (
 	"universum/dslib"
 	"universum/entity"
 	"universum/resp3"
-	"universum/storage/lsm/memtable"
 	"universum/utils"
 )
 
+const (
+	SstFileExtension = "sst"
+
+	SSTmodeWrite uint8 = 1
+	SSTmodeRead  uint8 = 2
+)
+
 type SSTable struct {
-	filename  string
+	Filename  string
 	fileptr   *os.File
-	writeMode bool
+	WriteMode uint8
 
 	BloomFilter  *dslib.BloomFilter
 	Index        []*sstIndexEntry
@@ -34,14 +40,14 @@ type SSTable struct {
 	Metadata    *Metadata
 }
 
-func NewSSTable(filename string, writeMode bool, maxRecords int64, falsePositiveRate float64) (*SSTable, error) {
+func NewSSTable(filename string, writeMode uint8, maxRecords int64, falsePositiveRate float64) (*SSTable, error) {
 	var file *os.File
 	var err error
 
 	datadir := config.Store.Storage.LSM.DataStorageDirectory
 	sstFullPath := filepath.Clean(fmt.Sprintf("%s/%s", datadir, filename))
 
-	if writeMode {
+	if writeMode == SSTmodeWrite {
 		file, err = os.Create(sstFullPath)
 		if err != nil {
 			return nil, err
@@ -74,9 +80,9 @@ func NewSSTable(filename string, writeMode bool, maxRecords int64, falsePositive
 	}
 
 	return &SSTable{
-		filename:     filename,
+		Filename:     filename,
 		fileptr:      file,
-		writeMode:    writeMode,
+		WriteMode:    writeMode,
 		Index:        index,
 		BloomFilter:  bloomFilter,
 		Metadata:     metadata,
@@ -91,17 +97,17 @@ func NewSSTable(filename string, writeMode bool, maxRecords int64, falsePositive
 func (sst *SSTable) LoadSSTableFromDisk() error {
 	err := sst.LoadMetadata()
 	if err != nil {
-		return fmt.Errorf("failed to load metadata for SSTable %s: %v", sst.filename, err)
+		return fmt.Errorf("failed to load metadata for SSTable %s: %v", sst.Filename, err)
 	}
 
 	err = sst.LoadBloomFilter()
 	if err != nil {
-		return fmt.Errorf("failed to load Bloom filter for SSTable %s: %v", sst.filename, err)
+		return fmt.Errorf("failed to load Bloom filter for SSTable %s: %v", sst.Filename, err)
 	}
 
 	err = sst.LoadIndex()
 	if err != nil {
-		return fmt.Errorf("failed to load index for SSTable %s: %v", sst.filename, err)
+		return fmt.Errorf("failed to load index for SSTable %s: %v", sst.Filename, err)
 	}
 
 	sst.DataSize = sst.Metadata.DataSize
@@ -309,6 +315,25 @@ func (sst *SSTable) FindRecord(key string) (bool, entity.Record, error) {
 	return false, nil, nil
 }
 
+func (sst *SSTable) GetAllRecords() ([]*entity.RecordKV, error) {
+	var records []*entity.RecordKV
+
+	for _, indexEntry := range sst.Index {
+		blockOffset, blockSize := utils.UnpackNumbers(indexEntry.GetOffset())
+		block, err := sst.LoadBlock(int64(blockOffset), int64(blockSize))
+		if err != nil {
+			return nil, fmt.Errorf("failed to load block: %v", err)
+		}
+
+		blockRecords, _ := block.GetAllRecords()
+		if blockRecords != nil {
+			records = append(records, blockRecords...)
+		}
+	}
+
+	return records, nil
+}
+
 func (sst *SSTable) FindBlockForKey(key string, index []*sstIndexEntry) (*sstIndexEntry, error) {
 	idx := sort.Search(len(index), func(i int) bool {
 		return sst.Index[i].GetFirstKey() > key
@@ -328,9 +353,7 @@ func (sst *SSTable) FindBlockForKey(key string, index []*sstIndexEntry) (*sstInd
 
 /////////////////////// Writer functions /////////////////////////
 
-func (sst *SSTable) FlushMemTableToSSTable(mem memtable.MemTable) error {
-	recordList := mem.GetAll()
-
+func (sst *SSTable) FlushRecordsToSSTable(recordList []*entity.RecordKV) error {
 	for i := 0; i < len(recordList); i++ {
 		key := recordList[i].Key
 		err := sst.CurrentBlock.AddRecord(key, recordList[i].Record.ToMap(), sst.BloomFilter)
@@ -542,5 +565,5 @@ func (sst *SSTable) FlushMetadata() error {
 
 func (sst *SSTable) DeleteFromDisk() error {
 	sst.fileptr.Close()
-	return os.Remove(sst.filename)
+	return os.Remove(sst.fileptr.Name())
 }

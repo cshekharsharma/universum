@@ -14,16 +14,21 @@ import (
 	"universum/utils"
 )
 
-const FlusherChanSize = 10
-const WALRotaterChanSize = 10
-const SSTableFlushRetryCount = 3
+const (
+	FlusherChanSize               = 1 << 3 // 8
+	WALRotaterChanSize            = 1 << 3 // 8
+	CompactionReplacementChanSize = 1 << 0 // 1
+
+	SSTableFlushRetryCount = 3
+)
 
 type LSMStore struct {
 	memTable  memtable.MemTable
 	sstables  []*sstable.SSTable
 	walWriter *wal.WALWriter
 	compactor *compaction.Compactor
-	mutex     sync.Mutex
+	flusherMu sync.Mutex
+	compactMu sync.Mutex
 }
 
 func CreateNewLSMStore(mtype string) *LSMStore {
@@ -47,7 +52,7 @@ func (lsm *LSMStore) Initialize() error {
 		maxRecords := config.Store.Storage.LSM.BloomFilterMaxRecords
 		fpRate := config.Store.Storage.LSM.BloomFalsePositiveRate
 
-		sst, err := sstable.NewSSTable(filename, false, maxRecords, fpRate)
+		sst, err := sstable.NewSSTable(filename, sstable.SSTmodeRead, maxRecords, fpRate)
 		if err != nil {
 			return fmt.Errorf("failed to read SSTable %s:  %v", filename, err)
 		}
@@ -68,9 +73,10 @@ func (lsm *LSMStore) Initialize() error {
 
 	memtable.FlusherChan = make(chan memtable.MemTable, FlusherChanSize)
 	memtable.WALRotaterChan = make(chan int64, WALRotaterChanSize)
-	go lsm.MemtableBGFlusher() // start the background flusher job
+	go lsm.BGMemtableFlusher() // start the background flusher job
 
 	lsm.compactor = compaction.NewCompactor()
+	compaction.SSTReplacementChan = make(chan *compaction.SSTReplacement, CompactionReplacementChanSize)
 	go lsm.compactor.Compact() // start the background compaction job
 
 	sstable.BlockCacheStore = sstable.NewBlockCache()
@@ -119,8 +125,6 @@ func (lsm *LSMStore) Get(key string) (entity.Record, uint32) {
 	if code == entity.CRC_RECORD_FOUND {
 		return record, code
 	}
-
-	// @TODO: Implement block cache to avoid reading from disk every time.
 
 	for _, sst := range lsm.sstables {
 		found, record, err := sst.FindRecord(key)
@@ -291,11 +295,11 @@ func (lsm *LSMStore) Expire(key string, ttl int64) (bool, uint32) {
 	return lsm.Set(key, record.Value, ttl)
 }
 
-func (lsm *LSMStore) MemtableBGFlusher() error {
+func (lsm *LSMStore) BGMemtableFlusher() error {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Get().Error("MemtableBGFlusher: Recovered from panic: %v", r)
-			go lsm.MemtableBGFlusher() // Restart the flusher if it panics.
+			go lsm.BGMemtableFlusher() // Restart the flusher if it panics.
 		}
 	}()
 
@@ -303,53 +307,69 @@ func (lsm *LSMStore) MemtableBGFlusher() error {
 	fpRate := config.Store.Storage.LSM.BloomFalsePositiveRate
 
 	for memtable := range memtable.FlusherChan {
-		go func(container interface{}) {
-			var sst *sstable.SSTable
-			var err error
+		var sst *sstable.SSTable
+		var err error
 
-			newFileName := generateSSTableFileName()
+		newFileName := generateSSTableFileName()
+		logger.Get().Info("BGFlusher: Flushing memtable to SSTable: %s", newFileName)
 
-			logger.Get().Info("BGFlusher: Flushing memtable to SSTable: %s", newFileName)
+		sst, err = sstable.NewSSTable(newFileName, sstable.SSTmodeWrite, maxRecords, fpRate)
+		if err != nil {
+			logger.Get().Error("BGFlusher: failed to create new SSTable: %v", err)
+			return err
+		}
 
-			for i := 0; i < SSTableFlushRetryCount; i++ {
-				sst, err = sstable.NewSSTable(newFileName, true, maxRecords, fpRate)
-				if err != nil {
-					logger.Get().Error("[#%d] BGFlusher: failed to create new SSTable: %v", i+1, err)
-					time.Sleep(10 * time.Millisecond)
+		lsm.flusherMu.Lock()
 
-					if i == SSTableFlushRetryCount-1 {
-						// @TODO: handle error or consider shutting down the service if needed.
-						logger.Get().Error("Background SSTable flush terminated after %d retries, Exiting", i+1)
-						return
-					}
-					continue
+		for i := 0; i < SSTableFlushRetryCount; i++ {
+			err = sst.FlushRecordsToSSTable(memtable.GetAll())
+			if err != nil {
+				logger.Get().Error("[#%d] BGFlusher: failed to flush SSTable to disk: %v", i+1, err)
+				time.Sleep(10 * time.Millisecond) // sleep for a while before retrying
+
+				if i == SSTableFlushRetryCount-1 {
+					// @TODO: handle error or consider shutting down the service if needed.
+					logger.Get().Error("Background SSTable flush terminated after %d retries, Exiting", i+1)
+					return err
 				}
-				break
+				continue
 			}
+			break
+		}
 
-			lsm.mutex.Lock()
-			defer lsm.mutex.Unlock()
+		lsm.sstables = append([]*sstable.SSTable{sst}, lsm.sstables...)
+		lsm.compactor.CompactLevel(sst.Metadata.CompactionLevel)
 
-			for i := 0; i < SSTableFlushRetryCount; i++ {
-				err = sst.FlushMemTableToSSTable(memtable)
-				if err != nil {
-					logger.Get().Error("[#%d] BGFlusher: failed to flush SSTable to disk: %v", i+1, err)
-					time.Sleep(10 * time.Millisecond) // sleep for a while before retrying
-
-					if i == SSTableFlushRetryCount-1 {
-						// @TODO: handle error or consider shutting down the service if needed.
-						logger.Get().Error("Background SSTable flush terminated after %d retries, Exiting", i+1)
-						return
-					}
-					continue
-				}
-				break
-			}
-
-			lsm.sstables = append([]*sstable.SSTable{sst}, lsm.sstables...)
-			lsm.compactor.CompactLevel(sst.Metadata.CompactionLevel)
-		}(memtable)
+		lsm.flusherMu.Unlock()
 	}
+
+	return nil
+}
+
+func (lsm *LSMStore) BGCompactionHandler() error {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Get().Error("BGCompactionHandler: Recovered from panic: %v", r)
+			go lsm.BGCompactionHandler() // Restart the flusher if it panics.
+		}
+	}()
+
+	for notification := range compaction.SSTReplacementChan {
+		lsm.compactMu.Lock()
+
+		// replace obsolete sstables and append the newly merged one
+		for _, obsst := range notification.Obsoletes {
+			for sIdx, sstable := range lsm.sstables {
+				if sstable.Metadata.SSTableID == obsst.Metadata.SSTableID {
+					lsm.sstables = append(lsm.sstables[:sIdx], lsm.sstables[sIdx+1:]...)
+					break
+				}
+			}
+		}
+		lsm.sstables = append(lsm.sstables, notification.Substitute)
+		lsm.compactMu.Unlock()
+	}
+
 	return nil
 }
 

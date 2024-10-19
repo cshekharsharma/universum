@@ -1,12 +1,14 @@
 package sstable
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
 	"hash/crc32"
 	"hash/fnv"
 	"io"
+	"sort"
 	"sync"
 	"universum/dslib"
 	"universum/entity"
@@ -16,8 +18,7 @@ import (
 
 type Block struct {
 	Id          uint64
-	Keys        []string
-	Records     []string
+	Records     []*entity.SerializedRecordKV
 	Index       sync.Map
 	CurrentSize int64
 	MaxSize     int64
@@ -30,8 +31,7 @@ type Block struct {
 func NewBlock(maxSize int64) *Block {
 	return &Block{
 		Id:          0,
-		Keys:        make([]string, 0),
-		Records:     make([]string, 0),
+		Records:     make([]*entity.SerializedRecordKV, 0),
 		Index:       sync.Map{},
 		CurrentSize: 0,
 		MaxSize:     maxSize,
@@ -87,8 +87,10 @@ func (b *Block) AddRecord(key string, value map[string]interface{}, bloom *dslib
 		return fmt.Errorf("Block is full, cannot add more records [size=%d, maxSize=%d]", b.CurrentSize, b.MaxSize)
 	}
 
-	b.Keys = append(b.Keys, key)
-	b.Records = append(b.Records, serialisedValue)
+	b.Records = append(b.Records, &entity.SerializedRecordKV{
+		Key:    []byte(key),
+		Record: []byte(serialisedValue),
+	})
 
 	if len(b.Records) == 1 {
 		b.FirstKey = key
@@ -105,8 +107,8 @@ func (b *Block) SerializeBlock() ([]byte, error) {
 	buf := bytes.NewBuffer(make([]byte, 0, b.MaxSize)) // preset approx size
 
 	for i := 0; i < len(b.Records); i++ {
-		keyBytes := []byte(b.Keys[i])
-		valueBytes := []byte(b.Records[i])
+		keyBytes := b.Records[i].Key
+		valueBytes := b.Records[i].Record
 
 		keyLen := int64(len(keyBytes))
 		valueLen := int64(len(valueBytes))
@@ -119,9 +121,9 @@ func (b *Block) SerializeBlock() ([]byte, error) {
 		if err := binary.Write(buf, binary.BigEndian, valueLen); err != nil {
 			return nil, err
 		}
-		buf.Write([]byte(valueBytes))
+		buf.Write(valueBytes)
 
-		b.Index.Store(b.Keys[i], currentOffset)
+		b.Index.Store(string(b.Records[i].Key), currentOffset)
 		currentOffset += int64(entity.Int64SizeInBytes + keyLen + entity.Int64SizeInBytes + valueLen)
 	}
 
@@ -247,13 +249,14 @@ func (b *Block) DeserializeBlock(blockData []byte, blockSize int64) (*Block, err
 	return b, nil
 }
 
-func (b *Block) PopulateRecordsInBlock() (*Block, error) {
+func (b *Block) GetAllRecords() ([]*entity.RecordKV, error) {
 	buf := bytes.NewReader(b.Data)
 	var readErr error
 
+	recordList := make([]*entity.RecordKV, 0)
+
 	b.Index.Range(func(_, value interface{}) bool {
 		offset := value.(int64)
-
 		buf.Seek(offset, io.SeekStart)
 
 		keyBytes, value, err := b.ReadRecordAtOffset(offset)
@@ -262,8 +265,17 @@ func (b *Block) PopulateRecordsInBlock() (*Block, error) {
 			return false
 		}
 
-		b.Keys = append(b.Keys, string(keyBytes))
-		b.Records = append(b.Records, string(value.([]byte)))
+		decodedRecord, err := resp3.Decode(bufio.NewReader(bytes.NewReader(value.([]byte))))
+		if err != nil {
+			return true // ignore the faulty record, and move on.
+		}
+
+		_, record := (&entity.ScalarRecord{}).FromMap(decodedRecord.(map[string]interface{}))
+
+		recordList = append(recordList, &entity.RecordKV{
+			Key:    string(keyBytes),
+			Record: record,
+		})
 
 		return true
 	})
@@ -272,7 +284,14 @@ func (b *Block) PopulateRecordsInBlock() (*Block, error) {
 		return nil, readErr
 	}
 
-	return b, nil
+	// @TODO, ideally shouldn not have been required, and is an overhead.
+	// better to avoid iterating over syncMap and read in sequential order from
+	// serialised byte array maintained within block.
+	sort.Slice(recordList, func(i, j int) bool {
+		return recordList[i].Key < recordList[j].Key
+	})
+
+	return recordList, nil
 }
 
 func (b *Block) ValidateBlock() bool {

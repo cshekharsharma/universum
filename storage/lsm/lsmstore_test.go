@@ -6,6 +6,8 @@ import (
 	"time"
 	"universum/config"
 	"universum/entity"
+	"universum/storage/lsm/compaction"
+	"universum/storage/lsm/sstable"
 )
 
 func setupTestStore(t *testing.T) *LSMStore {
@@ -32,6 +34,18 @@ func setupTestStore(t *testing.T) *LSMStore {
 		t.Fatalf("Failed to initialize store: %v", err)
 	}
 	return store
+}
+
+func createDummySSTable(id int64, records []*entity.RecordKV) *sstable.SSTable {
+	sst, _ := sstable.NewSSTable(
+		fmt.Sprintf("%d.%s", id, sstable.SstFileExtension),
+		sstable.SSTmodeWrite,
+		config.Store.Storage.LSM.BloomFilterMaxRecords,
+		config.Store.Storage.LSM.BloomFalsePositiveRate,
+	)
+
+	sst.FlushRecordsToSSTable(records)
+	return sst
 }
 
 func TestLSMStoreSetGetExists(t *testing.T) {
@@ -280,6 +294,46 @@ func TestMSetMGetMDeleteOperations(t *testing.T) {
 		if !resultMap[r].(bool) {
 			t.Fatalf("MDelete failed for key: %s", r)
 		}
+	}
+}
+
+func TestLSMStore_BGCompactionHandler(t *testing.T) {
+	setupTestStore(t)
+	lsm := &LSMStore{}
+	compaction.SSTReplacementChan = make(chan *compaction.SSTReplacement, 1)
+
+	records1 := []*entity.RecordKV{
+		{Key: "key1", Record: &entity.ScalarRecord{Value: "value1"}},
+		{Key: "key2", Record: &entity.ScalarRecord{Value: "value2"}},
+	}
+	records2 := []*entity.RecordKV{
+		{Key: "key3", Record: &entity.ScalarRecord{Value: "value3"}},
+		{Key: "key4", Record: &entity.ScalarRecord{Value: "value4"}},
+	}
+	obsoleteSST := createDummySSTable(1, records1)
+	newSST := createDummySSTable(2, records2)
+
+	lsm.sstables = append(lsm.sstables, obsoleteSST)
+
+	notification := &compaction.SSTReplacement{
+		Obsoletes:  []*sstable.SSTable{obsoleteSST},
+		Substitute: newSST,
+	}
+
+	go func() {
+		compaction.SSTReplacementChan <- notification
+	}()
+
+	go lsm.BGCompactionHandler()
+
+	time.Sleep(1 * time.Second)
+
+	if len(lsm.sstables) != 1 {
+		t.Errorf("Expected 1 SSTable in LSMStore, got %d", len(lsm.sstables))
+	}
+
+	if lsm.sstables[0].Metadata.SSTableID != newSST.Metadata.SSTableID {
+		t.Errorf("Expected SSTableID %s, got %s", newSST.Metadata.SSTableID, lsm.sstables[0].Metadata.SSTableID)
 	}
 }
 
