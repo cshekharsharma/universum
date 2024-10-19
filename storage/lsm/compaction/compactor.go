@@ -47,12 +47,14 @@ func (c *Compactor) Compact() {
 		}
 	}()
 
-	for level := int64(0); level < c.MaxLevel; level++ {
-		if len(c.LevelSSTables[level]) >= int(CompactionThresholdPerLevel) {
-			c.CompactLevel(level)
-		}
+	for {
+		for level := int64(0); level < c.MaxLevel; level++ {
+			if len(c.LevelSSTables[level]) >= int(CompactionThresholdPerLevel) {
+				c.CompactLevel(level)
+			}
 
-		time.Sleep(100 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
+		}
 	}
 }
 
@@ -69,7 +71,8 @@ func (c *Compactor) CompactLevel(level int64) error {
 		return nil // Not enough SSTables to compact
 	}
 
-	mergedSST, err := c.mergeSSTables(sstablesToCompact)
+	overlappingSSTs := c.getOverlappingSSTables(level+1, sstablesToCompact)
+	mergedSST, err := c.mergeSSTables(sstablesToCompact, overlappingSSTs)
 	if err != nil {
 		logger.Get().Error("SSTable compaction failed: %v", err)
 		return err
@@ -80,10 +83,15 @@ func (c *Compactor) CompactLevel(level int64) error {
 		Substitute: mergedSST,
 	}
 
-	time.Sleep(10 * time.Microsecond) // give consumer sometime to process the notification
+	time.Sleep(10 * time.Microsecond) // give consumer some time to process the notification
 
 	c.LevelSSTables[level] = nil
-	c.AddSSTable(level+1, mergedSST)
+
+	if level+1 >= c.MaxLevel {
+		c.AddSSTable(level, mergedSST) // cannot go above maxlevel, so add at the same level
+	} else {
+		c.AddSSTable(level+1, mergedSST)
+	}
 
 	err = c.deleteOldSSTables(sstablesToCompact)
 	if err != nil {
@@ -94,9 +102,11 @@ func (c *Compactor) CompactLevel(level int64) error {
 	return nil
 }
 
-func (c *Compactor) mergeSSTables(sstables []*sstable.SSTable) (*sstable.SSTable, error) {
+func (c *Compactor) mergeSSTables(sstables, overlapping []*sstable.SSTable) (*sstable.SSTable, error) {
+	allSSTables := append(sstables, overlapping...)
 	mergedList := make([]*entity.RecordKV, 0)
-	for _, sstable := range sstables {
+
+	for _, sstable := range allSSTables {
 		sstRecords, err := sstable.GetAllRecords()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get all records from SSTable: %v", err)
@@ -137,16 +147,6 @@ func (c *Compactor) mergeSSTables(sstables []*sstable.SSTable) (*sstable.SSTable
 	return mergedSST, nil
 }
 
-func (c *Compactor) deleteOldSSTables(sstables []*sstable.SSTable) error {
-	for _, sst := range sstables {
-		err := sst.DeleteFromDisk()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (c *Compactor) getMergedSSTFileName(sstables []*sstable.SSTable) (string, error) {
 	var min int64 = 1<<63 - 1
 
@@ -164,4 +164,43 @@ func (c *Compactor) getMergedSSTFileName(sstables []*sstable.SSTable) (string, e
 	}
 
 	return fmt.Sprintf("%d.%s", min, sstable.SstFileExtension), nil
+}
+
+func (c *Compactor) getOverlappingSSTables(nextLevel int64, sstables []*sstable.SSTable) []*sstable.SSTable {
+	overlappingSSTables := []*sstable.SSTable{}
+
+	if _, ok := c.LevelSSTables[nextLevel]; !ok {
+		return overlappingSSTables // No SSTables at the next level
+	}
+
+	nextLevelSSTables := c.LevelSSTables[nextLevel]
+
+	for _, sst := range sstables {
+		for _, nextSST := range nextLevelSSTables {
+			if c.doesOverlap(sst, nextSST) {
+				overlappingSSTables = append(overlappingSSTables, nextSST)
+			}
+		}
+	}
+
+	return overlappingSSTables
+}
+
+func (c *Compactor) doesOverlap(sst1, sst2 *sstable.SSTable) bool {
+	sst1FirstKey := sst1.Metadata.FirstKey
+	sst1LastKey := sst1.Metadata.LastKey
+	sst2FirstKey := sst2.Metadata.FirstKey
+	sst2LastKey := sst2.Metadata.LastKey
+
+	return !(sst1LastKey < sst2FirstKey || sst2LastKey < sst1FirstKey)
+}
+
+func (c *Compactor) deleteOldSSTables(sstables []*sstable.SSTable) error {
+	for _, sst := range sstables {
+		err := sst.DeleteFromDisk()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

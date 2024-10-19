@@ -116,7 +116,7 @@ func TestMergeSSTables(t *testing.T) {
 	sst1 := createDummySSTable(1, records1)
 	sst2 := createDummySSTable(2, records2)
 
-	mergedSST, err := compactor.mergeSSTables([]*sstable.SSTable{sst1, sst2})
+	mergedSST, err := compactor.mergeSSTables([]*sstable.SSTable{sst1, sst2}, nil)
 	if err != nil {
 		t.Errorf("Merge failed: %v", err)
 	}
@@ -136,6 +136,42 @@ func TestMergeSSTables(t *testing.T) {
 
 	if !reflect.DeepEqual(mergedRecords, expectedMergedList) {
 		t.Errorf("Expected %v, got %v", expectedMergedList, mergedRecords)
+	}
+}
+
+func TestGetOverlappingSSTables(t *testing.T) {
+	setupConfig(t)
+	compactor := NewCompactor()
+
+	records1 := []*entity.RecordKV{
+		createRecordKV("key1", 1),
+		createRecordKV("key2", 2),
+	}
+	records2 := []*entity.RecordKV{
+		createRecordKV("key3", 3),
+		createRecordKV("key4", 4),
+	}
+	records3 := []*entity.RecordKV{
+		createRecordKV("key2", 5),
+		createRecordKV("key5", 6),
+	}
+
+	sst1 := createDummySSTable(1, records1)
+	sst2 := createDummySSTable(2, records2)
+	sst3 := createDummySSTable(3, records3)
+
+	compactor.AddSSTable(1, sst1)
+	compactor.AddSSTable(2, sst2)
+	compactor.AddSSTable(2, sst3)
+
+	overlapping := compactor.getOverlappingSSTables(2, []*sstable.SSTable{sst1})
+
+	if len(overlapping) != 1 {
+		t.Fatalf("Expected 2 overlapping SSTables, got %d", len(overlapping))
+	}
+
+	if overlapping[0] != sst3 {
+		t.Errorf("Unexpected SSTables in overlapping list")
 	}
 }
 
