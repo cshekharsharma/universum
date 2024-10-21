@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"net"
 	"reflect"
 	"runtime"
 	"unsafe"
@@ -82,4 +83,35 @@ func GetInMemorySizeInBytes(v interface{}) (int64, error) {
 	default:
 		return 0, fmt.Errorf("unsupported type: %s", val.Kind())
 	}
+}
+
+func GetPrimaryNetworkInterface() (*net.Interface, net.Addr, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, iface := range interfaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip := v.IP
+				if ip.IsLoopback() || ip.IsUnspecified() {
+					continue
+				}
+				return &iface, addr, nil
+			}
+		}
+	}
+
+	return nil, nil, fmt.Errorf("no suitable network interface found")
 }

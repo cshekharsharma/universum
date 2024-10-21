@@ -96,6 +96,10 @@ func (v *ConfigValidator) validateClusterSection(config *Config) error {
 		return fmt.Errorf("host list cannot be less than %d in cluster mode [potential split brain]", MinClusterSize)
 	}
 
+	if config.Cluster.ReplicationFactor <= 0 {
+		config.Cluster.ReplicationFactor = DefaultReplicationFactor
+	}
+
 	return nil
 }
 

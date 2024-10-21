@@ -42,9 +42,10 @@ const (
 	DefaultRequestExecTimeout     int64 = 10 // 10 seconds
 
 	// Section:Cluster
-	DefaultEnableCluster bool  = false
-	DefaultHeartbeatPort int64 = 11192
-	MinClusterSize       uint8 = 3 // to avoid split brain
+	DefaultEnableCluster     bool  = false
+	DefaultHeartbeatPort     int64 = 11192
+	DefaultReplicationFactor int64 = 2 // 1 primary + 1 replica
+	MinClusterSize           uint8 = 3 // to avoid split brain
 
 	// Storage
 	DefaultStorageEngine        string = "MEMORY"    // [MEMORY, LSM]

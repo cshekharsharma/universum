@@ -27,7 +27,8 @@ import (
 	"universum/resp3"
 )
 
-const networkTcp string = "tcp"
+const NetworkTCP string = "tcp"
+const NetworkUDP string = "udp"
 
 // StartTCPServer initializes and starts the TCP server, managing incoming
 // client connections. It sets up a listener on the configured port, utilizes
@@ -57,7 +58,7 @@ func StartTCPServer(wg *sync.WaitGroup) {
 	}
 
 	// Listen on the configured port
-	listener, err := net.Listen(networkTcp, port)
+	listener, err := net.Listen(NetworkTCP, port)
 	if err != nil {
 		logger.Get().Error("Error listening on socket, will shutdown: %v", err.Error())
 		engine.Shutdown(entity.ExitCodeSocketError)

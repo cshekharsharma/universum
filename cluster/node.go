@@ -1,6 +1,12 @@
 package cluster
 
-import "time"
+import (
+	"net"
+	"time"
+	"universum/config"
+	"universum/crypto"
+	"universum/utils"
+)
 
 const (
 	NodeStatusInited      uint8 = 0
@@ -13,20 +19,46 @@ const (
 	NodeStatusLeft        uint8 = 7
 )
 
-type ClusterNode struct {
-	ID           string
-	Host         string
-	Paritions    []int64
-	Status       uint8
-	LastPingedAt time.Time
+type Node struct {
+	ID            uint64
+	Host          string
+	Status        uint8
+	IsLeader      bool
+	HeartbeatPort uint16
+	Partitions    []int64
+
+	LastPingedAt  int64
+	LastUpdatedAt int64
+	StartTime     int64
+
+	FailureCount uint8
+	LastFailedAt int64
 }
 
-func NewClusterNode(id, host string) *ClusterNode {
-	return &ClusterNode{
-		ID:           id,
-		Host:         host,
-		Paritions:    make([]int64, 0),
-		Status:       NodeStatusInited,
-		LastPingedAt: time.Now(),
+func NewClusterNode() (*Node, error) {
+	iface, addr, err := utils.GetPrimaryNetworkInterface()
+	if err != nil {
+		return nil, err
 	}
+
+	node := &Node{
+		ID:            GenerateUniqueNodeID(iface, addr),
+		Host:          addr.String(),
+		Status:        NodeStatusInited,
+		IsLeader:      true, // By default, the first node is the leader
+		HeartbeatPort: uint16(config.Store.Cluster.HeartbeatPort),
+		Partitions:    make([]int64, 0),
+		LastPingedAt:  time.Now().Unix(),
+		LastUpdatedAt: time.Now().Unix(),
+		StartTime:     time.Now().Unix(),
+	}
+
+	return node, nil
+}
+
+func GenerateUniqueNodeID(iface *net.Interface, addr net.Addr) uint64 {
+	ipStr := addr.String()
+	mac := iface.HardwareAddr.String()
+
+	return crypto.MurmurHash64([]byte(ipStr+mac), digestSeed)
 }
