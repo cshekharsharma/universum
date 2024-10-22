@@ -74,11 +74,8 @@ Details command syntax and request/response summary can be found at [command sum
 ## Configuration
 
 Universum uses a toml configuration file for configuring the server behaviour, and that file can be put anywhere on the disk with readable path that will be provided to the server at startup. The recommended path for the config file is at `/etc/universum/config.toml`.
-
 Detailed config params and their significance are explained at [config summary document](./docs/config-summary.md).
 
-
-```
 
 ## Usage
 
