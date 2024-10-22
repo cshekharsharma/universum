@@ -1,18 +1,23 @@
 
 # UniversumDB  🌎
 
-**UniversumDB** is a high-performance key-value pair database designed for handling large number of concurrent client connections. It supports an in-memory key-value database with functionalities like auto-snapshot, record replay on start etc.
+![Alt Text](./docs/universumlogo.png)
+
+
+**UniversumDB** is a high-performance key-value pair database designed for handling large number of concurrent client connections. It supports both purely in-memory storage as well as persistent LSM [(Log-structured merge tree)](https://en.wikipedia.org/wiki/Log-structured_merge-tree) based storage engine. Currently the database is expected to run on a single node where it can take advantage of multi-core CPUs, although the distribured/clustered setup is still part of the roadmap.
 
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/cshekharsharma/universum)](https://goreportcard.com/badge/github.com/cshekharsharma/universum)
 
 ## Features
 
-- Key-Value pair storage (ttl supported)
-- Manual and auto data snapshot
-- Auto replay of data on startup
-- Info & Statistics API
-- Client connection throttling for high performance
+- In-memory KV pair storage (ttl supported)
+- Persistent KV pair storage (ttl supported)
+- All standard commands supported (i.e, exists, get, set, delete, append, incr/decr, etc)
+- Bulk Get/Set/Delete operations supported for high performance
+- Manual and auto data snapshot with auto-replay (memory engine)
+- Multithreaded io engine with pooling & long running connections
+- Info & Statistics API for monitoring
 
 ## Prerequisites
 
@@ -124,12 +129,13 @@ This project is licensed under the Apache 2.0 License.
 
 ---
 
-## Improvements & Feedback
+## Roadmap
 
-Areas of potential improvement:
-1. **Dynamic Scaling**: Consider dynamically scaling workers based on connection load.
+1. **Cluster Mode**: Support of running the database in distributed manner.
 2. **Authentication**: Add client authentication for secure connections.
-3. **Auto-Eviction**: LRU based auto eviction in case of memory overflow
+3. **RANGE Queries**: Add support of range based and aggregation queries.
+4. **More Datastructures**: Add support of complex DS like lists, map, bitfields.
+5. **Monitoring**: More robust monitoring support and integration with telemetry tools.
 
 
 ## Client Libraries
