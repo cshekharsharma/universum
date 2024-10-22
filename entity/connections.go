@@ -8,7 +8,7 @@ import (
 )
 
 type Connection struct {
-	Conn       *net.TCPConn
+	Conn       net.Conn
 	RemoteAddr string
 	CreatedAt  int64
 }
@@ -28,7 +28,7 @@ func DecrementActiveTCPConnection() {
 	atomic.AddInt64(&activeTCPConnections, -1)
 }
 
-func AddActiveConnection(key *net.TCPConn) {
+func AddActiveConnection(key net.Conn) {
 	remoteAddr := key.RemoteAddr().String()
 	connection := &Connection{
 		Conn:       key,

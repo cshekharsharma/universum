@@ -36,10 +36,12 @@ const (
 	SectionStorageLSM    string = "storage.lsm"
 
 	// Section:Server
-	DefaultServerPort             int64 = 11191
-	DefultMaxClientConnections    int64 = 10000
-	DefaultConnectionWriteTimeout int64 = 10 // 10 seconds
-	DefaultRequestExecTimeout     int64 = 10 // 10 seconds
+	DefaultServerPort             int64  = 11191
+	DefultMaxClientConnections    int64  = 10000
+	DefaultConnectionWriteTimeout int64  = 10 // 10 seconds
+	DefaultRequestExecTimeout     int64  = 10 // 10 seconds
+	DefaultTLSCertFilePath        string = "/etc/universum/cert.pem"
+	DefaultTLSKeyFilePath         string = "/etc/universum/key.pem"
 
 	// Section:Cluster
 	DefaultEnableCluster     bool  = false

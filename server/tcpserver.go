@@ -12,6 +12,7 @@ package server
 
 import (
 	"bufio"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -49,23 +50,52 @@ func StartTCPServer(wg *sync.WaitGroup) {
 	port := fmt.Sprintf(":%d", config.Store.Server.ServerPort)
 	maxConnections := config.Store.Server.MaxConnections
 
-	// Create a channel to manage a pool of connections
-	connectionQueue := make(chan *net.TCPConn, maxConnections)
+	// Channel to manage a pool of connections
+	connectionQueue := make(chan net.Conn, maxConnections)
 
 	// Start a worker pool for processing connections
 	for i := 0; i < int(maxConnections); i++ {
 		go connectionWorker(i+1, connectionQueue)
 	}
 
-	// Listen on the configured port
-	listener, err := net.Listen(NetworkTCP, port)
-	if err != nil {
-		logger.Get().Error("Error listening on socket, will shutdown: %v", err.Error())
-		engine.Shutdown(entity.ExitCodeSocketError)
+	var listener net.Listener
+	var err error
+
+	if config.Store.Server.EnableTLS {
+		// Load the TLS certificate and key
+		cert, err := tls.LoadX509KeyPair(config.Store.Server.TLSCertFilePath, config.Store.Server.TLSKeyFilePath)
+		if err != nil {
+			logger.Get().Error("Error loading TLS certificate and key: %v", err.Error())
+			engine.Shutdown(entity.ExitCodeSocketError)
+			return
+		}
+
+		tlsConfig := &tls.Config{
+			Certificates: []tls.Certificate{cert},
+		}
+
+		// Start a TLS listener
+		listener, err = tls.Listen(NetworkTCP, port, tlsConfig)
+		if err != nil {
+			logger.Get().Error("Error starting TLS listener: %v", err.Error())
+			engine.Shutdown(entity.ExitCodeSocketError)
+			return
+		}
+
+		logger.Get().Info("%s TLS server started listening on port %s", config.AppCodeName, port)
+	} else {
+		// Start a TCP listener (non-TLS)
+		listener, err = net.Listen(NetworkTCP, port)
+		if err != nil {
+			logger.Get().Error("Error listening on socket, will shutdown: %v", err.Error())
+			engine.Shutdown(entity.ExitCodeSocketError)
+			return
+		}
+
+		logger.Get().Info("%s TCP server started listening on port %s", config.AppCodeName, port)
 	}
 
 	defer listener.Close()
-	logger.Get().Info("%s server started listening on port %s", config.AppCodeName, port)
 
 	engine.Startup()
 	atomic.StoreInt32(&entity.ServerState, entity.STATE_READY)
@@ -84,11 +114,16 @@ func StartTCPServer(wg *sync.WaitGroup) {
 			continue
 		}
 
-		tcpConn, ok := conn.(*net.TCPConn)
-		if !ok {
-			logger.Get().Error("Invalid connection type: Non-TCP connection detected")
-			conn.Close()
-			continue
+		var tcpConn net.Conn
+		if config.Store.Server.EnableTLS {
+			tcpConn, _ = conn.(*tls.Conn)
+
+		} else {
+			tcpConn, _ = conn.(*net.TCPConn)
+		}
+
+		if tcpConn == nil {
+			continue // possibly uncastable connection
 		}
 
 		// Add connection tracking and increase the active connection count
@@ -96,7 +131,9 @@ func StartTCPServer(wg *sync.WaitGroup) {
 		entity.IncrementActiveTCPConnection()
 
 		// Set NoDelay to prevent Nagle's algorithm, ensuring faster response
-		tcpConn.SetNoDelay(true)
+		if tcpConn, ok := tcpConn.(*net.TCPConn); ok {
+			tcpConn.SetNoDelay(true)
+		}
 
 		// Limit total accepted connections, dropping ones when max connections reached
 		select {
@@ -118,7 +155,7 @@ func StartTCPServer(wg *sync.WaitGroup) {
 // Parameters:
 // - id int: The unique ID of the worker (for logging and tracking purposes).
 // - queue <-chan *net.TCPConn: A channel of TCP connections to be processed by the worker.
-func connectionWorker(id int, queue <-chan *net.TCPConn) {
+func connectionWorker(id int, queue <-chan net.Conn) {
 	defer func() {
 		// Panic recovery to keep the worker alive in case of runtime errors
 		if r := recover(); r != nil {
@@ -140,7 +177,7 @@ func connectionWorker(id int, queue <-chan *net.TCPConn) {
 //
 // Parameters:
 // - conn *net.TCPConn: The TCP connection to be handled.
-func handleConnection(conn *net.TCPConn) {
+func handleConnection(conn net.Conn) {
 	buffer := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
 

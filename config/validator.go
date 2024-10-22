@@ -75,6 +75,14 @@ func (v *ConfigValidator) validateServerSection(config *Config) error {
 		config.Server.MaxConnections = DefultMaxClientConnections
 	}
 
+	if config.Server.EnableTLS && config.Server.TLSCertFilePath == "" {
+		config.Server.TLSCertFilePath = DefaultTLSCertFilePath
+	}
+
+	if config.Server.EnableTLS && config.Server.TLSKeyFilePath == "" {
+		config.Server.TLSKeyFilePath = DefaultTLSKeyFilePath
+	}
+
 	return nil
 }
 

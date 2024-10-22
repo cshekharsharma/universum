@@ -22,10 +22,13 @@ type Config struct {
 }
 
 type Server struct {
-	ServerPort              int64 `toml:"ServerPort"`              // Port where the server listens for incoming connections
-	MaxConnections          int64 `toml:"MaxConnections"`          // Maximum number of concurrent client connections allowed
-	ConnectionWriteTimeout  int64 `toml:"ConnectionWriteTimeout"`  // Maximum duration (seconds) to wait before timing out a write operation
-	RequestExecutionTimeout int64 `toml:"RequestExecutionTimeout"` // Maximum duration (seconds) to wait before timing out a request execution
+	ServerPort              int64  `toml:"ServerPort"`              // Port where the server listens for incoming connections
+	MaxConnections          int64  `toml:"MaxConnections"`          // Maximum number of concurrent client connections allowed
+	ConnectionWriteTimeout  int64  `toml:"ConnectionWriteTimeout"`  // Maximum duration (seconds) to wait before timing out a write operation
+	RequestExecutionTimeout int64  `toml:"RequestExecutionTimeout"` // Maximum duration (seconds) to wait before timing out a request execution
+	EnableTLS               bool   `toml:"EnableTLS"`               // Enable or disable TLS for secure communication
+	TLSCertFilePath         string `toml:"TLSCertFilePath"`         // Path to the TLS certificate file
+	TLSKeyFilePath          string `toml:"TLSKeyFilePath"`          // Path to the TLS key file
 }
 
 type Cluster struct {

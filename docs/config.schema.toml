@@ -3,11 +3,19 @@ ServerPort = 11191
 MaxConnections = 100
 ConnectionWriteTimeout = 10
 RequestExecutionTimeout = 10
+EnableTLS = false
+TLSCertFilePath = "/etc/universum/cert.pem"
+TLSKeyFilePath = "/etc/universum/key.pem"
 
 [Cluster]
 EnableCluster = false
 HearbeatPort = 11192
 Hosts = ["127.0.0.1"]
+HeartbeatMode = "GOSSIP"
+MulticastAddress = "224.0.0.0/4"
+MulticastPort = ""
+GossipIntervalMs = 1000
+ReplicationFactor = 2
 
 [Storage]
 StorageEngine = "LSM"
