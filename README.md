@@ -1,7 +1,7 @@
 
 # UniversumDB  🌎
 
-![Alt Text](./docs/universumlogo.png)
+![Alt Text](./docs/files/universumlogo.png)
 
 
 **UniversumDB** is a high-performance key-value pair database designed for handling large number of concurrent client connections. It supports both purely in-memory storage as well as persistent LSM [(Log-structured merge tree)](https://en.wikipedia.org/wiki/Log-structured_merge-tree) based storage engine. Currently the database is expected to run on a single node where it can take advantage of multi-core CPUs, although the distribured/clustered setup is still part of the roadmap.
@@ -18,6 +18,30 @@
 - Manual and auto data snapshot with auto-replay (memory engine)
 - Multithreaded io engine with pooling & long running connections
 - Info & Statistics API for monitoring
+
+## Supported Commands
+
+| Command       | Description                                               |
+|---------------|-----------------------------------------------------------|
+| `PING`        | Check if the server is responsive.                        |
+| `EXISTS`      | Determine if a key exists in the database.                |
+| `GET`         | Retrieve the value associated with a key.                 |
+| `SET`         | Set a value for a key with optional expiration time.      |
+| `DELETE`      | Remove a key and its associated value from the database.  |
+| `INCR`        | Increment the integer value of a key.                     |
+| `DECR`        | Decrement the integer value of a key.                     |
+| `APPEND`      | Append a value to a string key.                           |
+| `MGET`        | Retrieve values for multiple keys at once.                |
+| `MSET`        | Set multiple key-value pairs at once.                     |
+| `MDELETE`     | Delete multiple keys at once.                             |
+| `TTL`         | Get the remaining time-to-live (TTL) of a key.            |
+| `EXPIRE`      | Set a timeout on a key, after which it will be deleted.   |
+| `SNAPSHOT`    | Starts snapshot of all database records into a file       |
+| `INFO`        | Retrieve server and database information.                 |
+| `HELP`        | Prints usage and syntax details of all other commands     |
+
+Details command syntax and request/response summary can be found at [command summary document](./docs/command-summary.md).
+
 
 ## Prerequisites
 
@@ -49,51 +73,9 @@
 
 ## Configuration
 
-Sample configuration file that can be put in /etc/universum/config.toml
+Universum uses a toml configuration file for configuring the server behaviour, and that file can be put anywhere on the disk with readable path that will be provided to the server at startup. The recommended path for the config file is at `/etc/universum/config.toml`.
 
-```toml
-[Server]
-ServerPort = 11191
-MaxConnections = 100
-ConnectionWriteTimeout = 10
-RequestExecutionTimeout = 10
-
-[Storage]
-StorageEngine = "LSM"
-MaxRecordSizeInBytes = 1048576
-
-[Storage.Memory]
-AllowedMemoryStorageLimit = 1073741824
-AutoSnapshotFrequency = 100
-SnapshotFileDirectory = "/opt/universum/snapshot"
-SnapshotCompressionAlgo = "LZ4"
-RestoreSnapshotOnStart = true
-
-[Storage.LSM]
-MemtableStorageType = "LB"
-BloomFilterMaxRecords = 100000
-WriteBufferSize = 4194304
-BloomFalsePositiveRate = 0.01
-WriteBlockSize = 65536
-BlockCompressionAlgo = "LZ4"
-DataStorageDirectory = "/opt/universum/data"
-WriteAheadLogDirectory = "/opt/universum/wal"
-WriteAheadLogAsyncFlush = true
-WriteAheadLogFrequency = 5
-WriteAheadLogBufferSize = 1048576
-
-[Logging]
-LogFileDirectory = "/var/log/universum"
-MinimumLogLevel = "INFO"
-
-[Eviction]
-AutoRecordExpiryFrequency = 2
-AutoEvictionPolicy = "LRU"
-
-[Auth]
-AuthenticationEnabled = false
-DbUserName = ""
-DbUserPassword = ""
+Detailed config params and their significance are explained at [config summary document](./docs/config-summary.md).
 
 
 ```

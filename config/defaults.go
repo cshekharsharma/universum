@@ -44,10 +44,17 @@ const (
 	DefaultTLSKeyFilePath         string = "/etc/universum/key.pem"
 
 	// Section:Cluster
-	DefaultEnableCluster     bool  = false
-	DefaultHeartbeatPort     int64 = 11192
-	DefaultReplicationFactor int64 = 2 // 1 primary + 1 replica
-	MinClusterSize           uint8 = 3 // to avoid split brain
+	HeartbeatModeGossip    string = "GOSSIP"
+	HeartbeatModeBroadcast string = "BROADCAST"
+
+	DefaultEnableCluster     bool   = false
+	DefaultHeartbeatPort     int64  = 11192
+	DefaultHeartbeatMode     string = HeartbeatModeGossip
+	DefaultBroadcastAddress  string = "224.0.0.0/4"
+	DefaultBroadcastPort     int64  = 11193
+	DefaultGossipIntervalMs  int64  = 1000
+	DefaultReplicationFactor int64  = 2 // 1 primary + 1 replica
+	MinClusterSize           uint8  = 3 // to avoid split brain
 
 	// Storage
 	DefaultStorageEngine        string = "MEMORY"    // [MEMORY, LSM]
@@ -88,7 +95,7 @@ const (
 	EvictionPolicyLRU  = "LRU"
 	EvictionPolicyNone = "NONE"
 
-	DefaultRecordAutoExpiryFrequency int64  = 2 // 2 seconds
+	DefaultRecordAutoExpiryFrequency int64  = 5 // 5 seconds
 	DefaultAutoEvictionPolicy        string = EvictionPolicyNone
 
 	// Section:Auth
