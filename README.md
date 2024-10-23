@@ -7,7 +7,7 @@
 **UniversumDB** is a high-performance key-value pair database designed for handling large number of concurrent client connections. It supports both purely in-memory storage as well as persistent LSM [(Log-structured merge tree)](https://en.wikipedia.org/wiki/Log-structured_merge-tree) based storage engine. Currently the database is expected to run on a single node where it can take advantage of multi-core CPUs, although the distribured/clustered setup is still part of the roadmap.
 
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/cshekharsharma/universum)](https://goreportcard.com/badge/github.com/cshekharsharma/universum)
+[![Go](https://github.com/cshekharsharma/universum/actions/workflows/go.yml/badge.svg)](https://github.com/cshekharsharma/universum/actions/workflows/go.yml) [![Go Report Card](https://goreportcard.com/badge/github.com/cshekharsharma/universum)](https://goreportcard.com/badge/github.com/cshekharsharma/universum)
 
 ## Features
 
