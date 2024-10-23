@@ -46,7 +46,7 @@ Details command syntax and request/response summary can be found at [command sum
 ## Prerequisites
 
 - Go 1.22 or higher
-- Properly configured environment variables for port and connection limits
+- *Nix systems (linux/darwin/simiar)
 
 ## Installation
 
@@ -63,7 +63,7 @@ Details command syntax and request/response summary can be found at [command sum
 
 3. **Build the project**
    ```bash
-   make build-dev [or build-dev]
+   make build-dev [or build-prod]
    ```
 
 4. **Build and run**
