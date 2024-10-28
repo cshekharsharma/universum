@@ -13,22 +13,22 @@ import (
 )
 
 const (
-	COMMAND_PING     string = "PING"
-	COMMAND_EXISTS   string = "EXISTS"
-	COMMAND_GET      string = "GET"
-	COMMAND_SET      string = "SET"
-	COMMAND_DELETE   string = "DELETE"
-	COMMAND_INCR     string = "INCR"
-	COMMAND_DECR     string = "DECR"
-	COMMAND_APPEND   string = "APPEND"
-	COMMAND_MGET     string = "MGET"
-	COMMAND_MSET     string = "MSET"
-	COMMAND_MDELETE  string = "MDELETE"
-	COMMAND_TTL      string = "TTL"
-	COMMAND_EXPIRE   string = "EXPIRE"
-	COMMAND_SNAPSHOT string = "SNAPSHOT"
-	COMMAND_INFO     string = "INFO"
-	COMMAND_HELP     string = "HELP"
+	CommandPing     string = "PING"
+	CommandExists   string = "EXISTS"
+	CommandGet      string = "GET"
+	CommandSet      string = "SET"
+	CommandDelete   string = "DELETE"
+	CommandIncr     string = "INCR"
+	CommandDecr     string = "DECR"
+	CommandAppend   string = "APPEND"
+	CommandMGet     string = "MGET"
+	CommandMSet     string = "MSET"
+	CommandMDelete  string = "MDELETE"
+	CommandTTL      string = "TTL"
+	CommandExpire   string = "EXPIRE"
+	CommandSnapshot string = "SNAPSHOT"
+	CommandInfo     string = "INFO"
+	CommandHelp     string = "HELP"
 )
 
 func ExecuteCommand(buffer *bufio.Reader, timeout time.Duration) (string, error) {
@@ -88,52 +88,52 @@ func executeCommand(ctx context.Context, command *entity.Command) (string, error
 	}
 
 	switch command.Name {
-	case COMMAND_PING:
+	case CommandPing:
 		return executePING(command), nil
 
-	case COMMAND_EXISTS:
+	case CommandExists:
 		return executeEXISTS(command), nil
 
-	case COMMAND_GET:
+	case CommandGet:
 		return executeGET(command), nil
 
-	case COMMAND_SET:
+	case CommandSet:
 		return executeSET(command), nil
 
-	case COMMAND_DELETE:
+	case CommandDelete:
 		return executeDELETE(command), nil
 
-	case COMMAND_INCR:
+	case CommandIncr:
 		return executeINCRDECR(command, true), nil
 
-	case COMMAND_DECR:
+	case CommandDecr:
 		return executeINCRDECR(command, false), nil
 
-	case COMMAND_APPEND:
+	case CommandAppend:
 		return executeAPPEND(command), nil
 
-	case COMMAND_MGET:
+	case CommandMGet:
 		return executeMGET(command), nil
 
-	case COMMAND_MSET:
+	case CommandMSet:
 		return executeMSET(command), nil
 
-	case COMMAND_MDELETE:
+	case CommandMDelete:
 		return executeMDELETE(command), nil
 
-	case COMMAND_TTL:
+	case CommandTTL:
 		return executeTTL(command), nil
 
-	case COMMAND_EXPIRE:
+	case CommandExpire:
 		return executeEXPIRE(command), nil
 
-	case COMMAND_SNAPSHOT:
+	case CommandSnapshot:
 		return executeSNAPSHOT(command), nil
 
-	case COMMAND_INFO:
+	case CommandInfo:
 		return executeINFO(command), nil
 
-	case COMMAND_HELP:
+	case CommandHelp:
 		return executeHELP(command), nil
 
 	default:

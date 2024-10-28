@@ -15,49 +15,49 @@ func getGenericHelpContent() string {
 func getCommandHelpContent(command string) string {
 	switch command {
 
-	case COMMAND_PING:
+	case CommandPing:
 		return "USAGE:\n\n\tPING\n"
 
-	case COMMAND_EXISTS:
+	case CommandExists:
 		return "USAGE:\n\n\tEXISTS <key:string>\n"
 
-	case COMMAND_GET:
+	case CommandGet:
 		return "USAGE:\n\n\tGET <key:string>\n"
 
-	case COMMAND_SET:
+	case CommandSet:
 		return "USAGE:\n\n\tEXISTS <key:string> <value:any> <ttl:int>\n"
 
-	case COMMAND_DELETE:
+	case CommandDelete:
 		return "USAGE:\n\n\tDELETE <key:string>\n"
 
-	case COMMAND_INCR:
+	case CommandIncr:
 		return "USAGE:\n\n\tINCR <key:string> <value:int>\n"
 
-	case COMMAND_DECR:
+	case CommandDecr:
 		return "USAGE:\n\n\tDECR <key:string> <value:int>\n"
 
-	case COMMAND_APPEND:
+	case CommandAppend:
 		return "USAGE:\n\n\tAPPEND <key:string> <value:string>\n"
 
-	case COMMAND_MGET:
+	case CommandMGet:
 		return "USAGE:\n\n\tMGET <keys:[]string>\n"
 
-	case COMMAND_MSET:
+	case CommandMSet:
 		return "USAGE:\n\n\tMSET <KvMap:map[string][any]>\n"
 
-	case COMMAND_MDELETE:
+	case CommandMDelete:
 		return "USAGE:\n\n\tMDELETE <keys:[]string>\n"
 
-	case COMMAND_TTL:
+	case CommandTTL:
 		return "USAGE:\n\n\tTTL <key:string>\n"
 
-	case COMMAND_EXPIRE:
+	case CommandExpire:
 		return "USAGE:\n\n\tEXPIRE <key:string> <ttl:int>\n"
 
-	case COMMAND_SNAPSHOT:
+	case CommandSnapshot:
 		return "USAGE:\n\n\tSNAPSHOT\n"
 
-	case COMMAND_INFO:
+	case CommandInfo:
 		return "USAGE:\n\n\tINFO\n"
 
 	default:

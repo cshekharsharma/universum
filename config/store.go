@@ -34,9 +34,6 @@ type Server struct {
 type Cluster struct {
 	EnableCluster     bool     `toml:"EnableCluster"`     // Enable or disable cluster functionality
 	Hosts             []string `toml:"Hosts"`             // List of seed or known nodes in the cluster
-	HeartbeatMode     string   `toml:"HeartbeatMode"`     // Mode of heartbeats; can be "gossip" or "multicast"
-	BroadcastAddress  string   `toml:"BroadcastAddress"`  // IP address used for broadcast communication (if enabled)
-	BroadcastPort     int64    `toml:"BroadcastPort"`     // Port number used for broadcast communication
 	HeartbeatPort     int64    `toml:"HeartbeatPort"`     // Port number used for sending heartbeat signals
 	GossipIntervalMs  int64    `toml:"GossipIntervalMs"`  // Time interval in milliseconds between gossip messages
 	ReplicationFactor int64    `toml:"ReplicationFactor"` // Number of copies (replicas) of each record across the cluster

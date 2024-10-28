@@ -21,7 +21,7 @@ const (
 	StorageEngineMemory   string = "MEMORY"
 	StorageEngineLSM      string = "LSM"
 	MemtableStorageTypeLB string = "LB"   // skip list + bloom filter
-	MemtableStorageTypeLM string = "LM"   // sorted list + sync.Map
+	MemtableStorageTypeTB string = "TB"   // redblack tree + bloom filter
 	CompressionAlgoNone   string = "NONE" // no compression
 	CompressionAlgoLZ4    string = "LZ4"  // LZ4 compression
 
@@ -44,17 +44,11 @@ const (
 	DefaultTLSKeyFilePath         string = "/etc/universum/key.pem"
 
 	// Section:Cluster
-	HeartbeatModeGossip    string = "GOSSIP"
-	HeartbeatModeBroadcast string = "BROADCAST"
-
-	DefaultEnableCluster     bool   = false
-	DefaultHeartbeatPort     int64  = 11192
-	DefaultHeartbeatMode     string = HeartbeatModeGossip
-	DefaultBroadcastAddress  string = "224.0.0.0/4"
-	DefaultBroadcastPort     int64  = 11193
-	DefaultGossipIntervalMs  int64  = 1000
-	DefaultReplicationFactor int64  = 2 // 1 primary + 1 replica
-	MinClusterSize           uint8  = 3 // to avoid split brain
+	DefaultEnableCluster     bool  = false
+	DefaultHeartbeatPort     int64 = 11192
+	DefaultGossipIntervalMs  int64 = 1000
+	DefaultReplicationFactor int64 = 2 // 1 primary + 1 replica
+	MinClusterSize           uint8 = 3 // to avoid split brain
 
 	// Storage
 	DefaultStorageEngine        string = "MEMORY"    // [MEMORY, LSM]

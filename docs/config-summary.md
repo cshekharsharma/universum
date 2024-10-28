@@ -89,24 +89,6 @@ Settings for configuring clustering and replication among multiple database inst
 - **Default Value:** `["127.0.0.1"]`
 - **Example:** `Hosts = ["127.0.0.1"]`
 
-##### `HeartbeatMode`
-
-- **Description:** The mode used for heartbeat messages. Options include `"GOSSIP"`, `"BROADCAST"`, etc.
-- **Default Value:** `"GOSSIP"`
-- **Example:** `HeartbeatMode = "GOSSIP"`
-
-##### `BroadcastAddress`
-
-- **Description:** The broadcast address used for cluster communication.
-- **Default Value:** `"224.0.0.0/4"`
-- **Example:** `BroadcastAddress = "224.0.0.0/4"`
-
-##### `BroadcastPort`
-
-- **Description:** The port used for broadcastPort communication.
-- **Default Value:** `11193`
-- **Example:** `BroadcastPort = 11193`
-
 ##### `GossipIntervalMs`
 
 - **Description:** The interval in milliseconds between gossip messages.
@@ -181,7 +163,7 @@ Settings specific to the LSM (Log-Structured Merge Tree) storage engine.
 
 ###### `MemtableStorageType`
 
-- **Description:** The type of storage for the memtable. Options might include `"LB"` (SkipList + BloomFilter), `"LM"`, etc.
+- **Description:** The type of storage for the memtable. Options might include `"LB"` (SkipList + Bloom filter), `"TB"` (RedBlack tree + Bloom filter), etc.
 - **Default Value:** `"LB"`
 - **Example:** `MemtableStorageType = "LB"`
 
@@ -340,9 +322,6 @@ TLSKeyFilePath = "/etc/universum/key.pem"
 EnableCluster = false
 HeartbeatPort = 11192
 Hosts = ["127.0.0.1"]
-HeartbeatMode = "GOSSIP"
-BroadcastAddress = "224.0.0.0/4"
-BroadcastPort = 11193
 GossipIntervalMs = 1000
 ReplicationFactor = 2
 

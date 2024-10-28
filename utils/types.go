@@ -59,6 +59,11 @@ func GetTypeEncoding(v interface{}) uint8 {
 
 func IsWriteableDatatype(value interface{}) bool {
 	switch value.(type) {
+	case nil:
+		// not very sure if nil should be allowed,
+		// but I dont see any downside either as of now
+		return true
+
 	case string, bool,
 		int, int8, int16, int32, int64,
 		uint, uint8, uint16, uint32, uint64,

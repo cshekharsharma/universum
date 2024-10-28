@@ -11,9 +11,6 @@ TLSKeyFilePath = "/etc/universum/key.pem"
 EnableCluster = false
 HearbeatPort = 11192
 Hosts = ["127.0.0.1"]
-HeartbeatMode = "GOSSIP"
-MulticastAddress = "224.0.0.0/4"
-MulticastPort = ""
 GossipIntervalMs = 1000
 ReplicationFactor = 2
 

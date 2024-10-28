@@ -63,7 +63,8 @@ func StartTCPServer(wg *sync.WaitGroup) {
 
 	if config.Store.Server.EnableTLS {
 		// Load the TLS certificate and key
-		cert, err := tls.LoadX509KeyPair(config.Store.Server.TLSCertFilePath, config.Store.Server.TLSKeyFilePath)
+		serverCnf := config.Store.Server
+		cert, err := tls.LoadX509KeyPair(serverCnf.TLSCertFilePath, serverCnf.TLSKeyFilePath)
 		if err != nil {
 			logger.Get().Error("Error loading TLS certificate and key: %v", err.Error())
 			engine.Shutdown(entity.ExitCodeSocketError)

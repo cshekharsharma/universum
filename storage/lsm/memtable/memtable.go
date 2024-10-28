@@ -30,8 +30,8 @@ func CreateNewMemTable(tabletype string) MemTable {
 		lsmCnf := config.Store.Storage.LSM
 		return NewListBloomMemTable(lsmCnf.BloomFilterMaxRecords, lsmCnf.BloomFalsePositiveRate)
 
-	case config.MemtableStorageTypeLM: // implemented with map + sorted list
-		return &ListMapMemTable{}
+	case config.MemtableStorageTypeTB: // implemented with redblack tree + bloom filter
+		return &TreeBloomMemTable{}
 
 	default:
 		return &ListBloomMemTable{}

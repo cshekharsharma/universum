@@ -8,27 +8,27 @@ import (
 	"universum/entity"
 )
 
-func SetUpLBTests(t *testing.T) {
+func SetUpTBTests(t *testing.T) {
 	tmpdir := t.TempDir()
 	config.Store = config.GetSkeleton()
 	config.Store.Storage.StorageEngine = config.StorageEngineLSM
 	config.Store.Storage.MaxRecordSizeInBytes = 1048576
-	config.Store.Storage.LSM.MemtableStorageType = config.MemtableStorageTypeLB
+	config.Store.Storage.LSM.MemtableStorageType = config.MemtableStorageTypeTB
 	config.Store.Storage.LSM.WriteBufferSize = 1048576
 	config.Store.Logging.LogFileDirectory = tmpdir
 }
 
-func TestListBloomMemTable_SetAndGet(t *testing.T) {
-	SetUpLBTests(t)
+func TestTreeBloomMemTable_SetAndGet(t *testing.T) {
+	SetUpTBTests(t)
 
-	mt := NewListBloomMemTable(100, 0.01)
+	mt := NewTreeBloomMemTable(100, 0.01)
 	key := "testKey"
 	value := "testValue"
 	invalidValue := map[int]int{1: 2}
 
 	success, code := mt.Set(key, invalidValue, 0, entity.RecordStateActive)
 	if success || code != entity.CRC_INVALID_DATATYPE {
-		t.Errorf("expected invalid datatype err, got %v, %d", success, code)
+		t.Errorf("expected invalid datatype error, got %v, %d", success, code)
 	}
 
 	success, code = mt.Set(key, value, 0, entity.RecordStateActive)
@@ -42,10 +42,10 @@ func TestListBloomMemTable_SetAndGet(t *testing.T) {
 	}
 }
 
-func TestListBloomMemTable_Exists(t *testing.T) {
-	SetUpLBTests(t)
+func TestTreeBloomMemTable_Exists(t *testing.T) {
+	SetUpTBTests(t)
 
-	mt := NewListBloomMemTable(100, 0.01)
+	mt := NewTreeBloomMemTable(100, 0.01)
 	key := "testKey"
 	value := "testValue"
 
@@ -69,10 +69,10 @@ func TestListBloomMemTable_Exists(t *testing.T) {
 	}
 }
 
-func TestListBloomMemTable_Delete(t *testing.T) {
-	SetUpLBTests(t)
+func TestTreeBloomMemTable_Delete(t *testing.T) {
+	SetUpTBTests(t)
 
-	mt := NewListBloomMemTable(100, 0.01)
+	mt := NewTreeBloomMemTable(100, 0.01)
 	key := "testKey"
 	value := "testValue"
 
@@ -85,14 +85,14 @@ func TestListBloomMemTable_Delete(t *testing.T) {
 
 	record, code := mt.Get(key)
 	if code != entity.CRC_RECORD_TOMBSTONED {
-		t.Errorf("expected record to be found as tombstoned, got %v, %d", record, code)
+		t.Errorf("expected record to be tombstoned, got %v, %d", record, code)
 	}
 }
 
-func TestListBloomMemTable_SizeManagement(t *testing.T) {
-	SetUpLBTests(t)
+func TestTreeBloomMemTable_SizeManagement(t *testing.T) {
+	SetUpTBTests(t)
 
-	mt := NewListBloomMemTable(100, 0.01)
+	mt := NewTreeBloomMemTable(100, 0.01)
 	key := "testKey"
 	value := "testValue"
 
@@ -111,10 +111,10 @@ func TestListBloomMemTable_SizeManagement(t *testing.T) {
 	}
 }
 
-func TestListBloomMemTable_KeyExpired(t *testing.T) {
-	SetUpLBTests(t)
+func TestTreeBloomMemTable_KeyExpired(t *testing.T) {
+	SetUpTBTests(t)
 
-	mt := NewListBloomMemTable(100, 0.01)
+	mt := NewTreeBloomMemTable(100, 0.01)
 	key := "testKey"
 	value := "testValue"
 	ttl := int64(1)
@@ -134,10 +134,10 @@ func TestListBloomMemTable_KeyExpired(t *testing.T) {
 	}
 }
 
-func TestListBloomMemTable_Expire(t *testing.T) {
-	SetUpLBTests(t)
+func TestTreeBloomMemTable_Expire(t *testing.T) {
+	SetUpTBTests(t)
 
-	mt := NewListBloomMemTable(100, 0.01)
+	mt := NewTreeBloomMemTable(100, 0.01)
 	key := "testKey"
 	value := "testValue"
 	ttl := int64(10)
@@ -155,10 +155,10 @@ func TestListBloomMemTable_Expire(t *testing.T) {
 	}
 }
 
-func TestListBloomMemTable_IncrDecr(t *testing.T) {
-	SetUpLBTests(t)
+func TestTreeBloomMemTable_IncrDecr(t *testing.T) {
+	SetUpTBTests(t)
 
-	mt := NewListBloomMemTable(100, 0.01)
+	mt := NewTreeBloomMemTable(100, 0.01)
 	key := "testKey"
 	initialValue := int64(10)
 
@@ -175,10 +175,10 @@ func TestListBloomMemTable_IncrDecr(t *testing.T) {
 	}
 }
 
-func TestListBloomMemTable_Append(t *testing.T) {
-	SetUpLBTests(t)
+func TestTreeBloomMemTable_Append(t *testing.T) {
+	SetUpTBTests(t)
 
-	mt := NewListBloomMemTable(100, 0.01)
+	mt := NewTreeBloomMemTable(100, 0.01)
 	key := "testKey"
 	initialValue := "abcd"
 	initialInvalidValue := 100
@@ -186,7 +186,7 @@ func TestListBloomMemTable_Append(t *testing.T) {
 	mt.Set(key, initialInvalidValue, 0, entity.RecordStateActive)
 	actualLen, code := mt.Append(key, "_pqr")
 	if actualLen != config.InvalidNumericValue || code != entity.CRC_INCR_INVALID_TYPE {
-		t.Errorf("expected incr to fail, got %d, %d", actualLen, code)
+		t.Errorf("expected append to fail, got %d, %d", actualLen, code)
 	}
 
 	mt.Set(key, initialValue, 0, entity.RecordStateActive)
@@ -198,9 +198,9 @@ func TestListBloomMemTable_Append(t *testing.T) {
 	}
 }
 
-func TestListBloomMemTable_MSet(t *testing.T) {
-	SetUpLBTests(t)
-	lbMem := NewListBloomMemTable(100, 0.01)
+func TestTreeBloomMemTable_MSet(t *testing.T) {
+	SetUpTBTests(t)
+	tbMem := NewTreeBloomMemTable(100, 0.01)
 
 	kvMap := map[string]interface{}{
 		"key1": "value1",
@@ -208,7 +208,7 @@ func TestListBloomMemTable_MSet(t *testing.T) {
 		"key3": "value3",
 	}
 
-	result, code := lbMem.MSet(kvMap)
+	result, code := tbMem.MSet(kvMap)
 	if code != entity.CRC_MSET_COMPLETED {
 		t.Errorf("MSet: expected %d, got %d", entity.CRC_MSET_COMPLETED, code)
 	}
@@ -220,17 +220,17 @@ func TestListBloomMemTable_MSet(t *testing.T) {
 	}
 }
 
-func TestListBloomMemTable_MGet(t *testing.T) {
-	SetUpLBTests(t)
-	lbMem := NewListBloomMemTable(100, 0.01)
+func TestTreeBloomMemTable_MGet(t *testing.T) {
+	SetUpTBTests(t)
+	tbMem := NewTreeBloomMemTable(100, 0.01)
 
 	kvMap := map[string]interface{}{
 		"key1": "value1",
 		"key2": "value2",
 	}
 
-	lbMem.MSet(kvMap)
-	result, code := lbMem.MGet([]string{"key1", "key2", "key3"})
+	tbMem.MSet(kvMap)
+	result, code := tbMem.MGet([]string{"key1", "key2", "key3"})
 
 	if code != entity.CRC_MGET_COMPLETED {
 		t.Errorf("MGet: expected %d, got %d", entity.CRC_MGET_COMPLETED, code)
@@ -248,9 +248,9 @@ func TestListBloomMemTable_MGet(t *testing.T) {
 	}
 }
 
-func TestListBloomMemTable_MDelete(t *testing.T) {
+func TestTreeBloomMemTable_MDelete(t *testing.T) {
 	SetUpLBTests(t)
-	lbMem := NewListBloomMemTable(100, 0.01)
+	lbMem := NewTreeBloomMemTable(100, 0.01)
 
 	kvMap := map[string]interface{}{
 		"key1": "value1",
@@ -270,10 +270,10 @@ func TestListBloomMemTable_MDelete(t *testing.T) {
 	}
 }
 
-func TestListBloomMemTable_TTL(t *testing.T) {
+func TestTreeBloomMemTable_TTL(t *testing.T) {
 	SetUpLBTests(t)
 
-	mt := NewListBloomMemTable(100, 0.01)
+	mt := NewTreeBloomMemTable(100, 0.01)
 	key := "testKey"
 	value := "testValue"
 	ttl := int64(1)
@@ -293,10 +293,10 @@ func TestListBloomMemTable_TTL(t *testing.T) {
 	}
 }
 
-func TestListBloomMemTable_IsFull(t *testing.T) {
+func TestTreeBloomMemTable_IsFull(t *testing.T) {
 	SetUpLBTests(t)
 
-	mt := NewListBloomMemTable(100, 0.01)
+	mt := NewTreeBloomMemTable(100, 0.01)
 	isfull := mt.IsFull()
 
 	if isfull == true {
@@ -304,10 +304,10 @@ func TestListBloomMemTable_IsFull(t *testing.T) {
 	}
 }
 
-func TestListBloomMemTable_GetCount(t *testing.T) {
+func TestTreeBloomMemTable_GetCount(t *testing.T) {
 	SetUpLBTests(t)
 
-	mt := NewListBloomMemTable(100, 0.01)
+	mt := NewTreeBloomMemTable(100, 0.01)
 	count := mt.GetCount()
 
 	if count != 0 {
@@ -323,14 +323,14 @@ func TestListBloomMemTable_GetCount(t *testing.T) {
 	}
 }
 
-func TestListBloomMemTable_Truncate(t *testing.T) {
-	SetUpLBTests(t)
+func TestTreeBloomMemTable_Truncate(t *testing.T) {
+	SetUpTBTests(t)
 	config.Store.Storage.LSM.WriteBufferSize = 100
 
 	FlusherChan = make(chan MemTable, 2)
 	WALRotaterChan = make(chan int64, 2)
 
-	lbMem := NewListBloomMemTable(100, 0.01)
+	tbMem := NewTreeBloomMemTable(100, 0.01)
 
 	kvMap := map[string]interface{}{
 		"key1": "value1",
@@ -339,26 +339,18 @@ func TestListBloomMemTable_Truncate(t *testing.T) {
 		"key4": "value4",
 	}
 
-	lbMem.MSet(kvMap)
+	tbMem.MSet(kvMap)
 
-	if lbMem.GetCount() != 1 {
-		t.Errorf("Expected memtable count to be 1 after truncation, found: %d", lbMem.GetCount())
-	}
-
-	if lbMem.skipList.Size() != 1 {
-		t.Errorf("Expected skip list size to be 1 after truncation, found: %d", lbMem.skipList.Size())
+	if tbMem.GetCount() != 1 {
+		t.Errorf("Expected memtable count to be 1 after truncation, found: %d", tbMem.GetCount())
 	}
 
 	select {
 	case item := <-FlusherChan:
-		var backupMemtable *ListBloomMemTable
-		backupMemtable = item.(*ListBloomMemTable)
+		var backupMemtable *TreeBloomMemTable
+		backupMemtable = item.(*TreeBloomMemTable)
 
 		if backupMemtable.GetCount() != 3 {
-			t.Error("Expected flushed memtable to have 3 records")
-		}
-
-		if backupMemtable.skipList.Size() != 3 {
 			t.Error("Expected flushed memtable to have 3 records")
 		}
 	default:
@@ -366,11 +358,11 @@ func TestListBloomMemTable_Truncate(t *testing.T) {
 	}
 }
 
-func TestListBloomMemTable_GetAll(t *testing.T) {
-	SetUpLBTests(t)
+func TestTreeBloomMemTable_GetAll(t *testing.T) {
+	SetUpTBTests(t)
 
 	FlusherChan = make(chan MemTable, 1)
-	lbMem := NewListBloomMemTable(100, 0.01)
+	tbMem := NewTreeBloomMemTable(100, 0.01)
 
 	kvMap := map[string]interface{}{
 		"key1": "value1",
@@ -378,8 +370,8 @@ func TestListBloomMemTable_GetAll(t *testing.T) {
 		"key3": "value3",
 	}
 
-	lbMem.MSet(kvMap)
-	allRecords := lbMem.GetAll()
+	tbMem.MSet(kvMap)
+	allRecords := tbMem.GetAll()
 
 	if len(allRecords) != 3 {
 		t.Errorf("Expected 3 records to be returned, got %d", len(allRecords))
@@ -394,7 +386,7 @@ func TestListBloomMemTable_GetAll(t *testing.T) {
 		}
 
 		if key != fmt.Sprintf("key%d", i+1) {
-			t.Errorf("Expected value %v, got %v", fmt.Sprintf("key%d", i+1), key)
+			t.Errorf("Expected key %v, got %v", fmt.Sprintf("key%d", i+1), key)
 		}
 
 		if record.Value != kvMap[fmt.Sprintf("key%d", i+1)] {

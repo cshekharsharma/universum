@@ -10,32 +10,33 @@ import (
 	"universum/utils"
 )
 
-type ListBloomMemTable struct {
-	skipList    *dslib.SkipList
+type TreeBloomMemTable struct {
+	rbTree      *dslib.RBTree
 	bloomFilter *dslib.BloomFilter
 	lock        sync.RWMutex
 	size        int64
 	sizeMap     sync.Map
 	maxSize     int64
 
-	// bloom filter size and hash count
+	// Bloom Filter configuration
 	bfSize      uint64
 	bfHashCount uint8
 }
 
-func NewListBloomMemTable(maxRecords int64, falsePositiveRate float64) *ListBloomMemTable {
+// NewTreeBloomMemTable initializes a new TreeBloomMemTable with a specified maximum record count and false positive rate.
+func NewTreeBloomMemTable(maxRecords int64, falsePositiveRate float64) *TreeBloomMemTable {
 	bfSize, bfHashCount := dslib.OptimalBloomFilterSize(maxRecords, falsePositiveRate)
-	return &ListBloomMemTable{
-		skipList:    dslib.NewSkipList(),
+	return &TreeBloomMemTable{
+		rbTree:      dslib.NewRBTree(),
 		bloomFilter: dslib.NewBloomFilter(bfSize, bfHashCount),
-		size:        0,
 		maxSize:     config.Store.Storage.LSM.WriteBufferSize,
 		bfSize:      bfSize,
 		bfHashCount: bfHashCount,
 	}
 }
 
-func (m *ListBloomMemTable) Exists(key string) (bool, uint32) {
+// Exists checks if a key exists in the memtable using the Bloom Filter.
+func (m *TreeBloomMemTable) Exists(key string) (bool, uint32) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -43,24 +44,23 @@ func (m *ListBloomMemTable) Exists(key string) (bool, uint32) {
 		return false, entity.CRC_RECORD_NOT_FOUND
 	}
 
-	found, _, expiry, state := m.skipList.Get(key)
-
+	found, val, expiry, state := m.rbTree.Get(key)
 	if !found {
 		return false, entity.CRC_RECORD_NOT_FOUND
 	}
 
 	record := &entity.ScalarRecord{
-		Value:  nil,
+		Value:  val,
 		Expiry: expiry,
 		State:  state,
 	}
 
-	if found && record.IsTombstoned() {
+	if record.IsTombstoned() {
 		return false, entity.CRC_RECORD_TOMBSTONED
 	}
 
-	if found && record.IsExpired() {
-		m.skipList.Remove(key)
+	if record.IsExpired() {
+		m.rbTree.Delete(key)
 		m.reduceMemtableSize(key)
 		return false, entity.CRC_RECORD_EXPIRED
 	}
@@ -68,7 +68,8 @@ func (m *ListBloomMemTable) Exists(key string) (bool, uint32) {
 	return true, entity.CRC_RECORD_FOUND
 }
 
-func (m *ListBloomMemTable) Get(key string) (entity.Record, uint32) {
+// Get retrieves the value associated with a key in the memtable.
+func (m *TreeBloomMemTable) Get(key string) (entity.Record, uint32) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -76,7 +77,7 @@ func (m *ListBloomMemTable) Get(key string) (entity.Record, uint32) {
 		return nil, entity.CRC_RECORD_NOT_FOUND
 	}
 
-	found, val, expiry, state := m.skipList.Get(key)
+	found, val, expiry, state := m.rbTree.Get(key)
 	if !found {
 		return nil, entity.CRC_RECORD_NOT_FOUND
 	}
@@ -88,12 +89,12 @@ func (m *ListBloomMemTable) Get(key string) (entity.Record, uint32) {
 		State:  state,
 	}
 
-	if found && record.IsTombstoned() {
+	if record.IsTombstoned() {
 		return nil, entity.CRC_RECORD_TOMBSTONED
 	}
 
-	if found && record.IsExpired() {
-		m.skipList.Remove(key)
+	if record.IsExpired() {
+		m.rbTree.Delete(key)
 		m.reduceMemtableSize(key)
 		return nil, entity.CRC_RECORD_EXPIRED
 	}
@@ -102,7 +103,8 @@ func (m *ListBloomMemTable) Get(key string) (entity.Record, uint32) {
 	return record, entity.CRC_RECORD_FOUND
 }
 
-func (m *ListBloomMemTable) Set(key string, value interface{}, ttl int64, state uint8) (bool, uint32) {
+// Set inserts or updates a key-value pair in the memtable with an optional TTL.
+func (m *TreeBloomMemTable) Set(key string, value interface{}, ttl int64, state uint8) (bool, uint32) {
 	if !utils.IsWriteableDatatype(value) {
 		return false, entity.CRC_INVALID_DATATYPE
 	}
@@ -123,23 +125,25 @@ func (m *ListBloomMemTable) Set(key string, value interface{}, ttl int64, state 
 		m.Truncate()
 	}
 
-	m.skipList.Insert(key, value, expiry, state)
+	m.rbTree.Insert(key, value, expiry, state)
 	m.updateMemtableSize(key, value)
 	m.bloomFilter.Add(key)
 
 	return true, entity.CRC_RECORD_UPDATED
 }
 
-func (m *ListBloomMemTable) Delete(key string) (bool, uint32) {
+// Delete marks a key as tombstoned, effectively removing it from the memtable.
+func (m *TreeBloomMemTable) Delete(key string) (bool, uint32) {
 	m.Set(key, nil, 0, entity.RecordStateTombstoned)
 	return true, entity.CRC_RECORD_DELETED
 }
 
-func (m *ListBloomMemTable) IncrDecrInteger(key string, offset int64, isIncr bool) (int64, uint32) {
+// IncrDecrInteger increments or decrements an integer key by the specified offset.
+func (m *TreeBloomMemTable) IncrDecrInteger(key string, offset int64, isIncr bool) (int64, uint32) {
 	val, code := m.Get(key)
 
 	if code != entity.CRC_RECORD_FOUND {
-		return config.InvalidNumericValue, entity.CRC_RECORD_NOT_FOUND
+		return config.InvalidNumericValue, code
 	}
 
 	record := val.(*entity.ScalarRecord)
@@ -149,32 +153,29 @@ func (m *ListBloomMemTable) IncrDecrInteger(key string, offset int64, isIncr boo
 
 	var newValue int64
 	oldValue := record.Value.(int64)
-
 	if isIncr {
-		newValue = int64(oldValue) + offset
+		newValue = oldValue + offset
 	} else {
-		newValue = int64(oldValue) - offset
+		newValue = oldValue - offset
 	}
 
 	ttl := record.Expiry - utils.GetCurrentEPochTime()
-	didSet, setcode := m.Set(key, newValue, ttl, entity.RecordStateActive)
-
-	if !didSet {
-		return config.InvalidNumericValue, setcode
+	success, setCode := m.Set(key, newValue, ttl, entity.RecordStateActive)
+	if !success {
+		return config.InvalidNumericValue, setCode
 	}
 
 	return newValue, entity.CRC_RECORD_UPDATED
 }
 
-func (m *ListBloomMemTable) Append(key string, value string) (int64, uint32) {
+// Append appends a string value to an existing string key.
+func (m *TreeBloomMemTable) Append(key string, value string) (int64, uint32) {
 	val, code := m.Get(key)
-
 	if code != entity.CRC_RECORD_FOUND {
-		return config.InvalidNumericValue, entity.CRC_RECORD_NOT_FOUND
+		return config.InvalidNumericValue, code
 	}
 
 	record := val.(*entity.ScalarRecord)
-
 	if !utils.IsString(record.Value) {
 		return config.InvalidNumericValue, entity.CRC_INCR_INVALID_TYPE
 	}
@@ -182,15 +183,16 @@ func (m *ListBloomMemTable) Append(key string, value string) (int64, uint32) {
 	newValue := record.Value.(string) + value
 	ttl := record.Expiry - utils.GetCurrentEPochTime()
 
-	didSet, setcode := m.Set(key, newValue, ttl, entity.RecordStateActive)
-	if !didSet {
-		return config.InvalidNumericValue, setcode
+	success, setCode := m.Set(key, newValue, ttl, entity.RecordStateActive)
+	if !success {
+		return config.InvalidNumericValue, setCode
 	}
 
 	return int64(len(newValue)), entity.CRC_RECORD_UPDATED
 }
 
-func (m *ListBloomMemTable) MGet(keys []string) (map[string]interface{}, uint32) {
+// MGet retrieves values for multiple keys in one call.
+func (m *TreeBloomMemTable) MGet(keys []string) (map[string]interface{}, uint32) {
 	responseMap := make(map[string]interface{})
 
 	for idx := range keys {
@@ -212,29 +214,31 @@ func (m *ListBloomMemTable) MGet(keys []string) (map[string]interface{}, uint32)
 	return responseMap, entity.CRC_MGET_COMPLETED
 }
 
-func (m *ListBloomMemTable) MSet(kvMap map[string]interface{}) (map[string]interface{}, uint32) {
+// MSet sets multiple key-value pairs in one call.
+func (m *TreeBloomMemTable) MSet(kvMap map[string]interface{}) (map[string]interface{}, uint32) {
 	responseMap := make(map[string]interface{})
 
 	for key, value := range kvMap {
-		didSet, _ := m.Set(key, value, 0, entity.RecordStateActive)
-		responseMap[key] = didSet
+		success, _ := m.Set(key, value, 0, entity.RecordStateActive)
+		responseMap[key] = success
 	}
-
 	return responseMap, entity.CRC_MSET_COMPLETED
 }
 
-func (m *ListBloomMemTable) MDelete(keys []string) (map[string]interface{}, uint32) {
+// MDelete deletes multiple keys in one call.
+func (m *TreeBloomMemTable) MDelete(keys []string) (map[string]interface{}, uint32) {
 	responseMap := make(map[string]interface{})
 
-	for idx := range keys {
-		deleted, _ := m.Delete(keys[idx])
-		responseMap[keys[idx]] = deleted
+	for _, key := range keys {
+		deleted, _ := m.Delete(key)
+		responseMap[key] = deleted
 	}
 
 	return responseMap, entity.CRC_MDEL_COMPLETED
 }
 
-func (m *ListBloomMemTable) TTL(key string) (int64, uint32) {
+// TTL retrieves the remaining time-to-live (TTL) of a key.
+func (m *TreeBloomMemTable) TTL(key string) (int64, uint32) {
 	val, code := m.Get(key)
 
 	if code != entity.CRC_RECORD_FOUND {
@@ -247,7 +251,8 @@ func (m *ListBloomMemTable) TTL(key string) (int64, uint32) {
 	return ttl, entity.CRC_RECORD_FOUND
 }
 
-func (m *ListBloomMemTable) Expire(key string, ttl int64) (bool, uint32) {
+// Expire sets a TTL on a key, after which it will be deleted.
+func (m *TreeBloomMemTable) Expire(key string, ttl int64) (bool, uint32) {
 	val, code := m.Get(key)
 
 	if code != entity.CRC_RECORD_FOUND {
@@ -258,35 +263,40 @@ func (m *ListBloomMemTable) Expire(key string, ttl int64) (bool, uint32) {
 	return m.Set(key, record.Value, ttl, entity.RecordStateActive)
 }
 
-func (m *ListBloomMemTable) GetSize() int64 {
+// GetSize returns the current size of the memtable.
+func (m *TreeBloomMemTable) GetSize() int64 {
 	return m.size
 }
 
-func (m *ListBloomMemTable) IsFull() bool {
+// IsFull checks if the memtable has reached its maximum size.
+func (m *TreeBloomMemTable) IsFull() bool {
 	return m.size >= m.maxSize
 }
 
-func (m *ListBloomMemTable) GetCount() int64 {
-	return int64(m.skipList.Size())
+// GetCount returns the total number of entries in the memtable.
+func (m *TreeBloomMemTable) GetCount() int64 {
+	return m.rbTree.GetSize()
 }
 
-func (m *ListBloomMemTable) GetAll() []*entity.RecordKV {
+// GetAll retrieves all records from the memtable.
+func (m *TreeBloomMemTable) GetAll() []*entity.RecordKV {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
-	return m.skipList.GetAllRecords()
+	return m.rbTree.GetAllRecords()
 }
 
-func (m *ListBloomMemTable) Truncate() error {
-	backupMemtable := &ListBloomMemTable{
-		skipList:    m.skipList,
+// Truncate clears the memtable, freeing memory space.
+func (m *TreeBloomMemTable) Truncate() error {
+	backupMemtable := &TreeBloomMemTable{
+		rbTree:      m.rbTree,
 		bloomFilter: m.bloomFilter,
 		size:        m.size,
 		sizeMap:     sync.Map{},
 	}
 
-	m.skipList = dslib.NewSkipList()
-	m.bloomFilter = dslib.NewBloomFilter(m.bloomFilter.Size, m.bloomFilter.HashCount)
+	m.rbTree = dslib.NewRBTree()
+	m.bloomFilter = dslib.NewBloomFilter(m.bfSize, m.bfHashCount)
 	m.size = 0
 	m.sizeMap = sync.Map{}
 
@@ -294,12 +304,13 @@ func (m *ListBloomMemTable) Truncate() error {
 	WALRotaterChan <- time.Now().UnixNano()
 
 	logger.Get().Info("Memtable truncated after size=%d, count=%d",
-		backupMemtable.size, backupMemtable.skipList.Size())
+		backupMemtable.size, backupMemtable.rbTree.GetSize())
 
 	return nil
 }
 
-func (m *ListBloomMemTable) updateMemtableSize(key string, val interface{}) {
+// function for size management
+func (m *TreeBloomMemTable) updateMemtableSize(key string, val interface{}) {
 	var metadataSize int64 = 2 * entity.Int64SizeInBytes // 8 bytes each for exp and state
 	newSize, err := utils.GetInMemorySizeInBytes(val)
 	newSize += int64(len(key)) + metadataSize
@@ -320,7 +331,8 @@ func (m *ListBloomMemTable) updateMemtableSize(key string, val interface{}) {
 	m.size += delta
 }
 
-func (m *ListBloomMemTable) reduceMemtableSize(key string) {
+// function for size management
+func (m *TreeBloomMemTable) reduceMemtableSize(key string) {
 	prevSize, ok := m.sizeMap.Load(key)
 
 	if ok {

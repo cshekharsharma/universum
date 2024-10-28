@@ -20,11 +20,11 @@ func TestCreateNewMemTable_TypeLB(t *testing.T) {
 	}
 }
 
-func TestCreateNewMemTable_TypeLM(t *testing.T) {
+func TestCreateNewMemTable_TypeTB(t *testing.T) {
 	config.Store = config.GetSkeleton()
 
-	memTable := CreateNewMemTable(config.MemtableStorageTypeLM)
-	_, ok := memTable.(*ListMapMemTable)
+	memTable := CreateNewMemTable(config.MemtableStorageTypeTB)
+	_, ok := memTable.(*TreeBloomMemTable)
 	if !ok {
 		t.Errorf("Expected memTable to be of type *ListMapMemTable, got %T", memTable)
 	}

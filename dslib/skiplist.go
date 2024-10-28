@@ -11,28 +11,28 @@ const MaxLevel = 16
 const MinString = ""
 
 type SkipList struct {
-	head  *Node
+	head  *SkipListNode
 	level int
 	size  int
 	rand  *rand.Rand
 }
 
-type Node struct {
+type SkipListNode struct {
 	key    string
 	value  interface{}
 	expiry int64
 	state  uint8
-	next   []*Node
+	next   []*SkipListNode
 }
 
 // NewNode creates a new Node for the skip list
-func NewNode(key string, value interface{}, expiry int64, state uint8, level int) *Node {
-	return &Node{
+func NewNode(key string, value interface{}, expiry int64, state uint8, level int) *SkipListNode {
+	return &SkipListNode{
 		key:    key,
 		value:  value,
 		expiry: expiry,
 		state:  state,
-		next:   make([]*Node, level),
+		next:   make([]*SkipListNode, level),
 	}
 }
 
@@ -48,7 +48,7 @@ func NewSkipList() *SkipList {
 
 // Insert inserts a new element into the skip list or updates an existing one
 func (sl *SkipList) Insert(key string, value interface{}, expiry int64, state uint8) {
-	update := make([]*Node, MaxLevel)
+	update := make([]*SkipListNode, MaxLevel)
 	current := sl.head
 
 	for i := sl.level - 1; i >= 0; i-- {
@@ -123,7 +123,7 @@ func (sl *SkipList) Size() int {
 
 // Remove deletes a node with the given key from the skip list
 func (sl *SkipList) Remove(key string) bool {
-	update := make([]*Node, MaxLevel)
+	update := make([]*SkipListNode, MaxLevel)
 	current := sl.head
 
 	for i := sl.level - 1; i >= 0; i-- {
