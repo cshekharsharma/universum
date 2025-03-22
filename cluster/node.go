@@ -35,7 +35,7 @@ type Node struct {
 	LastFailedAt int64
 }
 
-func NewClusterNode() (*Node, error) {
+func NewNode() (*Node, error) {
 	iface, addr, err := utils.GetPrimaryNetworkInterface()
 	if err != nil {
 		return nil, err

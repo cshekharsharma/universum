@@ -1,4 +1,4 @@
-package heartbeat
+package cluster
 
 import (
 	"errors"

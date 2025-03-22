@@ -11,7 +11,7 @@ TLSKeyFilePath = "/etc/universum/key.pem"
 EnableCluster = false
 HearbeatPort = 11192
 Hosts = ["127.0.0.1"]
-GossipIntervalMs = 1000
+HeartbeatIntervalMs = 1000
 ReplicationFactor = 2
 
 [Storage]

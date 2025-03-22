@@ -1,4 +1,4 @@
-package heartbeat
+package cluster
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"time"
-	"universum/cluster"
+	"universum/config"
 	"universum/internal/logger"
 	"universum/resp3"
 	"universum/server"
@@ -15,13 +15,16 @@ import (
 const DefaultNumGossipNodes int = 3
 const DefaultRedundencyFactor int = 2
 
-var heartbeatStopper = make(chan struct{})
+var heartbeatStopper chan struct{}
 
-func StartGossipHeartbeat(nodes []*cluster.Node, intervalMs int64, done <-chan struct{}) {
-	defer func(nodes []*cluster.Node, intervalMs int64, done <-chan struct{}) {
+func StartGossipHeartbeat(done <-chan struct{}) {
+	nodes := GetCluster().Nodes
+	intervalMs := config.Store.Cluster.HeartbeatIntervalMs
+
+	defer func(nodes []*Node, intervalMs int64, done <-chan struct{}) {
 		if r := recover(); r != nil {
 			logger.Get().Warn("StartGossipHeartbeat: Recovered from panic, will restart: %v", r)
-			go StartGossipHeartbeat(nodes, intervalMs, done) // restart the heartbeat worker
+			go StartGossipHeartbeat(done) // restart the heartbeat worker
 		}
 	}(nodes, intervalMs, done)
 
@@ -39,7 +42,7 @@ func StartGossipHeartbeat(nodes []*cluster.Node, intervalMs int64, done <-chan s
 	}
 }
 
-func gossipToRandomNodes(nodes []*cluster.Node) {
+func gossipToRandomNodes(nodes []*Node) {
 	clusterSize := len(nodes)
 	gossipNodeCount := calculateGossipNodeCount(clusterSize)
 
@@ -49,18 +52,18 @@ func gossipToRandomNodes(nodes []*cluster.Node) {
 	}
 }
 
-func sendGossipMessage(node *cluster.Node) {
+func sendGossipMessage(node *Node) error {
 	socket := fmt.Sprintf("%s.%d", node.Host, node.HeartbeatPort)
 	addr, err := net.ResolveTCPAddr(server.NetworkTCP, socket)
 	if err != nil {
-		logger.Get().Fatal("Error resolving gossip address [%s]: %v", socket, err)
-		return
+		logger.Get().Error("Error resolving gossip address [%s]: %v", socket, err)
+		return err
 	}
 
 	conn, err := net.DialTCP(server.NetworkTCP, nil, addr)
 	if err != nil {
-		fmt.Println("Error dialing UDP for gossip:", err)
-		return
+		logger.Get().Error("Error dialing UDP for gossip:", err)
+		return err
 	}
 	defer conn.Close()
 
@@ -69,9 +72,11 @@ func sendGossipMessage(node *cluster.Node) {
 
 	_, err = conn.Write([]byte(message))
 	if err != nil {
-		fmt.Println("Error sending gossip heartbeat:", err)
+		logger.Get().Error("Error sending gossip heartbeat:", err)
 	}
-	fmt.Println("Sent gossip heartbeat to", node.Host)
+
+	logger.Get().Info("Sent gossip heartbeat to", node.Host)
+	return nil
 }
 
 func calculateGossipNodeCount(clusterSize int) int {

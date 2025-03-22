@@ -100,6 +100,10 @@ func (v *ConfigValidator) validateClusterSection(config *Config) error {
 			config.Cluster.HeartbeatPort, config.Server.ServerPort)
 	}
 
+	if config.Cluster.HeartbeatIntervalMs == 0 {
+		config.Cluster.HeartbeatIntervalMs = DefaultHeartbeatIntervalMs
+	}
+
 	if config.Cluster.EnableCluster && len(config.Cluster.Hosts) < int(MinClusterSize) {
 		return fmt.Errorf("host list cannot be less than %d in cluster mode [potential split brain]", MinClusterSize)
 	}

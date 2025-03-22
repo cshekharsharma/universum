@@ -44,11 +44,11 @@ const (
 	DefaultTLSKeyFilePath         string = "/etc/universum/key.pem"
 
 	// Section:Cluster
-	DefaultEnableCluster     bool  = false
-	DefaultHeartbeatPort     int64 = 11192
-	DefaultGossipIntervalMs  int64 = 1000
-	DefaultReplicationFactor int64 = 2 // 1 primary + 1 replica
-	MinClusterSize           uint8 = 3 // to avoid split brain
+	DefaultEnableCluster       bool  = false
+	DefaultHeartbeatPort       int64 = 11192
+	DefaultHeartbeatIntervalMs int64 = 1000
+	DefaultReplicationFactor   int64 = 2 // 1 primary + 1 replica
+	MinClusterSize             uint8 = 3 // to avoid split brain
 
 	// Storage
 	DefaultStorageEngine        string = "MEMORY"    // [MEMORY, LSM]
